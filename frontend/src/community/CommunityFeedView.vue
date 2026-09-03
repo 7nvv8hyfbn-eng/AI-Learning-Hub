@@ -109,6 +109,10 @@ onMounted(async () => {
 onBeforeUnmount(() => { alive = false; remember(); flushDwell(); impressed.clear(); observer?.disconnect(); impressionObserver?.disconnect(); window.clearInterval(polling) })
 </script>
 <template><section ref="feedRoot" class="community-feed">
+  <div class="community-welcome">
+    <div class="community-welcome-copy"><span class="community-welcome-eyebrow">AI MAKER CAMPUS</span><h1>高校 AI 创客学习社区</h1><p>提问、分享与讨论，让每一次学习都留下作品。</p></div>
+    <div class="community-welcome-art" aria-hidden="true"><span class="community-welcome-orb community-welcome-orb-a" /><span class="community-welcome-orb community-welcome-orb-b" /><span class="community-welcome-orb community-welcome-orb-c" /></div>
+  </div>
   <CommunityFeedToolbar :mode="mode" :type="type" :new-count="newCount" :loading="loading" @change="change" @refresh="load(true)" />
   <CommunityQuickComposer />
   <CommunitySkeleton v-if="loading && !feed?.items.length" />

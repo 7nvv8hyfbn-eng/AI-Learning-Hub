@@ -134,8 +134,8 @@ textarea { resize: vertical; }
 
 .app-dialog .dialog-form label.community-checkbox, .community-profile-form .community-checkbox { display: flex; align-items: center; gap: 10px; }
 .community-checkbox input { width: auto; min-height: 0; flex-shrink: 0; }
-.skeleton-card { padding: 24px; margin-bottom: 16px; background: var(--amc-surface); border: 1px solid var(--amc-border); border-radius: var(--amc-radius-card); }
-.skeleton-card i, .skeleton-card span { display: block; background: var(--amc-border-soft); border-radius: var(--amc-radius-xs); height: 13px; margin-bottom: 14px; animation: skeleton-pulse 1.5s ease-in-out infinite; }
+.skeleton-card { padding: 24px; margin-bottom: 16px; background: var(--amc-surface); border: 1px solid var(--amc-border); border-radius: 16px; box-shadow: 0 2px 12px rgba(31, 41, 55, .04); }
+.skeleton-card i, .skeleton-card span { display: block; background: var(--amc-bg-soft); border-radius: var(--amc-radius-xs); height: 13px; margin-bottom: 14px; animation: skeleton-pulse 1.5s ease-in-out infinite; }
 .skeleton-card i { width: 42px; height: 42px; border-radius: 50%; }
 .skeleton-card span:last-child { width: 65%; }
 @keyframes skeleton-pulse { 50% { opacity: .4; } }
