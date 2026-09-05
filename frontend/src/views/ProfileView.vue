@@ -2,6 +2,8 @@
 import CommunityAvatar from '../components/base/CommunityAvatar.vue'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import type { CommunityProfileDto } from '@ai-learning-hub/contracts'
 import AppDialog from '../components/base/AppDialog.vue'
 import AppIcon from '../components/base/AppIcon.vue'
 import ProgressBar from '../components/ProgressBar.vue'
@@ -9,6 +11,7 @@ import { userProfile, assessmentAchievements } from '../data/mock'
 import PageHeroArt from '../components/PageHeroArt.vue'
 import CategoryCover from '../components/base/CategoryCover.vue'
 import { dataMode } from '../services/api/client'
+import { communityApi } from '../services/api/community'
 import { useAuthStore } from '../stores/auth'
 import { useArticlesStore } from '../stores/content/articles'
 import { useCoursesStore } from '../stores/content/courses'
@@ -18,6 +21,8 @@ import { useLearningStore } from '../stores/learning'
 
 const store = useLearningStore()
 const auth = useAuthStore()
+const router = useRouter()
+const communityProfile = ref<CommunityProfileDto | null>(null)
 const courseStore = useCoursesStore()
 const labStore = useLabsStore()
 const resourceStore = useResourcesStore()
@@ -26,18 +31,15 @@ const { items: courses } = storeToRefs(courseStore)
 const { items: labs } = storeToRefs(labStore)
 const { items: resources } = storeToRefs(resourceStore)
 const { items: articles } = storeToRefs(articleStore)
-const displayName = computed(() => dataMode === 'api' ? (auth.user?.displayName || '未登录') : store.profile.nickname)
+const displayName = computed(() => communityProfile.value?.displayName || auth.user?.displayName || '学习者')
 const accountDataReady = computed(() => dataMode === 'mock' || store.accountSyncState === 'synced')
 const accountDataMessage = computed(() => {
   if (!auth.user) return '登录后查看账号学习数据。'
   return store.accountSyncState === 'sync-error' ? '账号学习数据暂不可用。' : '正在同步账号学习数据…'
 })
-const editOpen = ref(false)
 const planOpen = ref(false)
 const badgeOpen = ref('')
 const favoriteTab = ref('全部')
-const editName = ref(store.profile.nickname)
-const editBio = ref(store.profile.bio)
 const planName = ref('')
 const planDate = ref('')
 const favoriteItems = computed(() => {
@@ -66,15 +68,7 @@ const abilities = [
   ['AI 创新与设计', 58, '#e5a91d'], ['编程与工具', 74, '#3478f6'], ['AI 素养与伦理', 69, '#27b86b'],
 ]
 const badges = assessmentAchievements
-const openEdit = () => {
-  editName.value = store.profile.nickname
-  editBio.value = store.profile.bio
-  editOpen.value = true
-}
-const saveProfile = () => {
-  store.saveProfile(editName.value, editBio.value)
-  editOpen.value = false
-}
+const openEdit = () => router.push(`/community/user/${auth.user?.username}?settings=1`)
 const createPlan = async () => {
   if (!planName.value.trim() || !planDate.value) return
   if (!await store.addPlan({
@@ -88,16 +82,19 @@ const createPlan = async () => {
   planOpen.value = false
 }
 onMounted(() => {
-  void Promise.all([courseStore.load(), labStore.load(), resourceStore.load(), articleStore.load()])
+  void Promise.all([
+    courseStore.load(), labStore.load(), resourceStore.load(), articleStore.load(),
+    auth.user ? communityApi.profile(auth.user.username).then((profile) => { communityProfile.value = profile }) : Promise.resolve(),
+  ])
 })
 </script>
 
 <template>
-  <nav class="community-profile-links"><RouterLink :to="`/community/user/${auth.user?.username}`">我的动态与回答</RouterLink><RouterLink :to="`/community/user/${auth.user?.username}?tab=topics`">关注的话题</RouterLink><RouterLink :to="`/community/user/${auth.user?.username}?tab=following`">关注的人</RouterLink><RouterLink to="/bookmarks">我的收藏与笔记</RouterLink><RouterLink to="/notifications">社区通知</RouterLink></nav>
+  <nav class="community-profile-links"><RouterLink :to="`/community/user/${auth.user?.username}`">我的社区主页</RouterLink><RouterLink :to="`/community/user/${auth.user?.username}?tab=topics`">关注的话题</RouterLink><RouterLink :to="`/community/user/${auth.user?.username}?tab=following`">关注的人</RouterLink><RouterLink to="/bookmarks">我的收藏与笔记</RouterLink><RouterLink to="/notifications">社区通知</RouterLink></nav>
   <div class="page-container profile-page">
     <section class="profile-hero">
       <PageHeroArt visual-key="profileHeroAssetId" />
-      <div class="profile-user"><CommunityAvatar :src="auth.user?.avatarUrl" :username="auth.user?.username" :name="displayName" size="lg" /><div><h1>{{ displayName }} <small>{{ dataMode === 'api' ? '统一学习账号' : '高校认证' }}</small></h1><p>{{ dataMode === 'api' ? (auth.user?.email || '尚未登录') : userProfile.program }}</p><span>{{ dataMode === 'api' ? (auth.user ? '个人介绍尚未配置' : '登录后查看个人学习档案') : store.profile.bio }}</span><div v-if="dataMode === 'mock'" class="hero-actions"><button class="button secondary small" type="button" @click="openEdit">编辑资料</button></div></div></div>
+      <div class="profile-user"><CommunityAvatar :src="auth.user?.avatarUrl" :username="auth.user?.username" :name="displayName" size="lg" /><div><h1>{{ displayName }} <small>{{ dataMode === 'api' ? '统一学习账号' : '高校认证' }}</small></h1><p>{{ dataMode === 'api' ? (auth.user?.email || '尚未登录') : userProfile.program }}</p><span>{{ communityProfile ? (communityProfile.bio || '还没有填写个人介绍。') : '正在读取社区资料…' }}</span><div class="hero-actions"><button class="button secondary small" type="button" @click="openEdit">编辑资料</button></div></div></div>
       <div class="profile-level"><div><strong>{{ dataMode === 'api' ? '等级 —' : `Lv.${userProfile.level}` }}</strong><span>{{ dataMode === 'api' ? '等级规则尚未配置' : '离下一等级还差 1200 经验值' }}</span></div><ProgressBar v-if="dataMode === 'mock'" :value="82" /><span v-else>等级进度 —</span><div class="profile-kpis"><span><strong>{{ dataMode === 'api' ? '—' : userProfile.streak }}</strong>连续学习/天</span><span><strong>{{ dataMode === 'api' ? '—' : `${userProfile.weeklyHours}h` }}</strong>本周学习</span><span><strong>{{ dataMode === 'api' ? (accountDataReady ? (store.serverGrowth?.points ?? 0) : '—') : userProfile.points }}</strong>成就点</span></div></div>
     </section>
     <section><div class="section-heading"><h2>学习总览</h2><RouterLink to="/assessments">学习数据详情 <AppIcon name="arrow-right" :size="15" /></RouterLink></div><p v-if="!accountDataReady" class="notice">{{ accountDataMessage }}</p><div class="stat-row six"><article v-for="[label, value] in overviewRows" :key="label"><strong>{{ value }}</strong><span>{{ label }}</span></article></div></section>
@@ -113,7 +110,6 @@ onMounted(() => {
     </div>
     <section class="profile-cta"><div><h2>{{ dataMode === 'api' ? '继续完成已发布的学习与实训任务' : '继续积累你的 AI 能力！' }}</h2><p>每一次学习、每一次解决问题的积累，都在增长你的 AI 能力。</p><RouterLink class="button primary" to="/topics">探索更多课程</RouterLink></div><div v-if="dataMode === 'mock'" class="profile-kpis"><span><strong>18.6h</strong>本月学习时长</span><span><strong>7 个</strong>本月实验完成</span><span><strong>860 分</strong>本月成就点</span></div><div class="trophy"><AppIcon name="trophy" :size="52" /></div></section>
   </div>
-  <AppDialog v-model="editOpen" title="编辑资料"><form class="dialog-form" @submit.prevent="saveProfile"><label>昵称<input v-model="editName" required maxlength="20" autofocus /></label><label>个人介绍<textarea v-model="editBio" required rows="4" maxlength="120" /></label><button class="button primary" type="submit">保存到本地</button></form></AppDialog>
   <AppDialog v-model="planOpen" title="创建学习计划"><form class="dialog-form" @submit.prevent="createPlan"><label>计划名称<input v-model="planName" required maxlength="50" autofocus /></label><label>目标日期<input v-model="planDate" required type="date" /></label><div class="notice">{{ dataMode === 'api' ? '计划将写入学习账号，并在管理后台成长记录中可查。' : '演示计划只保存在浏览器本地。' }}</div><button class="button primary" type="submit">创建学习计划</button></form></AppDialog>
   <AppDialog :model-value="!!badgeOpen" :title="badgeOpen || '徽章详情'" @update:model-value="badgeOpen = ''"><div class="badge-detail"><AppIcon :name="badges.find((badge) => badge.title === badgeOpen)?.icon || 'achievement'" :size="48" /></div><p>完成对应学习与实践目标后获得。当前徽章数据为演示内容。</p></AppDialog>
 </template>

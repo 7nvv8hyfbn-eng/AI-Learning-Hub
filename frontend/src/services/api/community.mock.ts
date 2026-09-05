@@ -1,5 +1,5 @@
 import { createCommunityFixtures, demoArticles, demoChallenges, demoCourses, demoLabs, demoResources, demoStudents, demoThemes, lczCuratedPosts } from '@ai-learning-hub/demo-fixtures'
-import type { CommunityAuthorDto, CommunityCommentDto, CommunityContentBlock, CommunityContextDto, CommunityNotificationDto, CommunityPostDetailDto, CommunityPostInput, CommunityProfileDto, CommunityTopicDto } from '@ai-learning-hub/contracts'
+import type { AuthUser, CommunityAuthorDto, CommunityCommentDto, CommunityContentBlock, CommunityContextDto, CommunityNotificationDto, CommunityPostDetailDto, CommunityPostInput, CommunityProfileDto, CommunityProfileUpdateDto, CommunityTopicDto } from '@ai-learning-hub/contracts'
 import { randomId } from './random-id'
 import { mockFixtureCover } from '../../media/catalog'
 const fixtures = createCommunityFixtures({ courses: demoCourses, labs: demoLabs, articles: demoArticles, themes: demoThemes, students: demoStudents })
@@ -59,40 +59,96 @@ const initialNotifications: CommunityNotificationDto[] = fixtures.notifications.
 let comments = structuredClone(initialComments), notifications = structuredClone(initialNotifications)
 let posts = structuredClone(initialPosts)
 const initialFollowing = fixtures.follows.filter((f) => f.follower === authors[0].id).map((f) => f.followee)
-const hidden = new Set<string>(), muted = new Set<string>(), following = new Set(initialFollowing)
+const hidden = new Set<string>(), muted = new Set<string>(), blocked = new Set<string>(), following = new Set(initialFollowing)
 const cursors = new Map<string, { ids: string[]; offset: number; mode: string; type: string; requestId: string }>()
-let bio = '', headline = '', allowAchievementDrafts = false
-const storageKey = 'ai-learning-community:demo-v3'
+let bio = '', headline = '', location = '', websiteUrl = '', expertiseTopics: string[] = [], bannerUrl: string | null = null, pinnedPostId: string | null = null, allowAchievementDrafts = false, userRevision = 1, profileRevision = 1
+const joinedAt = '2026-08-30T08:00:00.000Z'
+const storageKey = 'ai-learning-community:demo-v4'
 let restored = false
 const restoreMock = () => {
 if (restored) return
 restored = true
 try {
   const stored = JSON.parse(localStorage.getItem(storageKey) || 'null')
-  if (stored?.version === 3) {
+  if (stored?.version === 4) {
     posts = stored.posts; comments = stored.comments; notifications = stored.notifications
     for (const id of stored.hidden) hidden.add(id)
     for (const id of stored.muted) muted.add(id)
+    for (const id of stored.blocked) blocked.add(id)
     following.clear(); for (const id of stored.following) following.add(id)
     topics.forEach((topic) => { topic.following = stored.topicIds.includes(topic.id) })
-    bio = stored.bio; headline = stored.headline; allowAchievementDrafts = stored.allowAchievementDrafts
+    bio = stored.bio; headline = stored.headline; location = stored.location || ''; websiteUrl = stored.websiteUrl || ''; expertiseTopics = stored.expertiseTopics || []; bannerUrl = stored.bannerUrl || null; pinnedPostId = stored.pinnedPostId || null; allowAchievementDrafts = stored.allowAchievementDrafts
+    userRevision = stored.userRevision || 1; profileRevision = stored.profileRevision || 1
+    authors[0].avatar = stored.avatar || null
   }
 } catch { /* 损坏的本地演示状态使用可重置的初始数据。 */ }
 }
-const persist = () => { try { localStorage.setItem(storageKey, JSON.stringify({ version: 3, posts, comments, notifications, hidden: [...hidden], muted: [...muted], following: [...following], topicIds: topics.filter((t) => t.following).map((t) => t.id), bio, headline, allowAchievementDrafts })) } catch { throw new Error('本地演示存储已满，请清理浏览器空间') } }
+const persist = () => { try { localStorage.setItem(storageKey, JSON.stringify({ version: 4, posts, comments, notifications, hidden: [...hidden], muted: [...muted], blocked: [...blocked], following: [...following], topicIds: topics.filter((t) => t.following).map((t) => t.id), bio, headline, location, websiteUrl, expertiseTopics, bannerUrl, pinnedPostId, avatar: authors[0].avatar, allowAchievementDrafts, userRevision, profileRevision })) } catch { throw new Error('本地演示存储已满，请清理浏览器空间') } }
 export const resetCommunityMock = () => {
   restored = true
   posts = structuredClone(initialPosts); comments = structuredClone(initialComments); notifications = structuredClone(initialNotifications)
-  hidden.clear(); muted.clear(); following.clear(); cursors.clear(); initialFollowing.forEach((id) => following.add(id))
+  hidden.clear(); muted.clear(); blocked.clear(); following.clear(); cursors.clear(); initialFollowing.forEach((id) => following.add(id))
   topics.forEach((topic) => { topic.following = false; topic.followerCount = 0 })
-  bio = ''; headline = ''; allowAchievementDrafts = false
+  bio = ''; headline = ''; location = ''; websiteUrl = ''; expertiseTopics = []; bannerUrl = null; pinnedPostId = null; allowAchievementDrafts = false; userRevision = 1; profileRevision = 1; authors[0].avatar = null
   if (typeof localStorage !== 'undefined') localStorage.removeItem(storageKey)
 }
 const context = (): CommunityContextDto => ({ todayPlan: null, continueCourse: null, continueLab: null, currentChallenge: null, trendingTopics: topics.slice(0, 6), suggestedUsers: authors.filter((user) => user.verifiedType !== 'none'), needsInterests: topics.filter((t) => t.following).length < 3 })
-const visible = (ownDrafts = false) => posts.filter((p) => !hidden.has(p.id) && !muted.has(p.author.id) && (p.status === 'published' || p.status === 'limited' || (ownDrafts && p.status === 'draft' && p.author.id === authors[0].id)))
+const visible = (ownDrafts = false) => posts.filter((p) => !hidden.has(p.id) && !muted.has(p.author.id) && !blocked.has(p.author.id) && (p.status === 'published' || p.status === 'limited' || (ownDrafts && p.status === 'draft' && p.author.id === authors[0].id)))
 const requirePost = (id: string) => { const post = visible(true).find((p) => p.id === id); if (!post) throw new Error('动态不可见或已删除'); return post }
 const requireOwner = (authorId: string) => { if (authorId !== authors[0].id) throw new Error('只能修改自己的内容') }
 const filtered = (url: URL) => visible().filter((p) => (!url.searchParams.get('type') || url.searchParams.get('type') === 'all' || p.type === url.searchParams.get('type')) && (url.searchParams.get('mode') !== 'following' || following.has(p.author.id) || p.topics.some((t) => topics.find((topic) => topic.id === t.id)?.following)))
+const profileFor = (id: string): CommunityProfileDto => {
+  const user = authors.find((author) => author.id === id)
+  if (!user) throw new Error('用户不存在或不可见')
+  const own = id === authors[0].id
+  const publicPosts = visible().filter((post) => post.author.id === id)
+  const pinned = publicPosts.find((post) => post.id === pinnedPostId && post.status === 'published' && post.visibility === 'public') || null
+  return {
+    ...user,
+    revision: own ? profileRevision : 1,
+    userRevision: own ? userRevision : 1,
+    bio: own ? bio : '在学习、实训与讨论中一起成长。',
+    headline: own ? headline : '',
+    location: own ? location || null : null,
+    websiteUrl: own ? websiteUrl || null : null,
+    bannerUrl: own ? bannerUrl : null,
+    joinedAt,
+    expertiseTopics: own ? expertiseTopics : [],
+    ...(own ? { allowAchievementDrafts } : {}),
+    postCount: publicPosts.length,
+    replyCount: comments.filter((comment) => comment.author.id === id && !comment.deleted && visible().some((post) => post.id === comment.postId)).length,
+    likesReceived: publicPosts.reduce((total, post) => total + post.stats.likes, 0),
+    followerCount: new Set([...fixtures.follows.filter((follow) => follow.followee === id).map((follow) => follow.follower), ...(following.has(id) ? [authors[0].id] : [])]).size,
+    followingCount: own ? following.size : fixtures.follows.filter((follow) => follow.follower === id).length,
+    following: following.has(id),
+    followedBy: fixtures.follows.some((follow) => follow.follower === id && follow.followee === authors[0].id),
+    muted: muted.has(id),
+    blocked: blocked.has(id),
+    isSelf: own,
+    pinnedPost: pinned,
+    topics: own ? topics.filter((topic) => topic.following) : [],
+  }
+}
+const authUser = (): AuthUser => {
+  let stored: Partial<AuthUser> = {}
+  try { stored = JSON.parse(localStorage.getItem('community-demo-user') || '{}') } catch { /* 使用固定演示账号。 */ }
+  return {
+    id: authors[0].id,
+    username: authors[0].username,
+    email: stored.email || '',
+    displayName: authors[0].displayName,
+    roles: stored.roles || ['student'],
+    permissions: stored.permissions || [],
+    avatarUrl: authors[0].avatar,
+    school: authors[0].school,
+    major: authors[0].major,
+    onboardingCompleted: stored.onboardingCompleted ?? true,
+    emailVerificationRequired: false,
+    revision: userRevision,
+    profileRevision,
+  }
+}
+const profileUpdate = (): CommunityProfileUpdateDto => ({ user: authUser(), profile: profileFor(authors[0].id) })
 export async function mockCommunity<T>(path: string, method: string, body?: unknown): Promise<T> {
   restoreMock()
   if (typeof localStorage !== 'undefined') {
@@ -105,7 +161,7 @@ export async function mockCommunity<T>(path: string, method: string, body?: unkn
     } catch { /* 损坏的演示账号不会覆盖当前展示资料。 */ }
   }
   if (path.startsWith('/users/by-username/')) {
-    const username = decodeURIComponent(path.slice('/users/by-username/'.length)), user = authors.find((row) => row.username === username)
+    const username = decodeURIComponent(path.slice('/users/by-username/'.length)), user = authors.find((row) => row.username.toLowerCase() === username.toLowerCase())
     if (!user) throw new Error('用户不存在')
     return mockCommunity<T>(`/users/${user.id}`, method, body)
   }
@@ -122,7 +178,7 @@ export async function mockCommunity<T>(path: string, method: string, body?: unkn
     const q = (url.searchParams.get('q') || '').toLowerCase(), type = url.searchParams.get('type') || 'all', offset = Number(url.searchParams.get('cursor') || 0), limit = type === 'all' ? 3 : 20
     const matches = (value: string) => !!q && value.toLowerCase().includes(q)
     const catalog = (rows: Array<{ slug: string; title: string; summary: string }>) => rows.filter((r) => matches(`${r.title} ${r.summary}`)).map((r) => ({ ...r, id: r.slug, status: 'published', data: r, updatedAt: '', publishedAt: null, sortOrder: 0 }))
-    const all = { posts: visible().filter((r) => matches(`${r.title} ${r.body}`)), users: authors.filter((r) => !muted.has(r.id) && matches(`${r.username} ${r.displayName}`)), topics: topics.filter((r) => matches(`${r.name} ${r.description}`)), courses: catalog(demoCourses), labs: catalog(demoLabs), resources: catalog(demoResources), articles: catalog(demoArticles) }
+    const all = { posts: visible().filter((r) => matches(`${r.title} ${r.body}`)), users: authors.filter((r) => !muted.has(r.id) && !blocked.has(r.id) && matches(`${r.username} ${r.displayName}`)), topics: topics.filter((r) => matches(`${r.name} ${r.description}`)), courses: catalog(demoCourses), labs: catalog(demoLabs), resources: catalog(demoResources), articles: catalog(demoArticles) }
     value = { ...Object.fromEntries(Object.entries(all).map(([key, rows]) => [key, type === 'all' || type === key ? rows.slice(offset, offset + limit) : []])), nextCursor: type !== 'all' && type in all && all[type as keyof typeof all].length > offset + limit ? String(offset + limit) : null }
   } else if (root === 'feed') {
     if (id === 'updates') value = { count: filtered(url).filter((p) => p.publishedAt > (url.searchParams.get('since') || '')).length }
@@ -163,14 +219,65 @@ export async function mockCommunity<T>(path: string, method: string, body?: unkn
   }
   else if (root === 'profile') {
     if (id === 'username') { const user = JSON.parse(localStorage.getItem('community-demo-user') || '{}'); if (user.usernameChanged) throw new Error('公开用户名只能修改一次'); const username = (body as { username: string }).username; if (!/^[a-z][a-z0-9_]{3,29}$/.test(username) || authors.some((a) => a.username === username)) throw new Error('用户名不可用'); authors[0].username = username; value = { ...user, username, usernameChanged: true }; localStorage.setItem('community-demo-user', JSON.stringify(value)) }
-    else { const input = body as CommunityProfileDto; bio = input.bio; headline = input.headline; allowAchievementDrafts = !!input.allowAchievementDrafts; value = {} }
+    else if (id === 'avatar' || id === 'banner') {
+      const input = body as { file?: File; expectedUserRevision: number; expectedProfileRevision: number }
+      if (input.expectedUserRevision !== userRevision || input.expectedProfileRevision !== profileRevision) throw new Error('资料已更新，请重新读取')
+      if (method === 'POST') {
+        if (!input.file) throw new Error('请选择图片')
+        const url = URL.createObjectURL(input.file)
+        if (id === 'avatar') authors[0].avatar = url
+        else bannerUrl = url
+      } else if (id === 'avatar') authors[0].avatar = null
+      else bannerUrl = null
+      userRevision++; profileRevision++; value = profileUpdate()
+    } else if (id === 'pinned-post') {
+      const input = body as { expectedProfileRevision: number }
+      if (input.expectedProfileRevision !== profileRevision) throw new Error('资料已更新，请重新读取')
+      pinnedPostId = null; profileRevision++; value = profileFor(authors[0].id)
+    } else {
+      const input = body as { expectedUserRevision: number; expectedProfileRevision: number; displayName: string; bio: string; headline: string; location: string; websiteUrl: string; expertiseTopics: string[]; allowAchievementDrafts: boolean }
+      if (input.expectedUserRevision !== userRevision || input.expectedProfileRevision !== profileRevision) throw new Error('资料已更新，请重新读取')
+      if (!input.displayName?.trim() || input.location.length > 60 || [input.displayName, input.bio, input.headline, input.location, ...input.expertiseTopics].some((text) => /[\p{Cc}<>]/u.test(text))) throw new Error('资料包含不允许的字符')
+      if (input.websiteUrl && !/^https?:\/\//i.test(input.websiteUrl)) throw new Error('个人网站需要完整的 http 或 https 地址')
+      authors[0].displayName = input.displayName.trim(); bio = input.bio.trim(); headline = input.headline.trim(); location = input.location.trim(); websiteUrl = input.websiteUrl.trim(); expertiseTopics = [...new Set(input.expertiseTopics.map((topic) => topic.trim()).filter(Boolean))]; allowAchievementDrafts = !!input.allowAchievementDrafts
+      userRevision++; profileRevision++
+      const user = authUser()
+      if (typeof localStorage !== 'undefined') localStorage.setItem('community-demo-user', JSON.stringify(user))
+      value = { user, profile: profileFor(authors[0].id) }
+    }
   }
   else if (root === 'users') {
-    if (action === 'following') value = authors.filter((author) => following.has(author.id))
+    if (action === 'timeline') {
+      const profile = profileFor(id), tab = url.searchParams.get('tab') || 'posts', offset = Number(url.searchParams.get('cursor') || 0), limit = Number(url.searchParams.get('limit') || 20)
+      if (tab === 'liked' && !profile.isSelf) throw new Error('赞过的内容仅自己可见')
+      if (tab === 'replies') {
+        const rows = comments.filter((comment) => comment.author.id === id && !comment.deleted && visible().some((post) => post.id === comment.postId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+        value = { posts: [], replies: rows.slice(offset, offset + limit).map((comment) => { const post = posts.find((row) => row.id === comment.postId)!; return { id: comment.id, postId: comment.postId, postTitle: post.title, bodyPreview: comment.body.slice(0, 320), likes: comment.likes, accepted: comment.accepted, createdAt: comment.createdAt } }), nextCursor: rows.length > offset + limit ? String(offset + limit) : null }
+      } else {
+        const rows = visible().filter((post) => (tab === 'liked' ? post.viewerState.liked : post.author.id === id) && (tab !== 'media' || post.contentBlocks.some((block) => block.type === 'image')) && post.id !== profile.pinnedPost?.id).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id))
+        value = { posts: rows.slice(offset, offset + limit), replies: [], nextCursor: rows.length > offset + limit ? String(offset + limit) : null }
+      }
+    }
+    else if (action === 'followers' || action === 'following') {
+      const offset = Number(url.searchParams.get('cursor') || 0), limit = Number(url.searchParams.get('limit') || 20)
+      const ids = action === 'following'
+        ? (id === authors[0].id ? [...following] : fixtures.follows.filter((follow) => follow.follower === id).map((follow) => follow.followee))
+        : [...fixtures.follows.filter((follow) => follow.followee === id).map((follow) => follow.follower), ...(following.has(id) ? [authors[0].id] : [])]
+      const rows = [...new Set(ids)].filter((userId) => !muted.has(userId) && !blocked.has(userId)).map((userId) => authors.find((author) => author.id === userId)).filter((author): author is CommunityAuthorDto => !!author)
+      value = { items: rows.slice(offset, offset + limit).map((author) => ({ ...author, following: following.has(author.id) })), nextCursor: rows.length > offset + limit ? String(offset + limit) : null }
+    }
     else if (action === 'follow') { if (method === 'PUT') following.add(id); else following.delete(id); posts.forEach((p) => { p.viewerState.followingAuthor = following.has(p.author.id) }); value = { active: method === 'PUT' } }
-    else if (action === 'mute' || action === 'block') { muted.add(id); value = { hidden: true } }
-    else if (action === 'posts' || action === 'answers') value = visible(action === 'posts' && id === authors[0].id).filter((p) => action === 'posts' ? p.author.id === id : comments.some((c) => c.postId === p.id && c.author.id === id && !c.deleted))
-    else { const user = authors.find((a) => a.id === id); if (!user || muted.has(id)) throw new Error('用户不存在或不可见'); const own = id === authors[0].id; value = { ...user, bio: own ? bio : '在学习、实训与讨论中一起成长。', headline: own ? headline : '', expertiseTopics: [], ...(own ? { allowAchievementDrafts } : {}), postCount: visible().filter((p) => p.author.id === id).length, followerCount: fixtures.follows.filter((f) => f.followee === id).length, followingCount: own ? following.size : fixtures.follows.filter((f) => f.follower === id).length, following: following.has(id), topics: own ? topics.filter((t) => t.following) : [] } }
+    else if (action === 'mute' || action === 'block') {
+      const target = action === 'mute' ? muted : blocked
+      if (method === 'DELETE') target.delete(id)
+      else {
+        target.add(id)
+        if (action === 'block') following.delete(id)
+      }
+      value = { active: method !== 'DELETE', hidden: method !== 'DELETE' }
+    }
+    else if (action === 'posts' || action === 'answers') value = visible().filter((p) => action === 'posts' ? p.author.id === id : comments.some((c) => c.postId === p.id && c.author.id === id && !c.deleted))
+    else value = profileFor(id)
   } else if (root === 'questions') { const post = requirePost(id); requireOwner(post.author.id); if (!comments.some((c) => c.id === fourth && c.postId === id && !c.deleted)) throw new Error('回答不可用'); if (post.question) { post.question.status = 'solved'; post.question.acceptedCommentId = fourth; comments.forEach((c) => { if (c.postId === id) c.accepted = c.id === fourth }) }; value = post }
   else if (root === 'comments') {
     const comment = comments.find((c) => c.id === id)
@@ -195,6 +302,12 @@ export async function mockCommunity<T>(path: string, method: string, body?: unkn
         const rows = comments.filter((c) => c.postId === id), order = new Map(rows.map((row, index) => [row.id, index]))
         value = rows.sort((a, b) => (order.get(a.parentId || a.id) ?? rows.length) - (order.get(b.parentId || b.id) ?? rows.length) || Number(!!a.parentId) - Number(!!b.parentId)).map((c) => muted.has(c.author.id) ? { ...c, body: '该评论不可见', contentBlocks: [], deleted: true } : c)
       }
+    } else if (action === 'pin') {
+      requireOwner(post!.author.id)
+      if (post!.status !== 'published' || post!.visibility !== 'public') throw new Error('只能置顶自己的公开动态')
+      const input = body as { expectedProfileRevision: number }
+      if (input.expectedProfileRevision !== profileRevision) throw new Error('资料已更新，请重新读取')
+      pinnedPostId = post!.id; profileRevision++; value = profileFor(authors[0].id)
     } else if (action === 'reactions' || action === 'bookmark') {
       const state = action === 'bookmark' ? 'bookmarked' : fourth === 'like' ? 'liked' : 'markedUseful'
       const stat = action === 'bookmark' ? 'bookmarks' : fourth === 'like' ? 'likes' : 'useful'

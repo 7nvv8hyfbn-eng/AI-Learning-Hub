@@ -23,11 +23,31 @@ export interface CommunityAuthorDto {
   school: string | null; major: string | null; verifiedType: CommunityVerifiedType
 }
 export interface CommunityProfileDto extends CommunityAuthorDto {
-  revision?: number
-  bio: string; headline: string; expertiseTopics: string[]; allowAchievementDrafts?: boolean
-  postCount: number; followerCount: number; followingCount: number; following: boolean
+  revision: number; userRevision: number
+  bio: string; headline: string; location: string | null; websiteUrl: string | null
+  bannerUrl: string | null; joinedAt: string; expertiseTopics: string[]; allowAchievementDrafts?: boolean
+  postCount: number; replyCount: number; likesReceived: number
+  followerCount: number; followingCount: number; following: boolean; followedBy: boolean
+  muted: boolean; blocked: boolean; isSelf: boolean
+  pinnedPost: CommunityPostSummaryDto | null
   topics: CommunityTopicDto[]
 }
+export interface CommunityProfileInput {
+  expectedUserRevision: number; expectedProfileRevision: number
+  displayName: string; bio: string; headline: string; location: string; websiteUrl: string
+  expertiseTopics: string[]; allowAchievementDrafts: boolean
+}
+export interface CommunityProfileUpdateDto { user: import('../auth').AuthUser; profile: CommunityProfileDto }
+export type CommunityProfileTab = 'posts' | 'replies' | 'media' | 'liked'
+export interface CommunityReplySummaryDto {
+  id: string; postId: string; postTitle: string | null; bodyPreview: string
+  likes: number; accepted: boolean; createdAt: string
+}
+export interface CommunityProfileTimelineDto {
+  posts: CommunityPostSummaryDto[]; replies: CommunityReplySummaryDto[]; nextCursor: string | null
+}
+export interface CommunityProfileRelationDto extends CommunityAuthorDto { following: boolean }
+export interface CommunityProfileRelationsDto { items: CommunityProfileRelationDto[]; nextCursor: string | null }
 export interface CommunityTopicDto {
   id: string; slug: string; name: string; description: string; accent: string
   themeId: string | null; status: string; recommended: boolean; sortOrder: number

@@ -824,6 +824,8 @@ model FileRecord {
   uploader      User       @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
   resources     Resource[]
   mediaAsset    MediaAsset?
+  profileAvatars CommunityProfile[] @relation("CommunityProfileAvatar")
+  profileBanners CommunityProfile[] @relation("CommunityProfileBanner")
 
   @@index([checksum])
   @@map("files")
@@ -1629,6 +1631,11 @@ model CommunityProfile {
   revision               Int      @default(1)
   bio                    String   @default("")
   headline               String   @default("")
+  avatarFileId           String?  @map("avatar_file_id")
+  bannerFileId           String?  @map("banner_file_id")
+  location               String?
+  websiteUrl             String?  @map("website_url")
+  pinnedPostId           String?  @map("pinned_post_id")
   verifiedType           String   @default("none") @map("verified_type")
   expertiseTopics        String[] @default([]) @map("expertise_topics")
   allowAchievementDrafts Boolean  @default(false) @map("allow_achievement_drafts")
@@ -1638,7 +1645,13 @@ model CommunityProfile {
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
   user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatarFile             FileRecord?    @relation("CommunityProfileAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  bannerFile             FileRecord?    @relation("CommunityProfileBanner", fields: [bannerFileId], references: [id], onDelete: SetNull)
+  pinnedPost             CommunityPost? @relation("CommunityProfilePinnedPost", fields: [pinnedPostId], references: [id], onDelete: SetNull)
 
+  @@index([avatarFileId])
+  @@index([bannerFileId])
+  @@index([pinnedPostId])
   @@map("community_profiles")
 }
 
@@ -1677,6 +1690,7 @@ model CommunityPost {
   bookmarks       CommunityBookmark[]
   reports         CommunityReport[]
   revisions       CommunityPostRevision[]
+  pinnedBy        CommunityProfile[]        @relation("CommunityProfilePinnedPost")
 
   @@index([status, publishedAt, id])
   @@index([authorId, status, publishedAt])

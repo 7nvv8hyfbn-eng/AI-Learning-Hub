@@ -115,7 +115,7 @@ describe('PERSIST-001 真实 PostgreSQL 持久化与账号产品化', () => {
     expect((await request('/me', actor.accessToken)).data).toMatchObject({ major: '人工智能', grade: '大二' })
     expect((await request('/community/onboarding', actor.accessToken, 'POST', input)).status).toBe(409)
     const profile = (await request(`/community/users/${actor.user.id}`, actor.accessToken)).data
-    const fields = { bio: '本人简介', headline: '独立浏览器读取', expertiseTopics: [], allowAchievementDrafts: false, expectedRevision: profile.revision }
+    const fields = { displayName: profile.displayName, bio: '本人简介', headline: '独立浏览器读取', location: '', websiteUrl: '', expertiseTopics: [], allowAchievementDrafts: false, expectedUserRevision: profile.userRevision, expectedProfileRevision: profile.revision }
     expect((await request('/community/profile', actor.accessToken, 'PATCH', fields)).status).toBe(200)
     expect((await request('/community/profile', actor.accessToken, 'PATCH', fields)).status).toBe(409)
   })
@@ -429,6 +429,6 @@ describe('PERSIST-001 真实 PostgreSQL 持久化与账号产品化', () => {
     expect((await request('/admin/settings/batch', admin.accessToken, 'PATCH', { version: version + 1, items: [{ key: name.key, value: '过期批量值' }] })).status).toBe(409)
     const profile = (await request(`/community/users/${actor.user.id}`, actor.accessToken)).data
     expect((await request(`/admin/community/official/${actor.user.id}`, admin.accessToken, 'PATCH', { verifiedType: 'none', expertiseTopics: ['有效方向'], reason: '隔离测试资料修订', expectedRevision: profile.revision })).status).toBe(200)
-    expect((await request('/community/profile', actor.accessToken, 'PATCH', { bio: '', headline: '', expertiseTopics: [], allowAchievementDrafts: false, expectedRevision: profile.revision })).status).toBe(409)
+    expect((await request('/community/profile', actor.accessToken, 'PATCH', { displayName: profile.displayName, bio: '', headline: '', location: '', websiteUrl: '', expertiseTopics: [], allowAchievementDrafts: false, expectedUserRevision: profile.userRevision, expectedProfileRevision: profile.revision })).status).toBe(409)
   })
 })

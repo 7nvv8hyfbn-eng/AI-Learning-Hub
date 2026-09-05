@@ -80,8 +80,30 @@ export class CommunityInteractionService {
     await this.prisma.$transaction(async (tx) => {
       const changed = await tx.communityFeedback.createMany({ data: [{ userId, targetId, feedbackType: type, postType: post?.postType }], skipDuplicates: true })
       if (changed.count) await this.signals.record(userId, `community_${type}`, post ? 'post' : 'user', targetId, { ...(post ? { postType: post.postType, authorId: post.authorId } : { authorId: targetId }) }, tx)
+      if (type === 'block') {
+        await tx.communityUserFollow.deleteMany({ where: { OR: [{ followerId: userId, followeeId: targetId }, { followerId: targetId, followeeId: userId }] } })
+        for (const id of [userId, targetId]) {
+          await tx.communityProfile.upsert({ where: { userId: id }, create: { userId: id }, update: {} })
+          await tx.communityProfile.update({
+            where: { userId: id },
+            data: {
+              followerCount: await tx.communityUserFollow.count({ where: { followeeId: id } }),
+              followingCount: await tx.communityUserFollow.count({ where: { followerId: id } }),
+            },
+          })
+        }
+      }
     })
     return { hidden: true }
+  }
+  async removeFeedback(userId: string, targetId: string, type: 'mute_author' | 'block') {
+    await this.visibility.viewer(userId)
+    if (userId === targetId || !await this.prisma.user.count({ where: { id: targetId } })) throw new BadRequestException('无效用户')
+    await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.communityFeedback.deleteMany({ where: { userId, targetId, feedbackType: type } })
+      if (changed.count) await actionEvent(tx, userId, type === 'block' ? 'community_user_unblocked' : 'community_user_unmuted', 'user', targetId)
+    })
+    return { active: false }
   }
   async report(userId: string, targetId: string, input: ReportDto, comment = false) {
     const row = comment ? await this.prisma.communityComment.findFirst({ where: { id: targetId, deletedAt: null, status: 'published' } }) : null

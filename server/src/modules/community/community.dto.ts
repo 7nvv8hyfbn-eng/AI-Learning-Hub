@@ -1,8 +1,8 @@
 import { Type } from 'class-transformer'
-import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator'
+import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, IsUrl, Length, Matches, Max, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator'
 import { CommunityPostType as DatabasePostType } from '@prisma/client'
 import type { CommunityPostInput, CommunityCommentInput, CommunityPostType, CommunityVisibility, CommunityContentBlock, CommunityBindingInput, LearningContentType, CommunityFeedMode, CommunitySignalInput } from '@ai-learning-hub/contracts'
-import type { OnboardingInput, UsernameInput, CommunitySearchType } from '@ai-learning-hub/contracts'
+import type { CommunityProfileInput, CommunityProfileTab, OnboardingInput, UsernameInput, CommunitySearchType } from '@ai-learning-hub/contracts'
 const communityPostTypes = Object.values(DatabasePostType)
 
 export class BlockDto {
@@ -52,12 +52,33 @@ export class ReportDto {
 export class FeedUpdatesDto extends CommunityQueryDto {
   @IsDateString() since!: string
 }
-export class ProfileDto {
-  @IsOptional() @IsInt() @Min(1) expectedRevision?: number
-  @IsString() @MaxLength(500) bio!: string
-  @IsString() @MaxLength(120) headline!: string
-  @IsArray() @ArrayMaxSize(10) @IsString({ each: true }) expertiseTopics!: string[]
+const safeProfileText = /^[^\p{Cc}<>]*$/u
+export class ProfileDto implements CommunityProfileInput {
+  @IsInt() @Min(1) expectedUserRevision!: number
+  @IsInt() @Min(1) expectedProfileRevision!: number
+  @IsString() @Length(1, 40) @Matches(safeProfileText) displayName!: string
+  @IsString() @MaxLength(500) @Matches(safeProfileText) bio!: string
+  @IsString() @MaxLength(120) @Matches(safeProfileText) headline!: string
+  @IsString() @MaxLength(60) @Matches(safeProfileText) location!: string
+  @ValidateIf((input: ProfileDto) => !!input.websiteUrl) @IsUrl({ protocols: ['http', 'https'], require_protocol: true }) @MaxLength(300) websiteUrl!: string
+  @IsArray() @ArrayMaxSize(10) @IsString({ each: true }) @MaxLength(40, { each: true }) @Matches(safeProfileText, { each: true }) expertiseTopics!: string[]
   @IsBoolean() allowAchievementDrafts!: boolean
+}
+export class ProfileMediaDto {
+  @Type(() => Number) @IsInt() @Min(1) expectedUserRevision!: number
+  @Type(() => Number) @IsInt() @Min(1) expectedProfileRevision!: number
+}
+export class ProfilePinDto {
+  @IsInt() @Min(1) expectedProfileRevision!: number
+}
+export class ProfileTimelineQueryDto {
+  @IsIn(['posts', 'replies', 'media', 'liked']) tab: CommunityProfileTab = 'posts'
+  @IsOptional() @IsString() @MaxLength(2000) cursor?: string
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(30) limit = 20
+}
+export class ProfileRelationQueryDto {
+  @IsOptional() @IsString() @MaxLength(2000) cursor?: string
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(50) limit = 20
 }
 export class InterestsDto {
   @IsArray() @ArrayUnique() @ArrayMaxSize(3) @IsString({ each: true }) themeIds!: string[]

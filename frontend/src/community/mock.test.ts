@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockCommunity, resetCommunityMock } from '../services/api/community.mock'
-import type { CommunityCommentDto, CommunityFeedDto, CommunityPostDetailDto, CommunityPostInput, CommunityNotificationDto } from '@ai-learning-hub/contracts'
+import type { CommunityCommentDto, CommunityFeedDto, CommunityPostDetailDto, CommunityPostInput, CommunityNotificationDto, CommunityProfileDto, CommunityProfileTimelineDto, CommunityProfileUpdateDto } from '@ai-learning-hub/contracts'
 
 beforeEach(resetCommunityMock)
 afterEach(() => vi.unstubAllGlobals())
@@ -46,13 +46,14 @@ describe('显式社区 Mock 与统一 Fixtures', () => {
     const following = await mockCommunity<CommunityFeedDto>('/feed?mode=following&type=all', 'GET')
     expect(following.items.some((p) => p.type === 'post' && p.post.topics.some((t) => t.slug === 'rag'))).toBe(true)
   })
-  it('草稿仅本人主页可见，禁止编辑他人内容', async () => {
+  it('草稿仅草稿箱可见，个人主页不混入草稿，禁止编辑他人内容', async () => {
     const input: CommunityPostInput = { type: 'note', title: '尚未公开的学习笔记', contentBlocks: [{ type: 'paragraph', text: '先验证内容，再主动发布到社区。' }], bindings: [], topicIds: [], visibility: 'public', status: 'draft' }
     const draft = await mockCommunity<CommunityPostDetailDto>('/posts', 'POST', input)
     expect(draft.question).toBeNull()
     expect(draft.viewerState.bookmarked).toBe(false)
     expect((await mockCommunity<CommunityPostDetailDto[]>('/posts', 'GET')).some((p) => p.id === draft.id)).toBe(false)
-    expect((await mockCommunity<CommunityPostDetailDto[]>('/users/student/posts', 'GET')).some((p) => p.id === draft.id)).toBe(true)
+    expect((await mockCommunity<CommunityPostDetailDto[]>('/users/student/posts', 'GET')).some((p) => p.id === draft.id)).toBe(false)
+    expect((await mockCommunity<Array<{ id: string }>>('/drafts', 'GET')).some((p) => p.id === draft.id)).toBe(true)
     await expect(mockCommunity('/posts/community-question-2', 'PATCH', input)).rejects.toThrow('自己的')
   })
   it('父A、父B、回A分组稳定，删除父项不打散回复', async () => {
@@ -64,5 +65,69 @@ describe('显式社区 Mock 与统一 Fixtures', () => {
     expect(await ids()).toEqual([root.id, reply.id, second.id])
     await mockCommunity(`/comments/${root.id}`, 'DELETE')
     expect(await ids()).toEqual([root.id, reply.id, second.id])
+  })
+  it('资料保存同时更新账号与社区修订，任一旧版本都不能部分覆盖', async () => {
+    const current = await mockCommunity<CommunityProfileDto>('/users/by-username/student', 'GET')
+    const input = { expectedUserRevision: current.userRevision, expectedProfileRevision: current.revision, displayName: '新的显示名', bio: '新的简介', headline: '学习 AI', location: '嘉兴', websiteUrl: 'https://example.com', expertiseTopics: ['LLM'], allowAchievementDrafts: true }
+    const saved = await mockCommunity<CommunityProfileUpdateDto>('/profile', 'PATCH', input)
+    expect(saved.user.displayName).toBe('新的显示名')
+    expect(saved.profile).toMatchObject({ displayName: '新的显示名', bio: '新的简介', userRevision: current.userRevision + 1, revision: current.revision + 1 })
+    await expect(mockCommunity('/profile', 'PATCH', { ...input, displayName: '不应写入' })).rejects.toThrow('重新读取')
+    expect((await mockCommunity<CommunityProfileDto>('/users/by-username/student', 'GET')).displayName).toBe('新的显示名')
+  })
+  it('回复、媒体与本人赞过使用独立时间线，赞过不向他人开放', async () => {
+    const own = await mockCommunity<CommunityProfileDto>('/users/by-username/student', 'GET')
+    const post = await mockCommunity<CommunityPostDetailDto>('/posts', 'POST', { type: 'note', title: '带图动态', contentBlocks: [{ type: 'paragraph', text: '媒体时间线' }, { type: 'image', fileId: 'demo-image', alt: '演示图片' }], bindings: [], topicIds: [], visibility: 'public', status: 'published' })
+    await mockCommunity(`/posts/${post.id}/comments`, 'POST', { contentBlocks: [{ type: 'paragraph', text: '本人发布的真实回复' }] })
+    await mockCommunity(`/posts/${post.id}/reactions/like`, 'PUT')
+    expect((await mockCommunity<CommunityProfileTimelineDto>(`/users/${own.id}/timeline?tab=media`, 'GET')).posts.map((row) => row.id)).toContain(post.id)
+    expect((await mockCommunity<CommunityProfileTimelineDto>(`/users/${own.id}/timeline?tab=replies`, 'GET')).replies.some((row) => row.bodyPreview.includes('真实回复'))).toBe(true)
+    expect((await mockCommunity<CommunityProfileTimelineDto>(`/users/${own.id}/timeline?tab=liked`, 'GET')).posts.map((row) => row.id)).toContain(post.id)
+    const other = (await mockCommunity<CommunityPostDetailDto[]>('/posts', 'GET')).find((row) => row.author.id !== own.id)!.author
+    await expect(mockCommunity(`/users/${other.id}/timeline?tab=liked`, 'GET')).rejects.toThrow('仅自己可见')
+  })
+  it('只允许置顶本人有效公开动态，置顶项不在普通列表重复', async () => {
+    const own = await mockCommunity<CommunityProfileDto>('/users/by-username/student', 'GET')
+    const publicPost = await mockCommunity<CommunityPostDetailDto>('/posts', 'POST', { type: 'note', title: '公开置顶', contentBlocks: [{ type: 'paragraph', text: '公开内容' }], bindings: [], topicIds: [], visibility: 'public', status: 'published' })
+    const pinned = await mockCommunity<CommunityProfileDto>(`/posts/${publicPost.id}/pin`, 'PUT', { expectedProfileRevision: own.revision })
+    expect(pinned.pinnedPost?.id).toBe(publicPost.id)
+    expect((await mockCommunity<CommunityProfileTimelineDto>(`/users/${own.id}/timeline?tab=posts`, 'GET')).posts.some((row) => row.id === publicPost.id)).toBe(false)
+    const schoolPost = await mockCommunity<CommunityPostDetailDto>('/posts', 'POST', { type: 'note', title: '校内动态', contentBlocks: [{ type: 'paragraph', text: '不可置顶' }], bindings: [], topicIds: [], visibility: 'school', status: 'published' })
+    await expect(mockCommunity(`/posts/${schoolPost.id}/pin`, 'PUT', { expectedProfileRevision: pinned.revision })).rejects.toThrow('公开动态')
+  })
+  it('静音和拉黑均可取消，拉黑解除已有关注并保留解禁入口', async () => {
+    const own = await mockCommunity<CommunityProfileDto>('/users/by-username/student', 'GET')
+    const target = (await mockCommunity<CommunityPostDetailDto[]>('/posts', 'GET')).find((row) => row.author.id !== own.id)!.author
+    await mockCommunity(`/users/${target.id}/follow`, 'PUT')
+    await mockCommunity(`/users/${target.id}/mute`, 'POST')
+    expect((await mockCommunity<CommunityProfileDto>(`/users/${target.id}`, 'GET')).muted).toBe(true)
+    await mockCommunity(`/users/${target.id}/mute`, 'DELETE')
+    await mockCommunity(`/users/${target.id}/block`, 'POST')
+    const blocked = await mockCommunity<CommunityProfileDto>(`/users/${target.id}`, 'GET')
+    expect(blocked.blocked).toBe(true)
+    expect(blocked.following).toBe(false)
+    await mockCommunity(`/users/${target.id}/block`, 'DELETE')
+    expect((await mockCommunity<CommunityProfileDto>(`/users/${target.id}`, 'GET')).blocked).toBe(false)
+  })
+  it('头像与封面在Mock中支持替换和移除并沿用双修订', async () => {
+    const current = await mockCommunity<CommunityProfileDto>('/users/by-username/student', 'GET')
+    const file = new File(['demo'], 'profile.webp', { type: 'image/webp' })
+    const avatar = await mockCommunity<CommunityProfileUpdateDto>('/profile/avatar', 'POST', { file, expectedUserRevision: current.userRevision, expectedProfileRevision: current.revision })
+    expect(avatar.user.avatarUrl).toMatch(/^blob:/)
+    const banner = await mockCommunity<CommunityProfileUpdateDto>('/profile/banner', 'POST', { file, expectedUserRevision: avatar.profile.userRevision, expectedProfileRevision: avatar.profile.revision })
+    expect(banner.profile.bannerUrl).toMatch(/^blob:/)
+    const removedAvatar = await mockCommunity<CommunityProfileUpdateDto>('/profile/avatar', 'DELETE', { expectedUserRevision: banner.profile.userRevision, expectedProfileRevision: banner.profile.revision })
+    expect(removedAvatar.user.avatarUrl).toBeNull()
+    const removedBanner = await mockCommunity<CommunityProfileUpdateDto>('/profile/banner', 'DELETE', { expectedUserRevision: removedAvatar.profile.userRevision, expectedProfileRevision: removedAvatar.profile.revision })
+    expect(removedBanner.profile.bannerUrl).toBeNull()
+  })
+  it('关注列表按游标分页并返回当前查看者关注状态', async () => {
+    const own = await mockCommunity<CommunityProfileDto>('/users/by-username/student', 'GET')
+    const first = await mockCommunity<{ items: Array<{ following: boolean }>; nextCursor: string | null }>(`/users/${own.id}/following?limit=1`, 'GET')
+    expect(first.items).toHaveLength(1)
+    expect(first.items[0].following).toBe(true)
+    expect(first.nextCursor).not.toBeNull()
+    const second = await mockCommunity<{ items: Array<{ id: string }>; nextCursor: string | null }>(`/users/${own.id}/following?limit=1&cursor=${first.nextCursor}`, 'GET')
+    expect(second.items).toHaveLength(1)
   })
 })

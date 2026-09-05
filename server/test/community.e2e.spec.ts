@@ -4,7 +4,7 @@ import { NestFactory, Reflector } from '@nestjs/core'
 import { ValidationPipe, type INestApplication } from '@nestjs/common'
 import { PrismaClient } from '@prisma/client'
 import { hash } from 'bcryptjs'
-import type { CommunityPostDetailDto, CommunityPostInput, CommunityFeedDto } from '@ai-learning-hub/contracts'
+import type { CommunityPostDetailDto, CommunityPostInput, CommunityFeedDto, CommunityProfileUpdateDto } from '@ai-learning-hub/contracts'
 import { AppModule } from '../src/app.module'
 import { ApiExceptionFilter } from '../src/common/api-exception.filter'
 import { ApiResponseInterceptor } from '../src/common/api-response.interceptor'
@@ -13,6 +13,7 @@ import { SignalsService } from '../src/modules/signals/signals.service'
 import { ContentReferenceService } from '../src/common/content-reference/content-reference.service'
 import { PrismaService } from '../src/prisma/prisma.service'
 import { communityModerationPayload } from '../../admin-web/src/services/community-payload'
+import sharp from 'sharp'
 
 if (!process.env.DATABASE_URL?.includes('127.0.0.1:55439/community_')) throw new Error('社区 E2E 只允许隔离本地验收数据库')
 const password = process.env.SEED_STUDENT_PASSWORD!
@@ -26,7 +27,22 @@ async function request<T = any>(path: string, token?: string, method = 'GET', bo
   if (method === 'PATCH' && body && typeof body === 'object' && !(body instanceof FormData)) {
     const id = path.match(/^\/(?:admin\/)?community\/posts\/([^/]+)$/)?.[1]
     if (id) body = { ...body, expectedRevision: (await db.communityPost.findUnique({ where: { id } }))?.revision || 1 }
-    if (path === '/community/profile' && token) body = { ...(body as object), expectedRevision: (await db.communityProfile.findUnique({ where: { userId: JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).id } }))?.revision || 1 }
+    if (path === '/community/profile' && token) {
+      const userId = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).id
+      const user = await db.user.findUniqueOrThrow({ where: { id: userId }, include: { communityProfile: true } })
+      body = {
+        displayName: user.displayName,
+        bio: user.communityProfile?.bio || '',
+        headline: user.communityProfile?.headline || '',
+        location: user.communityProfile?.location || '',
+        websiteUrl: user.communityProfile?.websiteUrl || '',
+        expertiseTopics: user.communityProfile?.expertiseTopics || [],
+        allowAchievementDrafts: user.communityProfile?.allowAchievementDrafts || false,
+        expectedUserRevision: user.revision,
+        expectedProfileRevision: user.communityProfile?.revision || 1,
+        ...(body as object),
+      }
+    }
     const official = path.match(/^\/admin\/community\/official\/([^/]+)$/)?.[1]
     if (official) body = { ...(body as object), expectedRevision: (await db.communityProfile.findUnique({ where: { userId: official } }))?.revision || 1 }
   }
@@ -121,7 +137,7 @@ describe('COMM-001 真实 HTTP / PostgreSQL 安全与业务闭环', () => {
     expect(await db.communityUserFollow.count({ where: { followerId: bId, followeeId: aId } })).toBe(1)
     expect((await db.communityProfile.findUniqueOrThrow({ where: { userId: bId } })).followingCount).toBe(1)
     expect((await db.communityTopic.findUniqueOrThrow({ where: { id: topicA } })).followerCount).toBe(1)
-    expect((await request<any[]>(`/community/users/${bId}/following`, b)).data.some((user) => user.id === aId)).toBe(true)
+    expect((await request<{ items: Array<{ id: string }> }>(`/community/users/${bId}/following`, b)).data.items.some((user) => user.id === aId)).toBe(true)
   })
   it('父A、父B、回A按父级分组，作者采纳以及拒绝第三级回复', async () => {
     const result = await request(`/community/posts/${question}/comments`, b, 'POST', { contentBlocks: [{ type: 'paragraph', text: '建议把代码当作只读文本并检查转义结果。' }] })
@@ -174,7 +190,40 @@ describe('COMM-001 真实 HTTP / PostgreSQL 安全与业务闭环', () => {
     expect((await request(`/community/users/${bId}`, c)).status).toBe(200)
     await request(`/community/users/${noSchoolId}/block`, a, 'POST')
     expect((await request(`/community/users/${aId}`, noSchool)).status).toBe(404)
-    expect((await request(`/community/users/${noSchoolId}`, a)).status).toBe(404)
+    expect((await request(`/community/users/${noSchoolId}`, a)).data).toMatchObject({ blocked: true, postCount: 0 })
+    expect((await request(`/community/users/${noSchoolId}/block`, a, 'DELETE')).status).toBe(200)
+    expect((await request(`/community/users/${noSchoolId}`, a)).data.blocked).toBe(false)
+  })
+  it('个人主页动态、回复、媒体、赞过、置顶和关注分页使用真实可见数据', async () => {
+    const own = await fixture(aId, 'profile-public')
+    const media = await fixture(aId, 'profile-media', { contentBlocks: [{ type: 'image', fileId: `${prefix}-missing-image`, alt: '资料页媒体测试' }] })
+    const draft = await fixture(aId, 'profile-draft', { status: 'draft', publishedAt: null })
+    const replied = await fixture(bId, 'profile-replied')
+    const comment = await request(`/community/posts/${replied.id}/comments`, a, 'POST', { contentBlocks: [{ type: 'paragraph', text: '这是用户本人发布的可见回复。' }] })
+    await request(`/community/posts/${replied.id}/reactions/like`, a, 'PUT')
+    const profile = (await request(`/community/users/${aId}`, a)).data
+    const pinned = await request(`/community/posts/${own.id}/pin`, a, 'PUT', { expectedProfileRevision: profile.revision })
+    expect(pinned.data.pinnedPost.id).toBe(own.id)
+
+    const posts = (await request<{ posts: CommunityPostDetailDto[] }>(`/community/users/${aId}/timeline?tab=posts`, b)).data.posts
+    expect(posts.map((row) => row.id)).toContain(media.id)
+    expect(posts.map((row) => row.id)).not.toContain(own.id)
+    expect(posts.map((row) => row.id)).not.toContain(draft.id)
+    const replies = (await request<{ replies: Array<{ id: string; postId: string }> }>(`/community/users/${aId}/timeline?tab=replies`, b)).data.replies
+    expect(replies).toContainEqual(expect.objectContaining({ id: comment.data.id, postId: replied.id }))
+    const mediaRows = (await request<{ posts: CommunityPostDetailDto[] }>(`/community/users/${aId}/timeline?tab=media`, b)).data.posts
+    expect(mediaRows.map((row) => row.id)).toContain(media.id)
+    expect((await request<{ posts: CommunityPostDetailDto[] }>(`/community/users/${aId}/timeline?tab=liked`, a)).data.posts.map((row) => row.id)).toContain(replied.id)
+    expect((await request(`/community/users/${aId}/timeline?tab=liked`, b)).status).toBe(403)
+
+    await db.communityPost.update({ where: { id: own.id }, data: { status: 'hidden' } })
+    expect((await request(`/community/users/${aId}`, a)).data.pinnedPost).toBeNull()
+    await db.communityUserFollow.createMany({ data: [{ followerId: aId, followeeId: bId }, { followerId: aId, followeeId: cId }], skipDuplicates: true })
+    const first = await request<{ items: Array<{ id: string }>; nextCursor: string | null }>(`/community/users/${aId}/following?limit=1`, a)
+    expect(first.data.items).toHaveLength(1)
+    expect(first.data.nextCursor).toBeTruthy()
+    const second = await request<{ items: Array<{ id: string }> }>(`/community/users/${aId}/following?limit=1&cursor=${encodeURIComponent(first.data.nextCursor!)}`, a)
+    expect(second.data.items).toHaveLength(1)
   })
   it('举报幂等、作者无法读取举报者、普通学生不能处理举报', async () => {
     const post = await fixture(bId, 'report-target')
@@ -424,6 +473,48 @@ describe('COMM-001 真实 HTTP / PostgreSQL 安全与业务闭环', () => {
     expect(publicDownload.status).toBe(200)
     expect(Buffer.from(await publicDownload.arrayBuffer())).toEqual(bytes)
     expect((await request(`/community/posts/${post.id}`, b)).status).toBe(200)
+  })
+  it('资料头像和封面裁切为WebP，可替换移除且孤立文件不能经资料地址读取', async () => {
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=', 'base64')
+    const upload = async (kind: 'avatar' | 'banner', expectedUserRevision: number, expectedProfileRevision: number) => {
+      const form = new FormData()
+      form.append('file', new Blob([png], { type: 'image/png' }), `${kind}.png`)
+      form.append('expectedUserRevision', String(expectedUserRevision))
+      form.append('expectedProfileRevision', String(expectedProfileRevision))
+      return request<CommunityProfileUpdateDto>(`/community/profile/${kind}`, a, 'POST', form)
+    }
+    const current = (await request(`/community/users/${aId}`, a)).data
+    const first = await upload('avatar', current.userRevision, current.revision)
+    expect(first.status).toBe(201)
+    const firstUrl = first.data.user.avatarUrl!
+    const firstFile = firstUrl.split('/').at(-1)!
+    const firstResponse = await fetch(`${base}${firstUrl.replace('/api/v1', '')}`)
+    expect(firstResponse.status).toBe(200)
+    const avatarMetadata = await sharp(Buffer.from(await firstResponse.arrayBuffer())).metadata()
+    expect(avatarMetadata).toMatchObject({ format: 'webp', width: 512, height: 512 })
+    expect(avatarMetadata.exif).toBeUndefined()
+
+    const replacement = await upload('avatar', first.data.profile.userRevision, first.data.profile.revision)
+    expect(replacement.status).toBe(201)
+    expect(replacement.data.user.avatarUrl).not.toBe(firstUrl)
+    expect((await fetch(`${base}/files/profile/${firstFile}`)).status).toBe(404)
+
+    const banner = await upload('banner', replacement.data.profile.userRevision, replacement.data.profile.revision)
+    expect(banner.status).toBe(201)
+    const bannerResponse = await fetch(`${base}${banner.data.profile.bannerUrl!.replace('/api/v1', '')}`)
+    const bannerMetadata = await sharp(Buffer.from(await bannerResponse.arrayBuffer())).metadata()
+    expect(bannerMetadata).toMatchObject({ format: 'webp', width: 1500, height: 500 })
+    expect(bannerMetadata.exif).toBeUndefined()
+
+    const removedAvatar = await request<CommunityProfileUpdateDto>('/community/profile/avatar', a, 'DELETE', { expectedUserRevision: banner.data.profile.userRevision, expectedProfileRevision: banner.data.profile.revision })
+    expect(removedAvatar.data.user.avatarUrl).toBeNull()
+    const removedBanner = await request<CommunityProfileUpdateDto>('/community/profile/banner', a, 'DELETE', { expectedUserRevision: removedAvatar.data.profile.userRevision, expectedProfileRevision: removedAvatar.data.profile.revision })
+    expect(removedBanner.data.profile.bannerUrl).toBeNull()
+
+    const privateForm = new FormData()
+    privateForm.append('file', new Blob([png], { type: 'image/png' }), 'private.png')
+    const privateFile = await request('/community/media', a, 'POST', privateForm)
+    expect((await fetch(`${base}/files/profile/${privateFile.data.id}`)).status).toBe(404)
   })
   it('成果草稿默认关闭，开启后幂等生成且不包含成绩日志', async () => {
     const signals = app.get(SignalsService), lab = await db.lab.findFirstOrThrow({ where: { status: 'published' } })

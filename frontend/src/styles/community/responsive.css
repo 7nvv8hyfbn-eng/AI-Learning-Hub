@@ -90,7 +90,14 @@
   .composer-row > label { min-width: 120px; }
   .community-discussion { padding: 20px 14px; }
   .community-comment.reply { margin-left: 14px; }
-  .community-profile-summary { padding-inline: 16px; flex-wrap: wrap; }
+  .community-profile-identity { padding-inline: 16px; }
+  .community-profile-avatar.avatar-lg { width: 80px; height: 80px; margin-top: -40px; }
+  .community-profile-actions { min-height: 42px; margin-top: -40px; }
+  .community-profile-copy { padding-top: 10px; }
+  .community-profile-name h1 { font-size: 23px; }
+  .community-profile-meta { display: grid; gap: 7px; }
+  .community-profile-tabs button { min-height: 48px; padding-inline: 18px; font-size: 14px; }
+  .community-profile-image-fields { grid-template-columns: minmax(0, 1fr); }
   .community-notification { padding: 16px 12px; flex-wrap: wrap; }
   .community-interest-options label { padding: 13px; }
   .community-wide .page-container, .community-wide .community-main > section:not(.page-container) { width: 100%; padding-block: 24px 40px; }
