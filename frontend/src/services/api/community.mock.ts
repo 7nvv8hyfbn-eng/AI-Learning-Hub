@@ -1,5 +1,5 @@
 import { createCommunityFixtures, demoArticles, demoChallenges, demoCourses, demoLabs, demoResources, demoStudents, demoThemes, lczCuratedPosts } from '@ai-learning-hub/demo-fixtures'
-import type { AuthUser, CommunityAuthorDto, CommunityCommentDto, CommunityContentBlock, CommunityContextDto, CommunityNotificationDto, CommunityPostDetailDto, CommunityPostInput, CommunityProfileDto, CommunityProfileUpdateDto, CommunityTopicDto } from '@ai-learning-hub/contracts'
+import type { AuthUser, CommunityAuthorDto, CommunityCommentDto, CommunityContentBlock, CommunityContextDto, CommunityNotificationDto, CommunityPostDetailDto, CommunityPostInput, CommunityProfileDto, CommunityTopicDto } from '@ai-learning-hub/contracts'
 import { randomId } from './random-id'
 import { mockFixtureCover } from '../../media/catalog'
 const fixtures = createCommunityFixtures({ courses: demoCourses, labs: demoLabs, articles: demoArticles, themes: demoThemes, students: demoStudents })
@@ -148,7 +148,6 @@ const authUser = (): AuthUser => {
     profileRevision,
   }
 }
-const profileUpdate = (): CommunityProfileUpdateDto => ({ user: authUser(), profile: profileFor(authors[0].id) })
 export async function mockCommunity<T>(path: string, method: string, body?: unknown): Promise<T> {
   restoreMock()
   if (typeof localStorage !== 'undefined') {
@@ -229,7 +228,7 @@ export async function mockCommunity<T>(path: string, method: string, body?: unkn
         else bannerUrl = url
       } else if (id === 'avatar') authors[0].avatar = null
       else bannerUrl = null
-      userRevision++; profileRevision++; value = profileUpdate()
+      userRevision++; profileRevision++; value = { user: authUser(), profile: profileFor(authors[0].id) }
     } else if (id === 'pinned-post') {
       const input = body as { expectedProfileRevision: number }
       if (input.expectedProfileRevision !== profileRevision) throw new Error('资料已更新，请重新读取')
@@ -237,9 +236,14 @@ export async function mockCommunity<T>(path: string, method: string, body?: unkn
     } else {
       const input = body as { expectedUserRevision: number; expectedProfileRevision: number; displayName: string; bio: string; headline: string; location: string; websiteUrl: string; expertiseTopics: string[]; allowAchievementDrafts: boolean }
       if (input.expectedUserRevision !== userRevision || input.expectedProfileRevision !== profileRevision) throw new Error('资料已更新，请重新读取')
-      if (!input.displayName?.trim() || input.location.length > 60 || [input.displayName, input.bio, input.headline, input.location, ...input.expertiseTopics].some((text) => /[\p{Cc}<>]/u.test(text))) throw new Error('资料包含不允许的字符')
-      if (input.websiteUrl && !/^https?:\/\//i.test(input.websiteUrl)) throw new Error('个人网站需要完整的 http 或 https 地址')
-      authors[0].displayName = input.displayName.trim(); bio = input.bio.trim(); headline = input.headline.trim(); location = input.location.trim(); websiteUrl = input.websiteUrl.trim(); expertiseTopics = [...new Set(input.expertiseTopics.map((topic) => topic.trim()).filter(Boolean))]; allowAchievementDrafts = !!input.allowAchievementDrafts
+      const fields = [input.displayName, input.bio, input.headline, input.location, ...input.expertiseTopics]
+      if (!input.displayName?.trim() || input.displayName.length > 40 || input.bio.length > 500 || input.headline.length > 120 || input.location.length > 60 || input.expertiseTopics.length > 10 || input.expertiseTopics.some((topic) => topic.length > 40) || fields.some((text) => /[\p{Cc}<>]/u.test(text))) throw new Error('资料包含不允许的字符')
+      if (input.websiteUrl) {
+        try { if (!['http:', 'https:'].includes(new URL(input.websiteUrl).protocol)) throw new Error() } catch { throw new Error('个人网站需要完整的 http 或 https 地址') }
+      }
+      const normalizedTopics = input.expertiseTopics.map((topic) => topic.trim()).filter(Boolean)
+      if (new Set(normalizedTopics).size !== normalizedTopics.length) throw new Error('擅长话题不能重复')
+      authors[0].displayName = input.displayName.trim(); bio = input.bio.trim(); headline = input.headline.trim(); location = input.location.trim(); websiteUrl = input.websiteUrl.trim(); expertiseTopics = normalizedTopics; allowAchievementDrafts = !!input.allowAchievementDrafts
       userRevision++; profileRevision++
       const user = authUser()
       if (typeof localStorage !== 'undefined') localStorage.setItem('community-demo-user', JSON.stringify(user))
@@ -254,7 +258,7 @@ export async function mockCommunity<T>(path: string, method: string, body?: unkn
         const rows = comments.filter((comment) => comment.author.id === id && !comment.deleted && visible().some((post) => post.id === comment.postId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
         value = { posts: [], replies: rows.slice(offset, offset + limit).map((comment) => { const post = posts.find((row) => row.id === comment.postId)!; return { id: comment.id, postId: comment.postId, postTitle: post.title, bodyPreview: comment.body.slice(0, 320), likes: comment.likes, accepted: comment.accepted, createdAt: comment.createdAt } }), nextCursor: rows.length > offset + limit ? String(offset + limit) : null }
       } else {
-        const rows = visible().filter((post) => (tab === 'liked' ? post.viewerState.liked : post.author.id === id) && (tab !== 'media' || post.contentBlocks.some((block) => block.type === 'image')) && post.id !== profile.pinnedPost?.id).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id))
+        const rows = visible().filter((post) => (tab === 'liked' ? post.viewerState.liked : post.author.id === id) && (tab !== 'media' || post.contentBlocks.some((block) => block.type === 'image')) && (tab !== 'posts' || post.id !== profile.pinnedPost?.id)).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id))
         value = { posts: rows.slice(offset, offset + limit), replies: [], nextCursor: rows.length > offset + limit ? String(offset + limit) : null }
       }
     }

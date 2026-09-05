@@ -184,34 +184,32 @@ export class CommunityContextService {
       size: buffer.length,
       buffer,
     }, { uploadedBy: userId, visibility: 'public' })
-    let previous: string | null = null
     try {
-      previous = await this.prisma.$transaction(async (tx) => {
+      await this.prisma.$transaction(async (tx) => {
         const profile = await tx.communityProfile.upsert({ where: { userId }, create: { userId }, update: {} })
         if (!(await tx.user.updateMany({ where: { id: userId, revision: input.expectedUserRevision }, data: { revision: { increment: 1 } } })).count) throw new ConflictException('账号资料已更新，请重新读取')
         const field = kind === 'avatar' ? 'avatarFileId' : 'bannerFileId'
         if (!(await tx.communityProfile.updateMany({ where: { userId, revision: input.expectedProfileRevision }, data: { [field]: stored.id, revision: { increment: 1 } } })).count) throw new ConflictException('社区资料已更新，请重新读取')
         await actionEvent(tx, userId, 'profile_image_updated', 'user', userId, { kind })
-        return kind === 'avatar' ? profile.avatarFileId : profile.bannerFileId
+        const previousFileId = kind === 'avatar' ? profile.avatarFileId : profile.bannerFileId
+        if (previousFileId && previousFileId !== stored.id) await tx.mediaGcJob.upsert({ where: { fileId: previousFileId }, create: { fileId: previousFileId }, update: {} })
       })
     } catch (error) {
       await releaseUnboundMediaFile(this.prisma, this.storage, stored.id)
       throw error
     }
-    if (previous && previous !== stored.id) await releaseUnboundMediaFile(this.prisma, this.storage, previous)
     return this.profileUpdateResult(userId)
   }
   async removeProfileImage(userId: string, kind: 'avatar' | 'banner', input: ProfileMediaDto) {
-    let previous: string | null = null
     await this.prisma.$transaction(async (tx) => {
       const profile = await tx.communityProfile.upsert({ where: { userId }, create: { userId }, update: {} })
-      previous = kind === 'avatar' ? profile.avatarFileId : profile.bannerFileId
+      const previous = kind === 'avatar' ? profile.avatarFileId : profile.bannerFileId
       if (!(await tx.user.updateMany({ where: { id: userId, revision: input.expectedUserRevision }, data: { revision: { increment: 1 } } })).count) throw new ConflictException('账号资料已更新，请重新读取')
       const field = kind === 'avatar' ? 'avatarFileId' : 'bannerFileId'
       if (!(await tx.communityProfile.updateMany({ where: { userId, revision: input.expectedProfileRevision }, data: { [field]: null, revision: { increment: 1 } } })).count) throw new ConflictException('社区资料已更新，请重新读取')
       await actionEvent(tx, userId, 'profile_image_removed', 'user', userId, { kind })
+      if (previous) await tx.mediaGcJob.upsert({ where: { fileId: previous }, create: { fileId: previous }, update: {} })
     })
-    if (previous) await releaseUnboundMediaFile(this.prisma, this.storage, previous)
     return this.profileUpdateResult(userId)
   }
   async pinPost(userId: string, postId: string | null, expectedProfileRevision: number) {
@@ -254,7 +252,7 @@ export class CommunityContextService {
         await this.visibility.where(userId),
         liked,
         media,
-        ...(profile.pinnedPost ? [{ id: { not: profile.pinnedPost.id } }] : []),
+        ...(query.tab === 'posts' && profile.pinnedPost ? [{ id: { not: profile.pinnedPost.id } }] : []),
         ...(after ? [{ OR: [{ publishedAt: { lt: after } }, { publishedAt: after, id: { lt: cursor!.id } }] }] : []),
       ] },
       include: postInclude,

@@ -74,6 +74,10 @@ describe('显式社区 Mock 与统一 Fixtures', () => {
     expect(saved.profile).toMatchObject({ displayName: '新的显示名', bio: '新的简介', userRevision: current.userRevision + 1, revision: current.revision + 1 })
     await expect(mockCommunity('/profile', 'PATCH', { ...input, displayName: '不应写入' })).rejects.toThrow('重新读取')
     expect((await mockCommunity<CommunityProfileDto>('/users/by-username/student', 'GET')).displayName).toBe('新的显示名')
+    const next = await mockCommunity<CommunityProfileDto>('/users/by-username/student', 'GET')
+    for (const patch of [{ displayName: 'A'.repeat(41) }, { headline: 'A'.repeat(121) }, { bio: 'A'.repeat(501) }, { expertiseTopics: Array(11).fill('方向') }, { websiteUrl: 'https://' }, { expertiseTopics: ['LLM', 'LLM'] }]) {
+      await expect(mockCommunity('/profile', 'PATCH', { ...input, ...patch, expectedUserRevision: next.userRevision, expectedProfileRevision: next.revision })).rejects.toThrow()
+    }
   })
   it('回复、媒体与本人赞过使用独立时间线，赞过不向他人开放', async () => {
     const own = await mockCommunity<CommunityProfileDto>('/users/by-username/student', 'GET')
@@ -92,6 +96,8 @@ describe('显式社区 Mock 与统一 Fixtures', () => {
     const pinned = await mockCommunity<CommunityProfileDto>(`/posts/${publicPost.id}/pin`, 'PUT', { expectedProfileRevision: own.revision })
     expect(pinned.pinnedPost?.id).toBe(publicPost.id)
     expect((await mockCommunity<CommunityProfileTimelineDto>(`/users/${own.id}/timeline?tab=posts`, 'GET')).posts.some((row) => row.id === publicPost.id)).toBe(false)
+    await mockCommunity(`/posts/${publicPost.id}/reactions/like`, 'PUT')
+    expect((await mockCommunity<CommunityProfileTimelineDto>(`/users/${own.id}/timeline?tab=liked`, 'GET')).posts.some((row) => row.id === publicPost.id)).toBe(true)
     const schoolPost = await mockCommunity<CommunityPostDetailDto>('/posts', 'POST', { type: 'note', title: '校内动态', contentBlocks: [{ type: 'paragraph', text: '不可置顶' }], bindings: [], topicIds: [], visibility: 'school', status: 'published' })
     await expect(mockCommunity(`/posts/${schoolPost.id}/pin`, 'PUT', { expectedProfileRevision: pinned.revision })).rejects.toThrow('公开动态')
   })

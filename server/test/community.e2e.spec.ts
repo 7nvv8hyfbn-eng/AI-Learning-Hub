@@ -201,22 +201,23 @@ describe('COMM-001 真实 HTTP / PostgreSQL 安全与业务闭环', () => {
     const replied = await fixture(bId, 'profile-replied')
     const comment = await request(`/community/posts/${replied.id}/comments`, a, 'POST', { contentBlocks: [{ type: 'paragraph', text: '这是用户本人发布的可见回复。' }] })
     await request(`/community/posts/${replied.id}/reactions/like`, a, 'PUT')
+    await request(`/community/posts/${media.id}/reactions/like`, a, 'PUT')
     const profile = (await request(`/community/users/${aId}`, a)).data
-    const pinned = await request(`/community/posts/${own.id}/pin`, a, 'PUT', { expectedProfileRevision: profile.revision })
-    expect(pinned.data.pinnedPost.id).toBe(own.id)
+    const pinned = await request(`/community/posts/${media.id}/pin`, a, 'PUT', { expectedProfileRevision: profile.revision })
+    expect(pinned.data.pinnedPost.id).toBe(media.id)
 
     const posts = (await request<{ posts: CommunityPostDetailDto[] }>(`/community/users/${aId}/timeline?tab=posts`, b)).data.posts
-    expect(posts.map((row) => row.id)).toContain(media.id)
-    expect(posts.map((row) => row.id)).not.toContain(own.id)
+    expect(posts.map((row) => row.id)).toContain(own.id)
+    expect(posts.map((row) => row.id)).not.toContain(media.id)
     expect(posts.map((row) => row.id)).not.toContain(draft.id)
     const replies = (await request<{ replies: Array<{ id: string; postId: string }> }>(`/community/users/${aId}/timeline?tab=replies`, b)).data.replies
     expect(replies).toContainEqual(expect.objectContaining({ id: comment.data.id, postId: replied.id }))
     const mediaRows = (await request<{ posts: CommunityPostDetailDto[] }>(`/community/users/${aId}/timeline?tab=media`, b)).data.posts
     expect(mediaRows.map((row) => row.id)).toContain(media.id)
-    expect((await request<{ posts: CommunityPostDetailDto[] }>(`/community/users/${aId}/timeline?tab=liked`, a)).data.posts.map((row) => row.id)).toContain(replied.id)
+    expect((await request<{ posts: CommunityPostDetailDto[] }>(`/community/users/${aId}/timeline?tab=liked`, a)).data.posts.map((row) => row.id)).toEqual(expect.arrayContaining([replied.id, media.id]))
     expect((await request(`/community/users/${aId}/timeline?tab=liked`, b)).status).toBe(403)
 
-    await db.communityPost.update({ where: { id: own.id }, data: { status: 'hidden' } })
+    await db.communityPost.update({ where: { id: media.id }, data: { status: 'hidden' } })
     expect((await request(`/community/users/${aId}`, a)).data.pinnedPost).toBeNull()
     await db.communityUserFollow.createMany({ data: [{ followerId: aId, followeeId: bId }, { followerId: aId, followeeId: cId }], skipDuplicates: true })
     const first = await request<{ items: Array<{ id: string }>; nextCursor: string | null }>(`/community/users/${aId}/following?limit=1`, a)
@@ -490,6 +491,7 @@ describe('COMM-001 真实 HTTP / PostgreSQL 安全与业务闭环', () => {
     const firstFile = firstUrl.split('/').at(-1)!
     const firstResponse = await fetch(`${base}${firstUrl.replace('/api/v1', '')}`)
     expect(firstResponse.status).toBe(200)
+    expect((await fetch(`${base}/files/${firstFile}/download`, { headers: { authorization: `Bearer ${b}` } })).status).toBe(200)
     const avatarMetadata = await sharp(Buffer.from(await firstResponse.arrayBuffer())).metadata()
     expect(avatarMetadata).toMatchObject({ format: 'webp', width: 512, height: 512 })
     expect(avatarMetadata.exif).toBeUndefined()
@@ -498,6 +500,8 @@ describe('COMM-001 真实 HTTP / PostgreSQL 安全与业务闭环', () => {
     expect(replacement.status).toBe(201)
     expect(replacement.data.user.avatarUrl).not.toBe(firstUrl)
     expect((await fetch(`${base}/files/profile/${firstFile}`)).status).toBe(404)
+    expect(await db.fileRecord.count({ where: { id: firstFile } })).toBe(1)
+    expect(await db.mediaGcJob.count({ where: { fileId: firstFile } })).toBe(1)
 
     const banner = await upload('banner', replacement.data.profile.userRevision, replacement.data.profile.revision)
     expect(banner.status).toBe(201)
@@ -515,6 +519,7 @@ describe('COMM-001 真实 HTTP / PostgreSQL 安全与业务闭环', () => {
     privateForm.append('file', new Blob([png], { type: 'image/png' }), 'private.png')
     const privateFile = await request('/community/media', a, 'POST', privateForm)
     expect((await fetch(`${base}/files/profile/${privateFile.data.id}`)).status).toBe(404)
+    expect((await request(`/files/${privateFile.data.id}/download`, b)).status).toBe(404)
   })
   it('成果草稿默认关闭，开启后幂等生成且不包含成绩日志', async () => {
     const signals = app.get(SignalsService), lab = await db.lab.findFirstOrThrow({ where: { status: 'published' } })

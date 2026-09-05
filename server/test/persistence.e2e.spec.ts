@@ -41,12 +41,15 @@ async function restrictedActor(suffix: string, codes: string[]): Promise<AuthSes
   expect([...session.data.user.permissions].sort()).toEqual([...codes].sort())
   return session.data
 }
-beforeAll(async () => {
+async function startApplication() {
   app = await NestFactory.create(AppModule, { logger: false })
   app.setGlobalPrefix('api/v1'); app.use(cookieParser())
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
   app.useGlobalFilters(new ApiExceptionFilter()); app.useGlobalInterceptors(new ApiResponseInterceptor(app.get(Reflector)))
   await app.listen(0, '127.0.0.1'); base = `${await app.getUrl()}/api/v1`
+}
+beforeAll(async () => {
+  await startApplication()
   await db.systemSetting.update({ where: { key: 'registration' }, data: { value: { mode: 'open', emailVerification: false, agreementVersion: '2026-08-30', passwordMinLength: 8, schoolRequired: false } } })
   await db.registrationThrottle.deleteMany({})
   admin = (await request<AuthSessionDto>('/auth/login', undefined, 'POST', { email: process.env.SEED_ADMIN_EMAIL, password: process.env.SEED_ADMIN_PASSWORD })).data
@@ -103,7 +106,7 @@ describe('PERSIST-001 真实 PostgreSQL 持久化与账号产品化', () => {
     await expect(db.user.create({ data: { username: user.username.toUpperCase(), displayName: '冲突账号', email: `${prefix}-different@example.invalid` } })).rejects.toMatchObject({ code: 'P2002' })
     expect(await db.user.count({ where: { id: user.id } })).toBe(1)
   })
-  it('引导与学校院系专业年级兴趣同事务，资料编辑过期修订返回409', async () => {
+  it('资料双修订原子更新，并在退出重登和服务重启后保持', async () => {
     const school = await db.school.create({ data: { code: prefix, name: '持久化隔离学校' } })
     const dept = await db.department.create({ data: { schoolId: school.id, name: '人工智能院系', code: prefix } })
     const themes = await db.theme.findMany({ where: { status: 'published', deletedAt: null }, take: 3 })
@@ -116,8 +119,27 @@ describe('PERSIST-001 真实 PostgreSQL 持久化与账号产品化', () => {
     expect((await request('/community/onboarding', actor.accessToken, 'POST', input)).status).toBe(409)
     const profile = (await request(`/community/users/${actor.user.id}`, actor.accessToken)).data
     const fields = { displayName: profile.displayName, bio: '本人简介', headline: '独立浏览器读取', location: '', websiteUrl: '', expertiseTopics: [], allowAchievementDrafts: false, expectedUserRevision: profile.userRevision, expectedProfileRevision: profile.revision }
-    expect((await request('/community/profile', actor.accessToken, 'PATCH', fields)).status).toBe(200)
-    expect((await request('/community/profile', actor.accessToken, 'PATCH', fields)).status).toBe(409)
+    const updated = await request('/community/profile', actor.accessToken, 'PATCH', fields)
+    expect(updated.status).toBe(200)
+    const revisions = { user: updated.data.profile.userRevision, profile: updated.data.profile.revision }
+    const stored = await db.user.findUniqueOrThrow({ where: { id: actor.user.id }, include: { communityProfile: true } })
+    expect((await request('/community/profile', actor.accessToken, 'PATCH', { ...fields, displayName: '不应部分保存一', expectedUserRevision: revisions.user, expectedProfileRevision: profile.revision })).status).toBe(409)
+    expect((await request('/community/profile', actor.accessToken, 'PATCH', { ...fields, displayName: '不应部分保存二', expectedUserRevision: profile.userRevision, expectedProfileRevision: revisions.profile })).status).toBe(409)
+    const afterConflicts = await db.user.findUniqueOrThrow({ where: { id: actor.user.id }, include: { communityProfile: true } })
+    expect(checksum(afterConflicts)).toBe(checksum(stored))
+    const authoredPost = await request('/community/posts', actor.accessToken, 'POST', postInput('资料名称联动'))
+    const authoredComment = await request(`/community/posts/${authoredPost.data.id}/comments`, actor.accessToken, 'POST', { contentBlocks: [{ type: 'paragraph', text: '旧评论读取新名称' }] })
+    expect(authoredPost.status).toBe(201); expect(authoredComment.status).toBe(201)
+    const persistedName = '重启后仍保留的显示名称'
+    const persisted = await request('/community/profile', actor.accessToken, 'PATCH', { ...fields, displayName: persistedName, expectedUserRevision: revisions.user, expectedProfileRevision: revisions.profile })
+    expect(persisted.status).toBe(200)
+    await app.close()
+    await startApplication()
+    actor = (await request<AuthSessionDto>('/auth/login', undefined, 'POST', { email: actor.user.email, password })).data
+    expect(actor.user.displayName).toBe(persistedName)
+    expect((await request(`/community/users/${actor.user.id}`, actor.accessToken)).data).toMatchObject({ displayName: persistedName, bio: '本人简介', headline: '独立浏览器读取' })
+    expect((await request(`/community/posts/${authoredPost.data.id}`, other.accessToken)).data.author.displayName).toBe(persistedName)
+    expect((await request(`/community/posts/${authoredPost.data.id}/comments`, other.accessToken)).data[0].author.displayName).toBe(persistedName)
   })
   it('服务端草稿两会话更新CAS，拒绝缺少版本且保存不可变历史', async () => {
     const created = await request<CommunityPostDetailDto>('/community/drafts', actor.accessToken, 'POST', postInput('草稿版本一', 'draft'), randomUUID())

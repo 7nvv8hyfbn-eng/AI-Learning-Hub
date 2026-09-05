@@ -24,11 +24,11 @@
 .community-profile-banner.empty::after { width: 110px; height: 110px; right: 24%; bottom: -46px; background: var(--amc-purple-soft); }
 .community-profile-identity { position: relative; min-width: 0; padding: 0 28px 28px; }
 .community-profile-avatar.avatar-lg { width: 96px; height: 96px; margin-top: -48px; border: 4px solid var(--amc-surface); font-size: 32px; }
-.community-profile-actions { display: flex; justify-content: flex-end; align-items: center; gap: 9px; min-height: 48px; margin-top: -48px; }
+.community-profile-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 9px; min-height: 48px; margin-top: -48px; }
 .community-profile-copy { max-width: 760px; min-width: 0; padding-top: 12px; }
 .community-profile-name { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
-.community-profile-name h1 { margin: 0; font-size: 27px; line-height: 1.25; }
-.community-profile-username { margin: 4px 0 14px; color: var(--amc-text-secondary); font-size: 13px; }
+.community-profile-name h1 { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 27px; line-height: 1.25; }
+.community-profile-username { margin: 4px 0 14px; overflow-wrap: anywhere; color: var(--amc-text-secondary); font-size: 13px; }
 .community-profile-copy > strong { display: block; margin-bottom: 8px; font-size: 15px; }
 .community-profile-copy > p:not(.community-profile-username) { max-width: 680px; margin: 0 0 12px; color: var(--amc-text-body); line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
 .community-profile-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 17px; color: var(--amc-text-secondary); font-size: 12px; }
@@ -51,6 +51,7 @@
 .community-profile-relations > div { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--amc-divider); }
 .community-profile-relations > div > a { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
 .community-profile-relations span { display: grid; min-width: 0; }
+.community-profile-relations span > * { overflow-wrap: anywhere; }
 .community-profile-relations small { color: var(--amc-text-secondary); }
 .community-profile-edit-dialog .dialog-card { width: min(100%, 720px); }
 .community-profile-editor { max-height: min(70dvh, 720px); overflow-y: auto; padding-right: 4px; }

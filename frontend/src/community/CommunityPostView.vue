@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import CommunityAvatar from '../components/base/CommunityAvatar.vue'
 import AppIcon from '../components/base/AppIcon.vue'
-import { ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type { CommunityCommentDto, CommunityPostDetailDto } from '@ai-learning-hub/contracts'
 import { communityApi } from '../services/api/community'
@@ -12,7 +12,7 @@ import CommunityBlocks from './CommunityBlocks.vue'
 import { badgeLabels } from './labels'
 const route = useRoute(), auth = useAuthStore(), store = useCommunityStore()
 const post = ref<CommunityPostDetailDto | null>(null), comments = ref<CommunityCommentDto[]>([]), body = ref(''), replyTo = ref<CommunityCommentDto | null>(null), editId = ref(''), error = ref(''), pending = ref(false)
-const load = async () => { try { post.value = await communityApi.post(String(route.params.postId)); comments.value = await communityApi.comments(post.value.id); error.value = '' } catch (cause) { post.value = null; error.value = cause instanceof Error ? cause.message : '动态读取失败' } }
+const load = async () => { try { post.value = await communityApi.post(String(route.params.postId)); comments.value = await communityApi.comments(post.value.id); error.value = ''; await nextTick(); if (route.hash) document.getElementById(route.hash.slice(1))?.scrollIntoView({ block: 'center' }) } catch (cause) { post.value = null; error.value = cause instanceof Error ? cause.message : '动态读取失败' } }
 const act = async (action: () => Promise<unknown>) => { pending.value = true; try { await action(); await load() } catch (cause) { error.value = cause instanceof Error ? cause.message : '操作失败' } finally { pending.value = false } }
 const edit = (comment: CommunityCommentDto) => { editId.value = comment.id; body.value = comment.contentBlocks.filter((block) => block.type === 'paragraph').map((block) => block.text).join('\n'); replyTo.value = null }
 const submit = () => act(async () => {
@@ -20,7 +20,7 @@ const submit = () => act(async () => {
   await communityApi.comment(post.value!.id, { expectedRevision: comments.value.find((c) => c.id === editId.value)?.revision, contentBlocks: [{ type: 'paragraph', text: body.value }, ...retainedBlocks], ...(replyTo.value ? { parentId: replyTo.value.id } : {}) }, editId.value || undefined)
   body.value = ''; editId.value = ''; replyTo.value = null
 })
-watch(() => route.params.postId, load, { immediate: true })
+watch(() => route.fullPath, load, { immediate: true })
 </script>
 <template><section><header class="community-page-heading"><RouterLink :to="store.lastFeedLocation"><AppIcon name="arrow-left" :size="15" />返回社区</RouterLink><h1>学习讨论</h1></header><p v-if="error" class="community-error" role="alert">{{ error }} <button @click="load">重试</button></p><CommunityPostCard v-if="post" :post="post" detail @changed="load" @hidden="post = null" />
   <section v-if="post && post.status !== 'draft'" class="community-discussion"><h2>{{ post.type === 'question' ? '回答与交流' : '学习讨论' }} · {{ post.stats.comments }}</h2><div v-if="post.question?.acceptedCommentId" class="accepted-notice"><AppIcon name="check" :size="15" />已采纳回答：{{ comments.find((c) => c.id === post?.question?.acceptedCommentId)?.body }}</div>

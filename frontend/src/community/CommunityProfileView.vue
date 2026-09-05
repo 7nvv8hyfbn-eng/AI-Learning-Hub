@@ -22,7 +22,6 @@ const replies = ref<CommunityReplySummaryDto[]>([])
 const cursor = ref<string | null>(null)
 const tab = ref<CommunityProfileTab>('posts')
 const legacyPanel = ref<'topics' | 'following' | null>(null)
-const legacyPeople = ref<CommunityProfileRelationDto[]>([])
 const loading = ref(false), moreLoading = ref(false), error = ref(''), notice = ref(''), editOpen = ref(false), saving = ref(false)
 const relationOpen = ref<'followers' | 'following' | null>(null), relationPeople = ref<CommunityProfileRelationDto[]>([]), relationCursor = ref<string | null>(null)
 const avatarCanvas = ref<HTMLCanvasElement>(), bannerCanvas = ref<HTMLCanvasElement>()
@@ -55,14 +54,14 @@ const loadTimeline = async (append = false) => {
 }
 const load = async () => {
   const epoch = ++loadEpoch
-  loading.value = true; error.value = ''; profile.value = null; posts.value = []; replies.value = []; cursor.value = null; legacyPeople.value = []
+  loading.value = true; error.value = ''; profile.value = null; posts.value = []; replies.value = []; cursor.value = null; relationPeople.value = []
   try {
     const next = await communityApi.profile(String(route.params.username))
     if (epoch !== loadEpoch) return
     profile.value = next
     tab.value = requestedTab()
     if (tab.value === 'liked' && !next.isSelf) tab.value = 'posts'
-    if (legacyPanel.value === 'following') legacyPeople.value = (await communityApi.relations(next.id, 'following')).items
+    if (legacyPanel.value === 'following') relationPeople.value = (await communityApi.relations(next.id, 'following')).items
     else await loadTimeline()
     if (epoch === loadEpoch) void communityApi.signals({ eventType: 'community_profile_visit', targetType: 'user', targetId: next.id }).catch(() => undefined)
     if (route.query.settings === '1' && next.isSelf) openEditor()
@@ -111,9 +110,6 @@ const moreRelations = async () => {
   if (!profile.value || !relationOpen.value || !relationCursor.value) return
   const result = await communityApi.relations(profile.value.id, relationOpen.value, relationCursor.value)
   relationPeople.value.push(...result.items); relationCursor.value = result.nextCursor
-}
-const followPerson = async (person: CommunityProfileRelationDto) => {
-  await store.follow(person.id, false, !person.following, person)
 }
 const openEditor = () => {
   if (!profile.value?.isSelf) return
@@ -252,8 +248,8 @@ onBeforeUnmount(() => { loadEpoch++ })
         <CommunityEmptyState v-if="!profile.topics.length" title="还没有关注学习话题" description="从社区发现感兴趣的学习方向。"><RouterLink class="button secondary" to="/community">探索社区</RouterLink></CommunityEmptyState>
       </section>
       <section v-else-if="legacyPanel === 'following'" class="community-collection">
-        <RouterLink v-for="person in legacyPeople" :key="person.id" class="community-binding" :to="`/community/user/${person.username}`"><CommunityAvatar :src="person.avatar" :username="person.username" :name="person.displayName" size="sm" />{{ person.displayName }}</RouterLink>
-        <CommunityEmptyState v-if="!legacyPeople.length" title="还没有关注其他学习者" description="从社区发现值得关注的学习伙伴。"><RouterLink class="button secondary" to="/community">探索社区</RouterLink></CommunityEmptyState>
+        <RouterLink v-for="person in relationPeople" :key="person.id" class="community-binding" :to="`/community/user/${person.username}`"><CommunityAvatar :src="person.avatar" :username="person.username" :name="person.displayName" size="sm" />{{ person.displayName }}</RouterLink>
+        <CommunityEmptyState v-if="!relationPeople.length" title="还没有关注其他学习者" description="从社区发现值得关注的学习伙伴。"><RouterLink class="button secondary" to="/community">探索社区</RouterLink></CommunityEmptyState>
       </section>
       <template v-else>
         <section v-if="profile.pinnedPost && tab === 'posts'" class="community-profile-pinned"><h2><AppIcon name="bookmark" :size="17" />置顶动态</h2><CommunityPostCard :post="profile.pinnedPost" :show-pin="profile.isSelf" pinned @pin="pin" @changed="load" @hidden="load" /></section>
@@ -267,7 +263,7 @@ onBeforeUnmount(() => { loadEpoch++ })
     </template>
 
     <AppDialog :model-value="!!relationOpen" :title="relationOpen === 'followers' ? '关注者' : '正在关注'" @update:model-value="(open) => { if (!open) relationOpen = null }">
-      <div class="community-profile-relations"><div v-for="person in relationPeople" :key="person.id"><RouterLink :to="`/community/user/${person.username}`" @click="relationOpen = null"><CommunityAvatar :src="person.avatar" :username="person.username" :name="person.displayName" size="sm" /><span><strong>{{ person.displayName }}</strong><small>@{{ person.username }}</small></span></RouterLink><FollowButton v-if="person.id !== auth.user?.id" :active="person.following" :pending="store.operations[`follow:user:${person.id}`]" @click="followPerson(person)" /></div><p v-if="!relationPeople.length">暂无可见用户。</p><button v-if="relationCursor" class="button secondary small" @click="moreRelations">加载更多</button></div>
+      <div class="community-profile-relations"><div v-for="person in relationPeople" :key="person.id"><RouterLink :to="`/community/user/${person.username}`" @click="relationOpen = null"><CommunityAvatar :src="person.avatar" :username="person.username" :name="person.displayName" size="sm" /><span><strong>{{ person.displayName }}</strong><small>@{{ person.username }}<template v-if="person.verifiedType !== 'none'"> · {{ badgeLabels[person.verifiedType] }}</template></small></span></RouterLink><FollowButton v-if="person.id !== auth.user?.id" :active="person.following" :pending="store.operations[`follow:user:${person.id}`]" @click="store.follow(person.id, false, !person.following, person)" /></div><p v-if="!relationPeople.length">暂无可见用户。</p><button v-if="relationCursor" class="button secondary small" @click="moreRelations">加载更多</button></div>
     </AppDialog>
 
     <AppDialog v-model="editOpen" title="编辑社区资料" class="community-profile-edit-dialog">
