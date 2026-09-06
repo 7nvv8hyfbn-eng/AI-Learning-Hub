@@ -69,9 +69,13 @@ const publish = async () => {
     ElMessage.error(`存在 ${incomplete.length} 个配置未完成模块，暂不能发布`)
     return
   }
-  await api('/admin/homepage/publish', { method: 'POST' })
-  await load()
-  ElMessage.success('门户落地页已发布')
+  try {
+    await api('/admin/homepage/publish', { method: 'POST' })
+    await load()
+    ElMessage.success('门户落地页已发布')
+  } catch (cause) {
+    ElMessage.error(cause instanceof Error ? cause.message : '门户落地页发布失败')
+  }
 }
 const loadContentOptions = async () => {
   contentLoading.value = true

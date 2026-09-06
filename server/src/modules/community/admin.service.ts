@@ -7,16 +7,33 @@ import { dateRange } from '../users/users.service'
 import { authorDto, authorInclude } from './community.mapper'
 import { CommunityVisibilityPolicyService } from './visibility.service'
 
+export const curatedDraftWhere: Prisma.CommunityPostWhereInput = {
+  id: { startsWith: 'community-lcz-' },
+  status: 'draft',
+  publishedAt: null,
+  deletedAt: null,
+  visibility: 'public',
+  author: {
+    status: 'active',
+    communityProfile: { is: { verifiedType: 'official' } },
+    userRoles: { some: { role: { code: 'community_official' } } },
+  },
+}
+
 @Injectable()
 export class CommunityAdminService {
   constructor(private readonly prisma: PrismaService, private readonly posts: CommunityPostService, private readonly visibility: CommunityVisibilityPolicyService) {}
   private paging(q: AdminCommunityQuery) { return { skip: (q.page - 1) * q.pageSize, take: q.pageSize } }
   private result<T>(q: AdminCommunityQuery, items: T[], total: number) { return { items, total, page: q.page, pageSize: q.pageSize } }
   async postWhere(q: AdminCommunityQuery): Promise<Prisma.CommunityPostWhereInput> {
-    if (q.status === 'draft') throw new BadRequestException('私人草稿不属于运营范围')
-    if (q.status && !['published', 'limited', 'hidden', 'removed'].includes(q.status)) throw new BadRequestException('动态状态无效')
+    if (q.status && !['draft', 'published', 'limited', 'hidden', 'removed'].includes(q.status)) throw new BadRequestException('动态状态无效')
+    const scope = q.status === 'draft'
+      ? curatedDraftWhere
+      : q.status
+        ? this.visibility.adminWhere()
+        : { OR: [this.visibility.adminWhere(), curatedDraftWhere] }
     return {
-      AND: [this.visibility.adminWhere(), ...(q.status ? [{ status: q.status as 'published' | 'limited' | 'hidden' | 'removed' }] : []), ...(q.hasMedia === undefined ? [] : [q.hasMedia ? { contentBlocks: { array_contains: [{ type: 'image' }] } } : { NOT: { contentBlocks: { array_contains: [{ type: 'image' }] } } }])],
+      AND: [scope, ...(q.status && q.status !== 'draft' ? [{ status: q.status as 'published' | 'limited' | 'hidden' | 'removed' }] : []), ...(q.hasMedia === undefined ? [] : [q.hasMedia ? { contentBlocks: { array_contains: [{ type: 'image' }] } } : { NOT: { contentBlocks: { array_contains: [{ type: 'image' }] } } }])],
       ...((q.postType || q.type && q.type !== 'all') ? { postType: q.postType || q.type as 'question' } : {}),
       ...(q.keyword ? { OR: [{ title: { contains: q.keyword, mode: 'insensitive' } }, { plainText: { contains: q.keyword, mode: 'insensitive' } }] } : {}),
       ...(q.authorId ? { authorId: q.authorId } : {}), ...(q.schoolId ? { schoolId: q.schoolId } : {}),
@@ -32,7 +49,7 @@ export class CommunityAdminService {
       this.prisma.communityPost.count({ where }),
     ], { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead })
     const mapped = await this.posts.mapMany(userId, rows)
-    if (rows.some((row) => ['hidden', 'removed'].includes(row.status))) await this.visibility.auditAdminRead(userId, 'post', 'page')
+    if (rows.some((row) => ['draft', 'hidden', 'removed'].includes(row.status))) await this.visibility.auditAdminRead(userId, 'post', 'page')
     return this.result(q, mapped.map((post, index) => ({ ...post, reportCount: rows[index]._count.reports })), total)
   }
   async comments(actorId: string, q: AdminCommunityQuery) {

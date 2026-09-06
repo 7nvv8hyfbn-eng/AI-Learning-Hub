@@ -4,6 +4,7 @@ import { ElDialog, ElDropdown, ElDropdownItem, ElDropdownMenu, ElSwitch } from '
 import 'element-plus/dist/index.css'
 import './styles.css'
 import './community.css'
+import '../../packages/catalog-assets/icons/iconfont.js'
 import App from './App.vue'
 import router from './router'
 

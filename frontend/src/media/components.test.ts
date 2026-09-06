@@ -47,22 +47,24 @@ describe('真实封面与矢量组件', () => {
     expect(hero).toContain('aspect-ratio:2 / 1')
   })
 
-  it('12成就code对应独立矢量；未知与原型属性使用中性图标并开发告警', async () => {
-    const drawings = []
+  it('12成就code对应独立Symbol；未知与原型属性使用中性图标并开发告警', async () => {
+    const symbols = []
     for (const achievement of demoAchievements) {
       expect(Object.hasOwn(iconRegistry, achievement.code)).toBe(true)
-      drawings.push(iconRegistry[achievement.code])
+      symbols.push(iconRegistry[achievement.code])
       const html = await renderToString(createSSRApp(AppIcon, { name: achievement.code }))
       expect(html).toContain('<svg')
+      expect(html).toContain(`<use href="#icon-${iconRegistry[achievement.code]}"`)
       expect(html).not.toContain('<image')
+      expect(html).not.toContain('<path')
       expect(html).not.toContain(achievement.code)
     }
-    expect(new Set(drawings).size).toBe(12)
+    expect(new Set(symbols).size).toBe(12)
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
       for (const name of ['unknown-media-icon', 'toString', '__proto__', 'constructor']) {
-        const view = setupComponent<{ body: string }>(AppIcon, { name })
-        expect(view.state.body).toBe(iconRegistry.missing)
+        const view = setupComponent<{ href: string }>(AppIcon, { name })
+        expect(view.state.href).toBe(`#icon-${iconRegistry.missing}`)
         expect(warn).toHaveBeenCalledWith(`[AppIcon] 未知图标：${name}`)
         view.unmount()
       }

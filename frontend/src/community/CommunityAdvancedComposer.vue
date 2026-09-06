@@ -9,6 +9,7 @@ import CommunityBlocks from './CommunityBlocks.vue'
 import CommunityComposerTools from './CommunityComposerTools.vue'
 import CommunityDraftConflict from './CommunityDraftConflict.vue'
 import { postLabels } from './labels'
+import ResourceContributionFields from './ResourceContributionFields.vue'
 const editor = useCommunityDraft(), store = useCommunityStore(), auth = useAuthStore()
 const paste = (event: ClipboardEvent) => { const files = Array.from(event.clipboardData?.files || []); if (files.length) { event.preventDefault(); void editor.uploadFiles(files) } }
 const drop = (event: DragEvent) => { event.preventDefault(); void editor.uploadFiles(Array.from(event.dataTransfer?.files || [])) }
@@ -22,6 +23,7 @@ const tools = ref({ binding: false, topics: false })
     <CommunityDraftConflict />
     <header class="composer-mobile-top"><button type="button" class="text-link" @click="editor.close()">取消</button><select v-model="form.type" aria-label="发布内容类型"><option v-for="(label, type) in postLabels" :key="type" :value="type">{{ label }}</option></select><button class="button primary small" type="submit" :disabled="saving">{{ saving ? '保存中…' : '发布' }}</button></header>
     <div class="composer-row"><label>内容类型<select v-model="form.type"><option v-for="(label, type) in postLabels" :key="type" :value="type as CommunityPostType">{{ label }}</option></select></label><details><summary>可见范围：{{ form.visibility === 'school' ? '仅同校用户' : '登录社区用户' }}</summary><label>可见范围<select v-model="form.visibility"><option value="public">登录社区用户</option><option value="school">仅同校用户</option></select></label></details></div>
+    <ResourceContributionFields v-if="form.contribution" />
     <label v-if="advanced || ['question', 'project'].includes(form.type)">标题{{ ['question', 'project'].includes(form.type) ? '（必填）' : '（选填）' }}<input v-model="form.title" maxlength="160" :required="['question', 'project'].includes(form.type)" placeholder="让同学更容易理解你的问题或收获" /></label>
     <template v-if="!preview"><label>正文<textarea v-model="body" rows="6" maxlength="15000" required placeholder="说明学习背景、尝试过的方法，以及你的发现……" /></label><details v-if="advanced"><summary>添加代码或引用</summary><label>代码语言<input v-model="language" maxlength="30" /></label><label>代码块（仅展示，不执行）<textarea v-model="code" rows="4" maxlength="12000" /></label><label>引用<textarea v-model="quote" rows="2" maxlength="2000" /></label></details><CommunityComposerTools panel="images" /></template>
     <CommunityBlocks v-else :blocks="blocks" />

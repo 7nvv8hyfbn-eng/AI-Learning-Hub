@@ -19,5 +19,6 @@ import { CommunityAdminService } from './admin.service'
   imports: [AuthModule, StorageModule, SignalsModule, ContentReferenceModule, CommunityVisibilityModule, ContentSupportModule],
   controllers: [CommunityController, CommunityAdminController],
   providers: [CommunityPostService, CommunityCommentService, CommunityInteractionService, CommunityNotificationService, CommunityContextService, LearningFeedPipeline, CommunitySearchService, CommunityAdminService],
+  exports: [CommunityPostService],
 })
 export class CommunityModule {}

@@ -44,7 +44,6 @@ export class StorageController {
 }
 
 @Controller('files')
-@UseGuards(AuthGuard)
 export class LocalFileController {
   private readonly root: string
 
@@ -52,12 +51,45 @@ export class LocalFileController {
     private readonly prisma: PrismaService,
     config: ConfigService,
     private readonly fileAccess: FileAccessService,
+    @Inject(STORAGE_SERVICE) private readonly storage: StorageService,
   ) {
     this.root = path.resolve(config.get('STORAGE_LOCAL_PATH') || './var/uploads')
   }
 
+  @Get('profile/:id')
+  @RawResponse()
+  async profileImage(@Param('id') id: string, @Res({ passthrough: true }) response: Response) {
+    const file = await this.prisma.fileRecord.findFirst({
+      where: {
+        id,
+        visibility: 'public',
+        OR: [
+          { profileAvatars: { some: { user: { status: 'active' } } } },
+          { profileBanners: { some: { user: { status: 'active' } } } },
+        ],
+      },
+    })
+    if (!file) throw new NotFoundException('文件不存在')
+    if (file.storageDriver !== 'local') {
+      response.redirect(await this.storage.getSignedUrl(id))
+      return
+    }
+    const target = path.resolve(this.root, file.objectKey)
+    if (!target.startsWith(`${this.root}${path.sep}`)) throw new NotFoundException('文件不存在')
+    try { await access(target) } catch { throw new NotFoundException('文件不存在') }
+    response.set({
+      'Content-Type': file.mimeType,
+      'Content-Length': String(file.size),
+      'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(file.originalName)}`,
+      'Cache-Control': 'public, max-age=300',
+      'X-Content-Type-Options': 'nosniff',
+    })
+    return new StreamableFile(createReadStream(target))
+  }
+
   @Get(':id/download')
   @RawResponse()
+  @UseGuards(AuthGuard)
   async download(@CurrentUser() user: AuthUser, @Param('id') id: string, @Res({ passthrough: true }) response: Response) {
     const file = await this.fileAccess.assert(user.id, id)
     if (!file || file.storageDriver !== 'local') throw new NotFoundException('文件不存在')

@@ -12,11 +12,17 @@
 .quick-type-project { --type-color: var(--amc-yellow); --type-soft: var(--amc-yellow-soft); }
 .quick-active { background: var(--amc-surface-warm); }
 .quick-editor { display: grid; gap: 12px; }
-.quick-editor-heading { display: flex; gap: 8px; align-items: center; }
-.quick-editor-heading select { min-width: 0; flex: 1; font-size: 13px; padding-inline: 8px; }
-.quick-editor-heading .icon-button { flex-shrink: 0; }
+.quick-editor-heading { display: flex; gap: 9px; align-items: center; }
+.quick-type-select { position: relative; width: 156px; height: 36px; flex-shrink: 0; }
+.quick-type-select select { width: 100%; height: 36px; min-height: 36px; appearance: none; border-radius: 10px; padding: 0 34px 0 11px; box-shadow: none; font-size: 13px; cursor: pointer; }
+.quick-type-select .app-icon { position: absolute; top: 50%; right: 10px; color: var(--amc-text-secondary); pointer-events: none; transform: translateY(-50%) rotate(90deg); }
+.quick-type-select select:hover { border-color: var(--amc-orange-border); }
+.quick-type-select select:focus-visible, .quick-editor > label input:focus-visible { outline: 1px solid var(--amc-orange-border); outline-offset: 1px; }
+.quick-editor-heading .icon-button { width: 36px; height: 36px; min-width: 36px; min-height: 36px; margin-left: auto; padding: 0; flex-shrink: 0; }
 .quick-editor > textarea { min-height: 84px; max-height: 240px; overflow-y: auto; resize: none; background: transparent; border: 0; padding: 8px 0; font-size: 15px; line-height: 1.7; }
+.quick-editor > textarea::placeholder { color: var(--amc-text-placeholder); opacity: .72; }
 .quick-editor > label { display: grid; gap: 6px; font-size: 13px; }
+.quick-editor > label input { height: 36px; min-height: 36px; border-radius: 10px; padding: 0 11px; box-shadow: none; }
 .quick-editor-actions { display: flex; gap: 12px; align-items: center; }
 .quick-editor-actions > .text-link { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; white-space: nowrap; font-weight: 600; }
 .quick-editor-actions > .primary { margin-left: auto; flex-shrink: 0; }
@@ -38,9 +44,15 @@
 .composer-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 .community-chip { border: 0; background: var(--amc-purple-soft); border-radius: var(--amc-radius-xs); padding: 4px 8px; min-height: 30px; overflow-wrap: anywhere; font-size: 12px; }
 .community-composer .dialog-card { width: min(100%, 720px); }
-.community-publish-feedback { position: fixed; z-index: 40; left: 50%; bottom: 24px; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid var(--amc-orange); border-radius: var(--amc-radius-control); background: var(--amc-surface); color: var(--amc-text-primary); box-shadow: var(--amc-shadow-float); font-size: 14px; }
-.community-publish-feedback a { color: var(--amc-orange); white-space: nowrap; }
-.community-publish-feedback button { border: 0; background: transparent; min-width: 32px; flex-shrink: 0; }
+.community-publish-feedback { position: fixed; z-index: 40; right: 28px; bottom: 28px; }
+.community-publish-feedback > button { min-height: 46px; display: flex; align-items: center; gap: 9px; padding: 7px 14px 7px 11px; border: 0; border-radius: var(--amc-radius-pill); background: var(--amc-orange); color: var(--amc-surface); box-shadow: none; cursor: pointer; animation: community-published-blink 1.8s ease-in-out infinite; }
+.community-publish-feedback > button > .app-icon { flex-shrink: 0; transform: rotate(-90deg); }
+.community-publish-avatars { display: flex; padding-left: 8px; }
+.community-publish-avatars .community-avatar { margin-left: -8px; border: 2px solid var(--amc-orange); }
+.community-publish-feedback strong { color: var(--amc-surface); font-size: 13px; white-space: nowrap; }
+.sidebar-collapsed .community-publish-feedback { bottom: 84px; }
+@keyframes community-published-blink { 50% { opacity: .72; } }
+@media (prefers-reduced-motion: reduce) { .community-publish-feedback > button { animation: none; } }
 .composer-tool-panel { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--amc-border); border-radius: var(--amc-radius-control); font-size: 13px; }
 .composer-tool-panel > label { display: grid; gap: 8px; }
 .composer-tool-panel p { margin: 0; }

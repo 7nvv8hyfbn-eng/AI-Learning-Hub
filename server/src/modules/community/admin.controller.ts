@@ -14,7 +14,7 @@ import { AdminPostDto, ModerationDto, OfficialDto, PolicyDto, TopicDto } from '.
 import { Inject } from '@nestjs/common'
 import { STORAGE_SERVICE, StorageService } from '../storage/storage.types'
 import { communityMetrics } from './community-metrics'
-import { CommunityAdminService } from './admin.service'
+import { CommunityAdminService, curatedDraftWhere } from './admin.service'
 import { AdminCommunityQuery } from './admin-query.dto'
 import { CommunityVisibilityPolicyService } from './visibility.service'
 import { actionEvent, lockFileReferences, lockUser, postRevision } from '../../common/persistence'
@@ -28,7 +28,8 @@ export class CommunityAdminController {
   @Patch('posts/:id') @Permissions('community.write')
   async editPost(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: AdminPostDto) {
     const row = await this.prisma.communityPost.findUnique({ where: { id }, include: { bindings: true } })
-    if (!row || row.status === 'draft' || !row.publishedAt) throw new BadRequestException('动态不存在或为私人草稿')
+    const reviewableDraft = !!row && row.status === 'draft' && !!await this.prisma.communityPost.count({ where: { AND: [{ id }, curatedDraftWhere] } })
+    if (!row || !reviewableDraft && (row.status === 'draft' || !row.publishedAt)) throw new BadRequestException('动态不存在或为私人草稿')
     const result = await this.posts.save(row.authorId, { ...input, bindings: row.bindings.map((binding) => ({ type: binding.targetType as AdminPostDto['bindings'][number]['type'], id: binding.targetId })), sourceType: row.sourceType as AdminPostDto['sourceType'] || undefined, sourceId: row.sourceId || undefined }, id, { actorId: user.id, action: 'edit', reason: input.reason })
     return this.mappedForOperator(user.id, result.id)
   }
@@ -56,8 +57,9 @@ export class CommunityAdminController {
   @Get('posts') list(@CurrentUser() user: AuthUser, @Query() query: AdminCommunityQuery) { return this.admin.list(user.id, query) }
   @Get('posts/:id') async detail(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const row = await this.prisma.communityPost.findUnique({ where: { id }, include: postInclude })
-    if (!row || row.status === 'draft' || !row.publishedAt) throw new BadRequestException('动态不存在或为私人草稿')
-    if (['hidden', 'removed'].includes(row.status)) await this.visibility.auditAdminRead(user.id, 'post', id)
+    const reviewableDraft = !!row && row.status === 'draft' && !!await this.prisma.communityPost.count({ where: { AND: [{ id }, curatedDraftWhere] } })
+    if (!row || !reviewableDraft && (row.status === 'draft' || !row.publishedAt)) throw new BadRequestException('动态不存在或为私人草稿')
+    if (reviewableDraft || ['hidden', 'removed'].includes(row.status)) await this.visibility.auditAdminRead(user.id, 'post', id)
     const reports = user.permissions.includes('community.report.manage') ? await this.prisma.communityReport.findMany({ where: { OR: [{ postId: id }, { comment: { postId: id } }] }, select: { id: true, postId: true, commentId: true, reason: true, description: true, status: true, createdAt: true } }) : []
     let recommendation = null
     if (user.permissions.includes('community.feed.manage')) {
@@ -66,7 +68,7 @@ export class CommunityAdminController {
       if (entry?.score) recommendation = { policyVersion: session!.policyVersion, candidateSources: [...new Set([entry.score.source, ...entry.score.reasonCodes])], total: entry.score.total, dimensions: entry.score.dimensions, filter: row.status === 'published' ? 'allow' : row.status === 'limited' ? 'downrank' : 'drop', reasons: entry.score.reasonCodes }
     }
     const [revisions, moderation, actions, files] = await Promise.all([
-      this.prisma.communityPostRevision.findMany({ where: { postId: id, statusSnapshot: { not: 'draft' } }, orderBy: { revisionNo: 'desc' } }),
+      this.prisma.communityPostRevision.findMany({ where: { postId: id, ...(reviewableDraft ? {} : { statusSnapshot: { not: 'draft' } }) }, orderBy: { revisionNo: 'desc' } }),
       this.prisma.communityModerationAction.findMany({ where: { targetType: 'post', targetId: id }, select: { id: true, action: true, reason: true, createdAt: true }, orderBy: { createdAt: 'desc' } }),
       this.prisma.activityEvent.findMany({ where: { targetType: 'post', targetId: id, NOT: { eventType: 'post_draft_saved' } }, select: { id: true, eventType: true, actionType: true, userId: true, entityType: true, entityId: true, targetType: true, targetId: true, source: true, occurredAt: true }, orderBy: { occurredAt: 'desc' }, take: 100 }),
       this.prisma.fileRecord.findMany({ where: { id: { in: (row.contentBlocks as Array<{ fileId?: string }>).flatMap((b) => b.fileId ? [b.fileId] : []) } }, select: { id: true, originalName: true, mimeType: true, size: true } }),

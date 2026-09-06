@@ -31,7 +31,12 @@
     "media:gc": "node dist/modules/media/media-gc.js",
     "demo:cleanup": "node dist/modules/media/demo-data.js",
     "homepage:upgrade": "tsx prisma/upgrade-landing.ts",
-    "prehomepage:upgrade": "npm run build:contracts"
+    "prehomepage:upgrade": "npm run build:contracts",
+    "precommunity:import-lcz": "npm run build:contracts",
+    "community:import-lcz": "tsx prisma/import-lcz-curated-posts.ts",
+    "preresource:import-demo": "npm run build",
+    "resource:import-demo": "tsx prisma/import-resource-hub-demo.ts",
+    "resource:cleanup-demo": "tsx prisma/import-resource-hub-demo.ts --delete"
   },
   "dependencies": {
     "@ai-learning-hub/contracts": "file:../packages/contracts",

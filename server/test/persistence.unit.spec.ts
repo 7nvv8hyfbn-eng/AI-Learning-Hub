@@ -4,6 +4,7 @@ import { BadRequestException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { actionEvent, idempotency, lockFileReferences } from '../src/common/persistence'
 import { StorageBase } from '../src/modules/storage/storage.base'
+import type { UploadedPathFile } from '../src/modules/storage/storage.types'
 import { PersistenceService } from '../src/modules/persistence/persistence.service'
 import type { PrismaService } from '../src/prisma/prisma.service'
 import { AuthService } from '../src/modules/auth/auth.service'
@@ -46,6 +47,7 @@ describe('持久化原子职责', () => {
   it('文件伪装在写入之前被拒绝，数据库写失败清理新增对象', async () => {
     class MemoryStorage extends StorageBase {
       putObject = vi.fn(async () => {})
+      putPath = vi.fn(async (_key: string, _file: UploadedPathFile) => {})
       removeObject = vi.fn(async () => {})
       objectExists = vi.fn(async () => true)
       objectUrl = vi.fn(async () => '/local')

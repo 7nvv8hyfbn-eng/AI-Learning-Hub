@@ -9,18 +9,20 @@ interface CardState {
   hide: (kind: 'hide' | 'not-interested' | 'mute' | 'block') => Promise<void>
   reaction: (kind: 'like' | 'useful' | 'bookmark') => Promise<void>
   remove: () => Promise<void>
+  unpublish: () => Promise<void>
   deleteOpen: boolean
+  unpublishOpen: boolean
 }
 
 vi.mock('../stores/auth', () => ({ useAuthStore: () => ({ user: { id: 'viewer' } }) }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock('../services/api/community', () => ({ communityApi: { post: vi.fn(), feedback: vi.fn(), remove: vi.fn(), reaction: vi.fn(), signals: vi.fn() } }))
+vi.mock('../services/api/community', () => ({ communityApi: { post: vi.fn(), feedback: vi.fn(), remove: vi.fn(), unpublish: vi.fn(), reaction: vi.fn(), signals: vi.fn() } }))
 vi.mock('../components/base/AppIcon.vue', () => ({ default: { render: () => null } }))
 vi.mock('../components/base/AppDialog.vue', async () => {
   const { defineComponent, h } = await import('vue')
   return { default: defineComponent({ props: ['modelValue'], setup(props, { slots }) { return () => props.modelValue ? h('div', slots.default?.()) : null } }) }
 })
-beforeEach(() => { vi.resetAllMocks(); resetCommunityMock(); vi.mocked(communityApi.feedback).mockResolvedValue({}); vi.mocked(communityApi.remove).mockResolvedValue({}); vi.mocked(communityApi.reaction).mockImplementation(async (_id, _kind, active) => ({ active })) })
+beforeEach(() => { vi.resetAllMocks(); resetCommunityMock(); vi.mocked(communityApi.feedback).mockResolvedValue({}); vi.mocked(communityApi.remove).mockResolvedValue({}); vi.mocked(communityApi.unpublish).mockResolvedValue({ unpublished: true }); vi.mocked(communityApi.reaction).mockImplementation(async (_id, _kind, active) => ({ active })) })
 describe('帖子移除事件不刷新不可见详情', () => {
   it('隐藏类操作只发hidden，点赞乐观更新且不拉取详情或重载列表', async () => {
     const post = await mockCommunity<CommunityPostDetailDto>('/posts/community-note-1', 'GET')
@@ -46,6 +48,16 @@ describe('帖子移除事件不刷新不可见详情', () => {
     expect(communityApi.remove).toHaveBeenCalledWith(post.id); expect(hidden).toHaveBeenCalledWith(post.id)
     expect(changed).not.toHaveBeenCalled(); expect(communityApi.post).not.toHaveBeenCalled()
     expect(view.state.deleteOpen).toBe(false)
+    view.unmount()
+  })
+  it('作者确认下架资源时保留草稿语义并移除公开卡片', async () => {
+    const fixture = await mockCommunity<CommunityPostDetailDto>('/posts/resource-demo-campus-agent', 'GET')
+    const post = { ...fixture, author: { ...fixture.author, id: 'viewer' } }, changed = vi.fn(), hidden = vi.fn()
+    const view = setupComponent<CardState>(CommunityPostCard, { post, onChanged: changed, onHidden: hidden })
+    view.state.unpublishOpen = true; await view.state.unpublish()
+    expect(communityApi.unpublish).toHaveBeenCalledWith(post.id); expect(hidden).toHaveBeenCalledWith(post.id)
+    expect(changed).not.toHaveBeenCalled(); expect(communityApi.post).not.toHaveBeenCalled()
+    expect(view.state.unpublishOpen).toBe(false)
     view.unmount()
   })
 })

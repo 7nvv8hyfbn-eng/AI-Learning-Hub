@@ -15,7 +15,7 @@ import { LearningFeedPipeline } from '../feed/feed.service'
 import { SignalsService } from '../signals/signals.service'
 import { STORAGE_SERVICE, StorageService } from '../storage/storage.types'
 import { FileAccessService } from '../storage/file-access.service'
-import { BindingDto, CommentDto, CommunityQueryDto, FeedbackDto, FeedUpdatesDto, ImpressionsDto, InterestsDto, PostDto, ProfileDto, ReportDto, SignalDto } from './community.dto'
+import { BindingDto, CommentDto, CommunityQueryDto, FeedbackDto, FeedUpdatesDto, ImpressionsDto, InterestsDto, PostDto, ProfileDto, ProfileMediaDto, ProfilePinDto, ProfileRelationQueryDto, ProfileTimelineQueryDto, ReportDto, SignalDto } from './community.dto'
 import { OnboardingDto, SearchDto, UsernameDto } from './community.dto'
 import { CommunitySearchService } from './search.service'
 import type { CommunityDraftDto, CommunityPostInput } from '@ai-learning-hub/contracts'
@@ -32,8 +32,8 @@ export class CommunityController {
   @Get('drafts')
   async drafts(@CurrentUser() user: AuthUser): Promise<CommunityDraftDto[]> {
     await this.visibility.viewer(user.id)
-    const rows = await this.prisma.communityPost.findMany({ where: { authorId: user.id, status: 'draft', deletedAt: null }, include: { bindings: true, topics: true }, orderBy: { updatedAt: 'desc' }, take: 100 })
-    return rows.map((row) => ({ id: row.id, revision: row.revision, updatedAt: row.updatedAt.toISOString(), input: { expectedRevision: row.revision, type: row.postType, title: row.title || '', contentBlocks: row.contentBlocks as CommunityPostInput['contentBlocks'], bindings: row.bindings.map((ref) => ({ type: ref.targetType as CommunityPostInput['bindings'][number]['type'], id: ref.targetId })), topicIds: row.topics.map((ref) => ref.topicId), visibility: row.visibility, status: 'draft', ...(row.sourceType ? { sourceType: row.sourceType as CommunityPostInput['sourceType'], sourceId: row.sourceId! } : {}) } }))
+    const rows = await this.prisma.communityPost.findMany({ where: { authorId: user.id, status: 'draft', deletedAt: null }, include: { bindings: true, topics: true, contribution: true }, orderBy: { updatedAt: 'desc' }, take: 100 })
+    return rows.map((row) => ({ id: row.id, revision: row.revision, updatedAt: row.updatedAt.toISOString(), input: { expectedRevision: row.revision, type: row.postType, title: row.title || '', contentBlocks: row.contentBlocks as CommunityPostInput['contentBlocks'], bindings: row.bindings.map((ref) => ({ type: ref.targetType as CommunityPostInput['bindings'][number]['type'], id: ref.targetId })), topicIds: row.topics.map((ref) => ref.topicId), visibility: row.visibility, status: 'draft', ...(row.sourceType ? { sourceType: row.sourceType as CommunityPostInput['sourceType'], sourceId: row.sourceId! } : {}), ...(row.contribution ? { contribution: { kind: row.contribution.kind, categoryId: row.contribution.categoryId || undefined, tags: row.contribution.tags, teachingReuseConsent: row.contribution.teachingReuseConsent, sourceName: row.contribution.sourceName || undefined, sourceUrl: row.contribution.sourceUrl || undefined, videoAssetId: row.contribution.videoAssetId || undefined, attachmentFileId: row.contribution.attachmentFileId || undefined, coverFileId: row.contribution.coverFileId || undefined } } : {}) } }))
   }
   @Post('drafts') createDraft(@CurrentUser() user: AuthUser, @Body() input: PostDto, @Headers('idempotency-key') key?: string) { return this.posts.save(user.id, { ...input, status: 'draft' }, undefined, undefined, key) }
   private async ownDraft(userId: string, id: string) {
@@ -84,6 +84,7 @@ export class CommunityController {
   @Post('posts') create(@CurrentUser() user: AuthUser, @Body() input: PostDto, @Headers('idempotency-key') key?: string) { return this.posts.save(user.id, input, undefined, undefined, key) }
   @Get('posts/:id') detail(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.posts.detail(user.id, id) }
   @Patch('posts/:id') edit(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: PostDto, @Headers('idempotency-key') key?: string) { return this.posts.save(user.id, input, id, undefined, key) }
+  @Post('posts/:id/unpublish') unpublish(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.posts.unpublish(user.id, id) }
   @Delete('posts/:id') remove(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.posts.remove(user.id, id) }
   @Get('posts/:id/comments') commentList(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.comments.list(user.id, id) }
   @Post('posts/:id/comments') commentCreate(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: CommentDto, @Headers('idempotency-key') key?: string) { return this.comments.save(user.id, id, input, undefined, key) }
@@ -102,12 +103,24 @@ export class CommunityController {
   @Delete('posts/:id/bookmark') unbookmark(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.react(user.id, id, 'bookmark', false) }
   @Get('bookmarks') bookmarks(@CurrentUser() user: AuthUser, @Query() query: CommunityQueryDto) { return this.posts.list(user.id, query, { bookmarks: { some: { userId: user.id } } }) }
   @Get('users/:id') profile(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.context.profile(user.id, id) }
-  @Get('users/:id/following') following(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.context.following(user.id, id) }
+  @Get('users/:id/timeline') timeline(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() query: ProfileTimelineQueryDto) { return this.context.timeline(user.id, id, query) }
+  @Get('users/:id/followers') followers(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() query: ProfileRelationQueryDto) { return this.context.relations(user.id, id, 'followers', query) }
+  @Get('users/:id/following') following(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() query: ProfileRelationQueryDto) { return this.context.relations(user.id, id, 'following', query) }
   @Get('users/:id/posts') async userPosts(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() query: CommunityQueryDto) { const profile = await this.context.profile(user.id, id); return this.posts.list(user.id, query, { authorId: profile.id }, profile.id === user.id) }
   @Get('users/:id/answers') async answers(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() query: CommunityQueryDto) { const profile = await this.context.profile(user.id, id); return this.posts.list(user.id, query, { comments: { some: { authorId: profile.id, deletedAt: null, status: 'published' } } }) }
   @Put('users/:id/follow') followUser(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.follow(user.id, id, false, true) }
   @Delete('users/:id/follow') unfollowUser(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.follow(user.id, id, false, false) }
   @Patch('profile') profileEdit(@CurrentUser() user: AuthUser, @Body() input: ProfileDto) { return this.context.updateProfile(user.id, input) }
+  @Post('profile/avatar')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
+  avatar(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File, @Body() input: ProfileMediaDto) { return this.context.uploadProfileImage(user.id, 'avatar', file, input) }
+  @Delete('profile/avatar') removeAvatar(@CurrentUser() user: AuthUser, @Body() input: ProfileMediaDto) { return this.context.removeProfileImage(user.id, 'avatar', input) }
+  @Post('profile/banner')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024, files: 1 } }))
+  banner(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File, @Body() input: ProfileMediaDto) { return this.context.uploadProfileImage(user.id, 'banner', file, input) }
+  @Delete('profile/banner') removeBanner(@CurrentUser() user: AuthUser, @Body() input: ProfileMediaDto) { return this.context.removeProfileImage(user.id, 'banner', input) }
+  @Put('posts/:id/pin') pin(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: ProfilePinDto) { return this.context.pinPost(user.id, id, input.expectedProfileRevision) }
+  @Delete('profile/pinned-post') unpin(@CurrentUser() user: AuthUser, @Body() input: ProfilePinDto) { return this.context.pinPost(user.id, null, input.expectedProfileRevision) }
   @Post('interests') interests(@CurrentUser() user: AuthUser, @Body() input: InterestsDto) { return this.context.interests(user.id, input.themeIds) }
   @Get('topics') topics(@CurrentUser() user: AuthUser) { return this.context.topics(user.id) }
   @Get('topics/:slug/posts') topicPosts(@CurrentUser() user: AuthUser, @Param('slug') slug: string, @Query() query: CommunityQueryDto) { return this.posts.list(user.id, query, { topics: { some: { topic: { slug, status: 'active' } } } }) }
@@ -119,6 +132,8 @@ export class CommunityController {
   @Post('posts/:id/not-interested') notInterested(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.feedback(user.id, id, 'not_interested') }
   @Post('users/:id/mute') mute(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.feedback(user.id, id, 'mute_author') }
   @Post('users/:id/block') block(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.feedback(user.id, id, 'block') }
+  @Delete('users/:id/mute') unmute(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.removeFeedback(user.id, id, 'mute_author') }
+  @Delete('users/:id/block') unblock(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.removeFeedback(user.id, id, 'block') }
   @Get('notifications') notificationList(@CurrentUser() user: AuthUser) { return this.notifications.list(user.id) }
   @Get('notifications/unread-count') async unread(@CurrentUser() user: AuthUser) { return { count: (await this.notifications.list(user.id)).filter((row) => !row.readAt).length } }
   @Post('notifications/read-all') readAll(@CurrentUser() user: AuthUser) { return this.notifications.read(user.id) }

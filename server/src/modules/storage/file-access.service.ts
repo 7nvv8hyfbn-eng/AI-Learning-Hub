@@ -17,7 +17,7 @@ export class FileAccessService {
     }
     const resourceEditor = await this.prisma.userRole.count({ where: { userId, role: { permissions: { some: { permission: { code: 'resource.write' } } } } } })
     if (resourceEditor && await this.prisma.resource.count({ where: { fileId: id } })) return file
-    const [resource, post, comment] = await Promise.all([
+    const [resource, post, comment, profile] = await Promise.all([
       // 学习者只能读取发布快照附件；缺失旧字段也不能回读未发布的当前列。
       this.prisma.resource.count({ where: { status: 'published', deletedAt: null, publishedVersion: { is: { AND: [
         { snapshot: { path: ['fileId'], equals: id } },
@@ -25,8 +25,9 @@ export class FileAccessService {
       ] } } } }),
       this.prisma.communityPost.count({ where: { AND: [await this.visibility.where(userId), { contentBlocks: { array_contains: [{ type: 'image', fileId: id }] } }] } }),
       this.prisma.communityComment.count({ where: { deletedAt: null, status: 'published', author: { status: 'active' }, authorId: { notIn: (await this.visibility.authorExclusions(userId)).authors }, contentBlocks: { array_contains: [{ type: 'image', fileId: id }] }, post: await this.visibility.where(userId) } }),
+      this.prisma.communityProfile.count({ where: { user: { status: 'active' }, OR: [{ avatarFileId: id }, { bannerFileId: id }] } }),
     ])
-    if (!resource && !post && !comment) throw new NotFoundException('文件不存在或无权访问')
+    if (!resource && !post && !comment && !profile) throw new NotFoundException('文件不存在或无权访问')
     return file
   }
 }

@@ -29,7 +29,7 @@ export const useCommunityDraft = defineStore('community-draft', () => {
   const advanced = computed(() => store.composerMode === 'advanced')
   const blocks = computed<CommunityContentBlock[]>(() => [...(body.value.trim() ? [{ type: 'paragraph' as const, text: body.value.trim() }] : []), ...(quote.value.trim() ? [{ type: 'quote' as const, text: quote.value.trim() }] : []), ...(code.value.trim() ? [{ type: 'code' as const, language: language.value, code: code.value }] : []), ...images.value.map((image) => ({ type: 'image' as const, ...image }))])
   const input = () => ({ ...form.value, contentBlocks: blocks.value })
-  const hasContent = () => !!(blocks.value.length || form.value.title?.trim() || form.value.bindings.length || form.value.topicIds.length)
+  const hasContent = () => !!(blocks.value.length || form.value.title?.trim() || form.value.bindings.length || form.value.topicIds.length || form.value.contribution)
   const key = () => `community-draft:${auth.dataMode}:${auth.user?.id || 'anonymous'}`
   let timer: ReturnType<typeof setTimeout> | undefined, remoteTimer: ReturnType<typeof setTimeout> | undefined, hydrating = false
   let pending: Promise<boolean> | null = null
@@ -100,7 +100,10 @@ export const useCommunityDraft = defineStore('community-draft', () => {
       saving.value = true; error.value = ''
       try {
         if (conflict.value || draftUnavailable.value) throw new Error(draftUnavailable.value ? '原草稿不可用，请保留当前副本后另存，或放弃修改' : '已有较新的服务端版本，请先读取服务器版本或保留当前副本')
-        if (!asDraft && !blocks.value.length) throw new Error('请填写正文')
+        if (!asDraft && !blocks.value.length && (!form.value.contribution || form.value.contribution.kind === 'article')) throw new Error('请填写正文')
+        if (!asDraft && form.value.contribution && !form.value.title?.trim()) throw new Error('资源作品需要标题')
+        if (!asDraft && form.value.contribution?.kind === 'video' && !form.value.contribution.videoAssetId) throw new Error('请先上传视频并等待处理完成')
+        if (!asDraft && form.value.contribution?.kind === 'document' && !form.value.contribution.attachmentFileId) throw new Error('请先上传资料文件')
         if (!asDraft && ['question', 'project'].includes(form.value.type) && !form.value.title?.trim()) throw new Error('问题和项目需要标题')
         if (!asDraft && !advanced.value && (form.value.bindings.length > 1 || form.value.topicIds.length > 3)) throw new Error('此草稿包含更多关联或话题，请切换高级编辑')
         if (asDraft && !hasContent() && !draftId.value && !store.editingId) { clearLocal(); dirty.value = false; savedAt.value = ''; return true }
@@ -173,7 +176,7 @@ export const useCommunityDraft = defineStore('community-draft', () => {
     try {
       const post = await communityApi.post(id)
       if (!current()) return
-      hydrate({ type: post.type, title: post.title || '', contentBlocks: post.contentBlocks, bindings: post.bindings.filter((b) => b.status !== 'unavailable').map((b) => ({ type: b.type, id: b.id })), topicIds: post.topics.map((t) => t.id), visibility: post.visibility, status: post.status === 'draft' ? 'draft' : 'published', expectedRevision: post.revision })
+      hydrate({ type: post.type, title: post.title || '', contentBlocks: post.contentBlocks, bindings: post.bindings.filter((b) => b.status !== 'unavailable').map((b) => ({ type: b.type, id: b.id })), topicIds: post.topics.map((t) => t.id), visibility: post.visibility, status: post.status === 'draft' ? 'draft' : 'published', expectedRevision: post.revision, contribution: post.contribution ? { kind: post.contribution.kind, categoryId: post.contribution.categoryId, tags: post.contribution.tags, teachingReuseConsent: post.contribution.teachingReuseConsent, sourceName: post.contribution.sourceName, sourceUrl: post.contribution.sourceUrl, videoAssetId: post.contribution.videoAssetId, attachmentFileId: post.contribution.attachmentFileId, coverFileId: post.contribution.coverFileId } : undefined })
       requestKey = ''; requestBody = ''; unconfirmed = undefined; localSave(); savedAt.value = '已读取服务器版本'; dirty.value = false
     } catch (cause) { if (current()) { error.value = cause instanceof Error ? cause.message : '服务端版本读取失败'; if (cause instanceof ApiError && cause.status === 404 && draftId.value) draftUnavailable.value = true } }
   }

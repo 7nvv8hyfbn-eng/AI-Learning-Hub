@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import sharp from 'sharp'
 import { StorageBase } from '../src/modules/storage/storage.base'
 import type { PrismaService } from '../src/prisma/prisma.service'
-import type { UploadedFile } from '../src/modules/storage/storage.types'
+import type { UploadedFile, UploadedPathFile } from '../src/modules/storage/storage.types'
 import { collectArchivedMedia } from '../src/modules/media/media-gc'
 import { MediaService } from '../src/modules/media/media.service'
 
@@ -11,6 +11,7 @@ class MemoryStorage extends StorageBase {
   removed: string[] = []
   constructor(prisma: unknown) { super(prisma as PrismaService, 'local') }
   protected async putObject(key: string, file: UploadedFile) { this.objects.set(key, file.buffer) }
+  protected async putPath(_key: string, _file: UploadedPathFile) { throw new Error('测试替身不处理路径上传') }
   protected async removeObject(key: string) { this.removed.push(key); this.objects.delete(key) }
   protected async objectExists(key: string) { return this.objects.has(key) }
   protected async objectUrl(key: string) { return key }

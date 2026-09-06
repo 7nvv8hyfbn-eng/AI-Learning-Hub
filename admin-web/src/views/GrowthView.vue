@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import AdminDialog from '../components/AdminDialog.vue'
+import AdminIcon from '../components/AdminIcon.vue'
 import AdminKpiCard from '../components/AdminKpiCard.vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
 import AdminStatusTag from '../components/AdminStatusTag.vue'
@@ -145,9 +146,9 @@ onMounted(async () => {
     <aside v-if="growth" class="learner-detail">
       <div class="learner-profile"><span>{{ growth.user.displayName.slice(0, 1) }}</span><div><h2>{{ growth.user.displayName }} <small>等级 —</small></h2><p>{{ growth.user.email }} · ID {{ growth.user.id.slice(-6) }}</p><AdminStatusTag :status="growth.user.status" /></div></div>
       <h3>学习数据快照</h3>
-      <div class="growth-snapshot"><span><i>时</i><b>—</b>学习时长</span><span><i>课</i><b>{{ growth.progress.length }}</b>课时进度</span><span><i>练</i><b>{{ growth.runs.filter((item) => item.status === 'submitted').length }}</b>实训提交</span><span><i>章</i><b>{{ growth.achievements.length }}</b>获得徽章</span><span><i>证</i><b>{{ growth.certificates.length }}</b>证书获得</span></div>
+      <div class="growth-snapshot"><span><i><AdminIcon name="clock" :size="16" /></i><b>—</b>学习时长</span><span><i><AdminIcon name="course" :size="16" /></i><b>{{ growth.progress.length }}</b>课时进度</span><span><i><AdminIcon name="lab" :size="16" /></i><b>{{ growth.runs.filter((item) => item.status === 'submitted').length }}</b>实训提交</span><span><i><AdminIcon name="trophy" :size="16" /></i><b>{{ growth.achievements.length }}</b>获得徽章</span><span><i><AdminIcon name="achievement" :size="16" /></i><b>{{ growth.certificates.length }}</b>证书获得</span></div>
       <h3>获得的徽章 <small>全部（{{ growth.achievements.length }}）</small></h3>
-      <div v-if="growth.achievements.length" class="badge-row"><span v-for="item in growth.achievements" :key="item.achievement.name"><i>章</i><small>{{ item.achievement.name }}</small></span></div><p v-else>暂无徽章。</p>
+      <div v-if="growth.achievements.length" class="badge-row"><span v-for="item in growth.achievements" :key="item.achievement.name"><i><AdminIcon name="trophy" :size="20" /></i><small>{{ item.achievement.name }}</small></span></div><p v-else>暂无徽章。</p>
       <h3>学习计划 <small>全部（{{ growth.plans.length }}）</small></h3>
       <div v-for="plan in growth.plans" :key="plan.id" class="plan-card"><div><b>{{ plan.title }}</b><AdminStatusTag :status="plan.status" /></div><small>进度 {{ plan.progress }}%{{ plan.targetDate ? ` · 目标 ${String(plan.targetDate).slice(0, 10)}` : '' }}</small><i><span :style="{ width: `${plan.progress}%` }"></span></i></div><p v-if="!growth.plans.length">暂无学习计划。</p>
       <h3>智能推荐规则</h3><pre>{{ JSON.stringify(recommendationRules, null, 2) }}</pre>

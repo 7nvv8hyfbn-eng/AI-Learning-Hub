@@ -1,8 +1,12 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common'
 import { createHash, randomUUID } from 'node:crypto'
+import { createWriteStream } from 'node:fs'
+import { open, stat } from 'node:fs/promises'
+import type { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import * as path from 'node:path'
 import { PrismaService } from '../../prisma/prisma.service'
-import type { StoredFile, UploadedFile, UploadOptions } from './storage.types'
+import type { StoredFile, UploadedFile, UploadedPathFile, UploadOptions } from './storage.types'
 import { StorageService } from './storage.types'
 import { fileReferenced, lockFileReferences } from '../../common/persistence'
 import { inspectMediaImage } from '../media/image-validation'
@@ -17,18 +21,26 @@ const allowed = new Map([
   ['.jpg', ['image/jpeg']],
   ['.jpeg', ['image/jpeg']],
   ['.webp', ['image/webp']],
+  ['.mp4', ['video/mp4']],
+  ['.mov', ['video/quicktime']],
+  ['.webm', ['video/webm']],
 ])
 
 export abstract class StorageBase extends StorageService {
-  constructor(protected readonly prisma: PrismaService, private readonly driver: string) { super() }
+  constructor(protected readonly prisma: PrismaService, protected readonly driver: string) { super() }
 
   protected abstract putObject(objectKey: string, file: UploadedFile): Promise<void>
+  protected abstract putPath(objectKey: string, file: UploadedPathFile): Promise<void>
   protected abstract removeObject(objectKey: string): Promise<void>
   protected abstract objectExists(objectKey: string): Promise<boolean>
   protected abstract objectUrl(objectKey: string): Promise<string>
+  protected async openObject(_objectKey: string, _start?: number, _end?: number): Promise<Readable> {
+    throw new BadRequestException('当前存储驱动不支持流式读取')
+  }
 
   async upload(file: UploadedFile, options: UploadOptions): Promise<StoredFile> {
-    if (file.size <= 0 || file.size > 20 * 1024 * 1024) throw new BadRequestException('文件大小必须在 1 字节到 20MB 之间')
+    const maxBytes = options.maxBytes || 20 * 1024 * 1024
+    if (file.size <= 0 || file.size > maxBytes) throw new BadRequestException(`文件大小必须在 1 字节到 ${Math.floor(maxBytes / 1024 / 1024)}MB 之间`)
     const safeName = path.basename(file.originalname).replace(/[^\p{L}\p{N}._-]/gu, '_')
     const extension = path.extname(safeName).toLowerCase()
     if (options.catalogMedia) await inspectMediaImage(file, options.trustedSvg)
@@ -81,10 +93,79 @@ export abstract class StorageBase extends StorageService {
     return { id: record.id, originalName: record.originalName, mimeType: record.mimeType, size: record.size, checksum: record.checksum }
   }
 
-  async getSignedUrl(fileId: string) {
+  async uploadPath(file: UploadedPathFile, options: UploadOptions): Promise<StoredFile> {
+    const maxBytes = options.maxBytes || 1024 * 1024 * 1024
+    if (file.size <= 0 || file.size > maxBytes) throw new BadRequestException(`文件大小必须在 1 字节到 ${Math.floor(maxBytes / 1024 / 1024)}MB 之间`)
+    const safeName = path.basename(file.originalname).replace(/[^\p{L}\p{N}._-]/gu, '_')
+    const extension = path.extname(safeName).toLowerCase()
+    if (!allowed.get(extension)?.includes(file.mimetype)) throw new BadRequestException('文件扩展名或 MIME 类型不允许')
+    const info = await stat(file.path)
+    if (!info.isFile() || info.size !== file.size) throw new BadRequestException('上传文件大小不匹配')
+    const handle = await open(file.path, 'r')
+    const header = Buffer.alloc(Math.min(4096, file.size))
+    try { await handle.read(header, 0, header.length, 0) } finally { await handle.close() }
+    const valid = ['.mp4', '.mov'].includes(extension)
+      ? header.toString('ascii', 4, 8) === 'ftyp'
+      : extension === '.webm'
+        ? header.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
+        : extension === '.png'
+          ? header.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+          : ['.jpg', '.jpeg'].includes(extension)
+            ? header[0] === 255 && header[1] === 216 && header[2] === 255
+            : extension === '.webp'
+              ? header.toString('ascii', 0, 4) === 'RIFF' && header.toString('ascii', 8, 12) === 'WEBP'
+              : extension === '.pdf'
+                ? header.toString('ascii', 0, 5) === '%PDF-'
+                : ['.zip', '.docx', '.pptx'].includes(extension)
+                  ? header[0] === 80 && header[1] === 75 && [3, 5, 7].includes(header[2])
+                  : extension === '.txt' && !header.includes(0)
+    if (!valid) throw new BadRequestException('媒体内容与文件类型不匹配')
+    const hash = createHash('sha256')
+    const checksumHandle = await open(file.path, 'r')
+    const chunk = Buffer.allocUnsafe(1024 * 1024)
+    try {
+      for (let position = 0; position < file.size;) {
+        const { bytesRead } = await checksumHandle.read(chunk, 0, Math.min(chunk.length, file.size - position), position)
+        if (!bytesRead) break
+        hash.update(chunk.subarray(0, bytesRead))
+        position += bytesRead
+      }
+    } finally { await checksumHandle.close() }
+    const checksum = hash.digest('hex')
+    const objectKey = `${new Date().toISOString().slice(0, 10)}/${randomUUID()}${extension}`
+    await this.putPath(objectKey, file)
+    const record = await this.prisma.fileRecord.create({
+      data: {
+        storageDriver: this.driver,
+        objectKey,
+        originalName: safeName,
+        extension,
+        mimeType: file.mimetype,
+        size: file.size,
+        checksum,
+        visibility: options.visibility,
+        uploadedBy: options.uploadedBy,
+      },
+    }).catch(async (error: unknown) => { await this.removeObject(objectKey); throw error })
+    return { id: record.id, originalName: record.originalName, mimeType: record.mimeType, size: record.size, checksum }
+  }
+
+  async getSignedUrl(fileId: string, _expiresIn = 300) {
     const file = await this.prisma.fileRecord.findUnique({ where: { id: fileId } })
     if (!file || file.storageDriver !== this.driver) throw new NotFoundException('文件不存在或存储驱动不可用')
     return this.objectUrl(file.objectKey)
+  }
+
+  async copyToPath(fileId: string, target: string) {
+    const file = await this.prisma.fileRecord.findUnique({ where: { id: fileId } })
+    if (!file || file.storageDriver !== this.driver) throw new NotFoundException('文件不存在或存储驱动不可用')
+    await pipeline(await this.openObject(file.objectKey), createWriteStream(target, { mode: 0o640, flags: 'wx' }))
+  }
+
+  async open(fileId: string, start?: number, end?: number) {
+    const file = await this.prisma.fileRecord.findUnique({ where: { id: fileId } })
+    if (!file || file.storageDriver !== this.driver) throw new NotFoundException('文件不存在或存储驱动不可用')
+    return { stream: await this.openObject(file.objectKey, start, end), size: file.size, mimeType: file.mimeType, originalName: file.originalName }
   }
 
   async delete(fileId: string) {

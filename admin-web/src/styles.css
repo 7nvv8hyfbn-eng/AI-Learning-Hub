@@ -87,7 +87,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--brand); box-shad
   font-weight: 700;
 }
 .admin-sidebar nav a i { display: grid; width: 18px; color: #7d838d; font-size: 17px; font-style: normal; text-align: center; }
-.admin-icon { stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.admin-icon { display: block; flex-shrink: 0; fill: currentColor; color: inherit; }
 .admin-sidebar nav a:hover { color: var(--brand); background: #fff8f5; }
 .admin-sidebar nav a.router-link-active { color: var(--brand); background: linear-gradient(90deg, #fff1eb, #fff7f2); }
 .admin-sidebar nav a.router-link-active i { color: var(--brand); }

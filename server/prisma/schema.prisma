@@ -118,6 +118,10 @@ model User {
   communityFollowers        CommunityUserFollow[]       @relation("CommunityFollowee")
   communityTopicFollows     CommunityTopicFollow[]
   communityFeedback         CommunityFeedback[]
+  videoAssets               VideoAsset[]
+  learningCollections       LearningCollection[]        @relation("LearningCollectionOwner")
+  collectionCourseLinks     CollectionCourseReference[] @relation("CollectionCourseCreator")
+  resourceWatchProgress     ResourceWatchProgress[]
   communityReports          CommunityReport[]
   communityModeration       CommunityModerationAction[]
   communityImpressions      CommunityFeedImpression[]
@@ -151,6 +155,7 @@ model PasswordResetToken {
   usedAt    DateTime? @map("used_at")
   createdAt DateTime  @default(now()) @map("created_at")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, expiresAt])
   @@map("password_reset_tokens")
 }
@@ -163,6 +168,7 @@ model EmailVerificationToken {
   usedAt    DateTime? @map("used_at")
   createdAt DateTime  @default(now()) @map("created_at")
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, expiresAt])
   @@map("email_verification_tokens")
 }
@@ -171,6 +177,7 @@ model RegistrationThrottle {
   identityKey String   @id @map("identity_key")
   attempts    Int      @default(1)
   expiresAt   DateTime @map("expires_at")
+
   @@map("registration_throttles")
 }
 
@@ -311,16 +318,16 @@ model HomepagePublication {
 }
 
 model HomepageItem {
-  id            String         @id @default(cuid())
-  moduleId      String         @map("module_id")
-  targetType    String         @map("target_type")
-  targetId      String         @map("target_id")
-  titleOverride String?        @map("title_override")
-  summaryOverride String?      @map("summary_override")
-  coverOverride String?        @map("cover_override")
-  sortOrder     Int            @default(0) @map("sort_order")
-  enabled       Boolean        @default(true)
-  module        HomepageModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  id              String         @id @default(cuid())
+  moduleId        String         @map("module_id")
+  targetType      String         @map("target_type")
+  targetId        String         @map("target_id")
+  titleOverride   String?        @map("title_override")
+  summaryOverride String?        @map("summary_override")
+  coverOverride   String?        @map("cover_override")
+  sortOrder       Int            @default(0) @map("sort_order")
+  enabled         Boolean        @default(true)
+  module          HomepageModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   @@unique([moduleId, targetType, targetId])
   @@map("homepage_items")
@@ -413,33 +420,34 @@ model PathContent {
 }
 
 model Course {
-  id                    String             @id @default(cuid())
-  coverAssetId          String?            @map("cover_asset_id")
-  coverAsset            MediaAsset?        @relation(fields: [coverAssetId], references: [id], onDelete: SetNull)
-  dataOrigin            String             @default("admin_created") @map("data_origin")
-  slug                  String             @unique
+  id                    String                      @id @default(cuid())
+  coverAssetId          String?                     @map("cover_asset_id")
+  coverAsset            MediaAsset?                 @relation(fields: [coverAssetId], references: [id], onDelete: SetNull)
+  dataOrigin            String                      @default("admin_created") @map("data_origin")
+  slug                  String                      @unique
   title                 String
   summary               String
-  themeId               String?            @map("theme_id")
-  status                PublishStatus      @default(draft)
-  sortOrder             Int                @default(0) @map("sort_order")
-  publishedAt           DateTime?          @map("published_at")
-  payload               Json               @default("{}")
-  version               Int                @default(1)
-  currentDraftVersionId String?            @map("current_draft_version_id")
-  publishedVersionId    String?            @map("published_version_id")
-  createdAt             DateTime           @default(now()) @map("created_at")
-  updatedAt             DateTime           @updatedAt @map("updated_at")
-  deletedAt             DateTime?          @map("deleted_at")
-  theme                 Theme?             @relation(fields: [themeId], references: [id], onDelete: SetNull)
-  versions              CourseVersion[]    @relation("CourseVersions")
-  currentDraftVersion   CourseVersion?     @relation("CourseDraftVersion", fields: [currentDraftVersionId], references: [id], onDelete: SetNull)
-  publishedVersion      CourseVersion?     @relation("CoursePublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  themeId               String?                     @map("theme_id")
+  status                PublishStatus               @default(draft)
+  sortOrder             Int                         @default(0) @map("sort_order")
+  publishedAt           DateTime?                   @map("published_at")
+  payload               Json                        @default("{}")
+  version               Int                         @default(1)
+  currentDraftVersionId String?                     @map("current_draft_version_id")
+  publishedVersionId    String?                     @map("published_version_id")
+  createdAt             DateTime                    @default(now()) @map("created_at")
+  updatedAt             DateTime                    @updatedAt @map("updated_at")
+  deletedAt             DateTime?                   @map("deleted_at")
+  theme                 Theme?                      @relation(fields: [themeId], references: [id], onDelete: SetNull)
+  versions              CourseVersion[]             @relation("CourseVersions")
+  currentDraftVersion   CourseVersion?              @relation("CourseDraftVersion", fields: [currentDraftVersionId], references: [id], onDelete: SetNull)
+  publishedVersion      CourseVersion?              @relation("CoursePublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
   progress              LessonProgress[]
   notes                 LearningNote[]
   instructors           CourseInstructor[]
   resources             CourseResource[]
   labs                  CourseLab[]
+  collectionReferences  CollectionCourseReference[]
 
   @@index([status, sortOrder])
   @@map("courses")
@@ -482,15 +490,16 @@ model CourseLab {
 }
 
 model CourseVersion {
-  id           String          @id @default(cuid())
-  courseId     String          @map("course_id")
-  versionNo    Int             @map("version_no")
-  snapshot     Json
-  createdAt    DateTime        @default(now()) @map("created_at")
-  course       Course          @relation("CourseVersions", fields: [courseId], references: [id], onDelete: Cascade)
-  draftFor     Course[]        @relation("CourseDraftVersion")
-  publishedFor Course[]        @relation("CoursePublishedVersion")
-  chapters     CourseChapter[]
+  id                   String                      @id @default(cuid())
+  courseId             String                      @map("course_id")
+  versionNo            Int                         @map("version_no")
+  snapshot             Json
+  createdAt            DateTime                    @default(now()) @map("created_at")
+  course               Course                      @relation("CourseVersions", fields: [courseId], references: [id], onDelete: Cascade)
+  draftFor             Course[]                    @relation("CourseDraftVersion")
+  publishedFor         Course[]                    @relation("CoursePublishedVersion")
+  chapters             CourseChapter[]
+  collectionReferences CollectionCourseReference[]
 
   @@unique([courseId, versionNo])
   @@map("course_versions")
@@ -754,26 +763,26 @@ enum MediaAssetStatus {
 }
 
 model MediaAsset {
-  id          String           @id @default(cuid())
-  assetKey    String           @unique @map("asset_key")
-  fileId      String           @unique @map("file_id")
+  id          String             @id @default(cuid())
+  assetKey    String             @unique @map("asset_key")
+  fileId      String             @unique @map("file_id")
   name        String
-  kind        MediaAssetKind   @default(cover)
-  source      MediaAssetSource @default(upload)
-  contentType String           @default("global") @map("content_type")
-  categoryKey String           @default("generic") @map("category_key")
-  altText     String           @default("") @map("alt_text")
+  kind        MediaAssetKind     @default(cover)
+  source      MediaAssetSource   @default(upload)
+  contentType String             @default("global") @map("content_type")
+  categoryKey String             @default("generic") @map("category_key")
+  altText     String             @default("") @map("alt_text")
   width       Int
   height      Int
-  focalX      Float            @default(0.5) @map("focal_x")
-  focalY      Float            @default(0.5) @map("focal_y")
-  status      MediaAssetStatus @default(active)
-  createdBy   String?          @map("created_by")
-  revision    Int              @default(1)
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
-  deletedAt   DateTime?        @map("deleted_at")
-  file        FileRecord       @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  focalX      Float              @default(0.5) @map("focal_x")
+  focalY      Float              @default(0.5) @map("focal_y")
+  status      MediaAssetStatus   @default(active)
+  createdBy   String?            @map("created_by")
+  revision    Int                @default(1)
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  deletedAt   DateTime?          @map("deleted_at")
+  file        FileRecord         @relation(fields: [fileId], references: [id], onDelete: Restrict)
   defaults    MediaDefaultRule[]
   themes      Theme[]
   courses     Course[]
@@ -810,20 +819,27 @@ model MediaGcJob {
 }
 
 model FileRecord {
-  id            String     @id @default(cuid())
-  storageDriver String     @map("storage_driver")
-  objectKey     String     @unique @map("object_key")
-  originalName  String     @map("original_name")
-  extension     String
-  mimeType      String     @map("mime_type")
-  size          Int
-  checksum      String
-  visibility    String     @default("private")
-  uploadedBy    String     @map("uploaded_by")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  uploader      User       @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
-  resources     Resource[]
-  mediaAsset    MediaAsset?
+  id                      String                 @id @default(cuid())
+  storageDriver           String                 @map("storage_driver")
+  objectKey               String                 @unique @map("object_key")
+  originalName            String                 @map("original_name")
+  extension               String
+  mimeType                String                 @map("mime_type")
+  size                    Int
+  checksum                String
+  visibility              String                 @default("private")
+  uploadedBy              String                 @map("uploaded_by")
+  createdAt               DateTime               @default(now()) @map("created_at")
+  uploader                User                   @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  resources               Resource[]
+  mediaAsset              MediaAsset?
+  profileAvatars          CommunityProfile[]     @relation("CommunityProfileAvatar")
+  profileBanners          CommunityProfile[]     @relation("CommunityProfileBanner")
+  contributionCovers      ResourceContribution[] @relation("ResourceContributionCover")
+  contributionAttachments ResourceContribution[] @relation("ResourceContributionAttachment")
+  videoSources            VideoAsset[]           @relation("VideoAssetSource")
+  videoPlayableFiles      VideoAsset[]           @relation("VideoAssetPlayable")
+  videoPosters            VideoAsset[]           @relation("VideoAssetPoster")
 
   @@index([checksum])
   @@map("files")
@@ -868,11 +884,16 @@ model Resource {
 }
 
 model ResourceCategory {
-  id        String   @id @default(cuid())
-  code      String   @unique
-  name      String
-  sortOrder Int      @default(0) @map("sort_order")
-  createdAt DateTime @default(now()) @map("created_at")
+  id            String                 @id @default(cuid())
+  code          String                 @unique
+  name          String
+  sortOrder     Int                    @default(0) @map("sort_order")
+  description   String                 @default("")
+  icon          String                 @default("resource")
+  active        Boolean                @default(true)
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+  contributions ResourceContribution[]
 
   @@map("resource_categories")
 }
@@ -1624,21 +1645,50 @@ enum CommunityReactionType {
   useful
 }
 
-model CommunityProfile {
-  userId                 String   @id @map("user_id")
-  revision               Int      @default(1)
-  bio                    String   @default("")
-  headline               String   @default("")
-  verifiedType           String   @default("none") @map("verified_type")
-  expertiseTopics        String[] @default([]) @map("expertise_topics")
-  allowAchievementDrafts Boolean  @default(false) @map("allow_achievement_drafts")
-  postCount              Int      @default(0) @map("post_count")
-  followerCount          Int      @default(0) @map("follower_count")
-  followingCount         Int      @default(0) @map("following_count")
-  createdAt              DateTime @default(now()) @map("created_at")
-  updatedAt              DateTime @updatedAt @map("updated_at")
-  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+enum ResourceContributionKind {
+  video
+  article
+  document
+}
 
+enum VideoProcessingStatus {
+  uploaded
+  processing
+  ready
+  failed
+}
+
+enum LearningCollectionVisibility {
+  private
+  community
+}
+
+model CommunityProfile {
+  userId                 String         @id @map("user_id")
+  revision               Int            @default(1)
+  bio                    String         @default("")
+  headline               String         @default("")
+  avatarFileId           String?        @map("avatar_file_id")
+  bannerFileId           String?        @map("banner_file_id")
+  location               String?
+  websiteUrl             String?        @map("website_url")
+  pinnedPostId           String?        @map("pinned_post_id")
+  verifiedType           String         @default("none") @map("verified_type")
+  expertiseTopics        String[]       @default([]) @map("expertise_topics")
+  allowAchievementDrafts Boolean        @default(false) @map("allow_achievement_drafts")
+  postCount              Int            @default(0) @map("post_count")
+  followerCount          Int            @default(0) @map("follower_count")
+  followingCount         Int            @default(0) @map("following_count")
+  createdAt              DateTime       @default(now()) @map("created_at")
+  updatedAt              DateTime       @updatedAt @map("updated_at")
+  user                   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatarFile             FileRecord?    @relation("CommunityProfileAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  bannerFile             FileRecord?    @relation("CommunityProfileBanner", fields: [bannerFileId], references: [id], onDelete: SetNull)
+  pinnedPost             CommunityPost? @relation("CommunityProfilePinnedPost", fields: [pinnedPostId], references: [id], onDelete: SetNull)
+
+  @@index([avatarFileId])
+  @@index([bannerFileId])
+  @@index([pinnedPostId])
   @@map("community_profiles")
 }
 
@@ -1677,6 +1727,8 @@ model CommunityPost {
   bookmarks       CommunityBookmark[]
   reports         CommunityReport[]
   revisions       CommunityPostRevision[]
+  pinnedBy        CommunityProfile[]      @relation("CommunityProfilePinnedPost")
+  contribution    ResourceContribution?
 
   @@index([status, publishedAt, id])
   @@index([authorId, status, publishedAt])
@@ -1690,6 +1742,136 @@ model CommunityPost {
   @@index([contentHash, authorId, status])
   @@index([deletedAt])
   @@map("community_posts")
+}
+
+model VideoAsset {
+  id               String                  @id @default(cuid())
+  uploaderId       String                  @map("uploader_id")
+  sourceFileId     String                  @unique @map("source_file_id")
+  playableFileId   String?                 @unique @map("playable_file_id")
+  posterFileId     String?                 @unique @map("poster_file_id")
+  status           VideoProcessingStatus   @default(uploaded)
+  originalName     String                  @map("original_name")
+  originalMimeType String                  @map("original_mime_type")
+  durationSeconds  Int?                    @map("duration_seconds")
+  width            Int?
+  height           Int?
+  rotation         Int                     @default(0)
+  videoCodec       String?                 @map("video_codec")
+  audioCodec       String?                 @map("audio_codec")
+  attempts         Int                     @default(0)
+  claimedAt        DateTime?               @map("claimed_at")
+  startedAt        DateTime?               @map("started_at")
+  finishedAt       DateTime?               @map("finished_at")
+  lastError        String?                 @map("last_error")
+  version          Int                     @default(1)
+  createdAt        DateTime                @default(now()) @map("created_at")
+  updatedAt        DateTime                @updatedAt @map("updated_at")
+  uploader         User                    @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+  sourceFile       FileRecord              @relation("VideoAssetSource", fields: [sourceFileId], references: [id], onDelete: Restrict)
+  playableFile     FileRecord?             @relation("VideoAssetPlayable", fields: [playableFileId], references: [id], onDelete: Restrict)
+  posterFile       FileRecord?             @relation("VideoAssetPoster", fields: [posterFileId], references: [id], onDelete: Restrict)
+  contribution     ResourceContribution?
+  progress         ResourceWatchProgress[]
+
+  @@index([status, claimedAt, createdAt])
+  @@index([uploaderId, createdAt])
+  @@map("video_assets")
+}
+
+model ResourceContribution {
+  postId               String                   @id @map("post_id")
+  kind                 ResourceContributionKind
+  categoryId           String?                  @map("category_id")
+  videoAssetId         String?                  @unique @map("video_asset_id")
+  attachmentFileId     String?                  @map("attachment_file_id")
+  coverFileId          String?                  @map("cover_file_id")
+  tags                 String[]                 @default([])
+  teachingReuseConsent Boolean                  @default(false) @map("teaching_reuse_consent")
+  sourceName           String?                  @map("source_name")
+  sourceUrl            String?                  @map("source_url")
+  featured             Boolean                  @default(false)
+  liveReplay           Boolean                  @default(false) @map("live_replay")
+  revision             Int                      @default(1)
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  updatedAt            DateTime                 @updatedAt @map("updated_at")
+  post                 CommunityPost            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  category             ResourceCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  videoAsset           VideoAsset?              @relation(fields: [videoAssetId], references: [id], onDelete: Restrict)
+  attachmentFile       FileRecord?              @relation("ResourceContributionAttachment", fields: [attachmentFileId], references: [id], onDelete: Restrict)
+  coverFile            FileRecord?              @relation("ResourceContributionCover", fields: [coverFileId], references: [id], onDelete: Restrict)
+  collectionItems      LearningCollectionItem[]
+
+  @@index([kind, categoryId, featured, updatedAt])
+  @@index([categoryId, updatedAt])
+  @@map("resource_contributions")
+}
+
+model LearningCollection {
+  id           String                       @id @default(cuid())
+  ownerId      String                       @map("owner_id")
+  name         String
+  description  String                       @default("")
+  learningGoal String                       @default("") @map("learning_goal")
+  visibility   LearningCollectionVisibility @default(private)
+  systemKind   String?                      @map("system_kind")
+  revision     Int                          @default(1)
+  createdAt    DateTime                     @default(now()) @map("created_at")
+  updatedAt    DateTime                     @updatedAt @map("updated_at")
+  owner        User                         @relation("LearningCollectionOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  items        LearningCollectionItem[]
+  courseLinks  CollectionCourseReference[]
+
+  @@unique([ownerId, systemKind])
+  @@index([visibility, updatedAt])
+  @@map("learning_collections")
+}
+
+model LearningCollectionItem {
+  id                 String               @id @default(cuid())
+  collectionId       String               @map("collection_id")
+  contributionPostId String               @map("contribution_post_id")
+  sortOrder          Int                  @default(0) @map("sort_order")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  collection         LearningCollection   @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  contribution       ResourceContribution @relation(fields: [contributionPostId], references: [postId], onDelete: Restrict)
+
+  @@unique([collectionId, contributionPostId])
+  @@index([collectionId, sortOrder, id])
+  @@map("learning_collection_items")
+}
+
+model ResourceWatchProgress {
+  userId          String     @map("user_id")
+  videoAssetId    String     @map("video_asset_id")
+  positionSeconds Int        @default(0) @map("position_seconds")
+  watchedSeconds  Int        @default(0) @map("watched_seconds")
+  completedAt     DateTime?  @map("completed_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoAsset      VideoAsset @relation(fields: [videoAssetId], references: [id], onDelete: Cascade)
+
+  @@id([userId, videoAssetId])
+  @@index([userId, updatedAt])
+  @@map("resource_watch_progress")
+}
+
+model CollectionCourseReference {
+  id              String             @id @default(cuid())
+  collectionId    String             @map("collection_id")
+  courseId        String             @map("course_id")
+  courseVersionId String             @map("course_version_id")
+  createdBy       String             @map("created_by")
+  sourceRevision  Int                @map("source_revision")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  collection      LearningCollection @relation(fields: [collectionId], references: [id], onDelete: Restrict)
+  course          Course             @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  courseVersion   CourseVersion      @relation(fields: [courseVersionId], references: [id], onDelete: Restrict)
+  creator         User               @relation("CollectionCourseCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@unique([collectionId, courseId])
+  @@index([courseId, createdAt])
+  @@map("collection_course_references")
 }
 
 model CommunityPostBinding {

@@ -34,7 +34,6 @@ const moduleFor = (key: LandingModuleKey) => props.homepage.modules.find((module
 const config = <K extends LandingModuleKey>(key: K) => ({ ...LANDING_DEFAULT_CONFIG[key], ...moduleFor(key)?.config }) as LandingConfigMap[K]
 const hero = computed(() => config('landing_hero')), ability = computed(() => config('landing_capabilities'))
 const overview = computed(() => config('landing_community_overview')), cta = computed(() => config('landing_bottom_cta'))
-const heroItems = computed(() => (moduleFor('landing_hero')?.items || []).slice(0, 5))
 const heroSlots = [
   { className: 'landing-mosaic-note', variant: 'note', cover: 'robotCar' },
   { className: 'landing-mosaic-visual', variant: 'visual', cover: 'robotVision' },
@@ -42,6 +41,10 @@ const heroSlots = [
   { className: 'landing-mosaic-resource', variant: 'resource', cover: 'robotCar' },
   { className: 'landing-mosaic-topic', variant: 'note', cover: 'aiWorkspace' },
 ] as const
+const heroItems = computed(() => {
+  const items = (moduleFor('landing_hero')?.items || []).slice(0, 5)
+  return heroSlots.map((_, slot) => items.find((item, index) => (item.slot ?? index) === slot))
+})
 const topics = computed(() => (moduleFor('landing_community_overview')?.items || []).filter((item) => item.targetType === 'community_topic').slice(0, 5))
 const creators = computed(() => (moduleFor('landing_community_overview')?.items || []).filter((item) => item.targetType === 'community_user').slice(0, 4))
 const author = (item: HomepageResolvedItemDto) => item.data as unknown as LandingPublicAuthor
@@ -75,8 +78,10 @@ const learnMore = () => capabilities.value?.scrollIntoView({ behavior: window.ma
       </div>
       <div class="landing-hero-mosaic" aria-label="社区内容预览">
         <img class="landing-hero-arms" :src="landingAsset(hero.image, 'heroArms')" alt="" width="960" height="640" fetchpriority="high" />
-        <LandingContentCard v-for="(item, index) in heroItems" :key="`${item.targetType}:${item.slug}`" :class="heroSlots[index]!.className" :item="item" :variant="heroSlots[index]!.variant" :cover="heroSlots[index]!.cover" @open="openItem" />
-        <p v-if="!heroItems.length" class="landing-empty landing-mosaic-empty">社区内容正在准备中，期待你的第一份分享。</p>
+        <template v-for="(slot, index) in heroSlots" :key="slot.className">
+          <LandingContentCard v-if="heroItems[index]" :class="slot.className" :item="heroItems[index]!" :variant="slot.variant" :cover="slot.cover" @open="openItem" />
+          <button v-else-if="index === 4" type="button" class="landing-content-card landing-mosaic-topic landing-card-note" @click="navigate('/community')"><div class="landing-card-copy"><span class="landing-tag">社区精选</span><h3>更多社区帖子正在路上</h3><p>进入社区，发现最新的学习分享与实践记录。</p><span class="landing-card-link">浏览社区 <AppIcon name="arrow-right" :size="14" /></span></div></button>
+        </template>
       </div>
     </section>
     <section v-if="moduleFor('landing_capabilities')" ref="capabilities" class="landing-capabilities landing-container" aria-labelledby="landing-capabilities-title">

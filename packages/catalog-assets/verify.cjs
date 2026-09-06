@@ -4,7 +4,7 @@ const path = require('node:path')
 const crypto = require('node:crypto')
 const sharp = require('../../server/node_modules/sharp')
 const { catalogAssets, getCatalogAsset, getDefaultAssetKeys, normalizeCategoryKey } = require('./dist/manifest')
-const { iconRegistry, getIconSvg } = require('./dist/icons/registry')
+const { iconRegistry, getIconHref } = require('./dist/icons/registry')
 
 async function verify() {
   assert.equal(catalogAssets.length, 118)
@@ -56,13 +56,16 @@ async function verify() {
   assert.equal(new Set(hashes).size, hashes.length, '不同独立资产不得使用完全相同的图片二进制')
   const achievements = ['first-course', 'seven-day-streak', 'first-lab', 'deployment-starter', 'agent-builder', 'command-runner', 'hardware-maker', 'first-assessment', 'high-score', 'resource-curator', 'project-maker', 'learning-star']
   for (const name of [...achievements, 'brain', 'network', 'rag', 'database', 'workflow', 'memory', 'api', 'container', 'gpu', 'sensor', 'edge', 'crop', 'template', 'download', 'pulse', 'scale', 'graduation', 'missing']) assert.ok(iconRegistry[name], name)
-  for (const [name, body] of Object.entries(iconRegistry)) {
-    assert.doesNotMatch(body, /<(?:image|script|foreignObject)\b|href\s*=|data:|on[a-z]+\s*=/i, name)
-    const folder = achievements.includes(name) ? 'achievements' : 'catalog'
-    const svg = fs.readFileSync(path.join(__dirname, 'icons', folder, `${name}.svg`), 'utf8').trim()
-    assert.equal(svg, getIconSvg(name), name)
+  const iconfont = fs.readFileSync(path.join(__dirname, 'icons', 'iconfont.js'), 'utf8')
+  assert.equal((iconfont.match(/<symbol /g) || []).length, 140)
+  assert.equal((iconfont.match(/fill="currentColor"/g) || []).length, 140)
+  assert.doesNotMatch(iconfont, /fill="#000000"/)
+  for (const [name, symbol] of Object.entries(iconRegistry)) {
+    assert.match(symbol, /^[A-Za-z0-9_-]+$/, name)
+    assert.ok(iconfont.includes(`id="icon-${symbol}"`), `${name}: ${symbol}`)
+    assert.equal(getIconHref(name), `#icon-${symbol}`)
   }
-  assert.equal(getIconSvg('unknown-key'), getIconSvg('missing'))
+  assert.equal(getIconHref('unknown-key'), getIconHref('missing'))
   console.log(JSON.stringify({ status: missing.length ? 'IN_PROGRESS' : 'PASS', expected: catalogAssets.length, present: hashes.length, missing, totalBytes, icons: Object.keys(iconRegistry).length }, null, 2))
   if (!process.argv.includes('--allow-pending')) assert.equal(missing.length, 0, '全部正式素材完成前禁止通过完整门禁')
 }

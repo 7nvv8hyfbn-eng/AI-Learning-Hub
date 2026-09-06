@@ -138,6 +138,33 @@ describe('社区化入口', () => {
     expect(source('styles/pages/landing.css')).toContain('.landing-hero-arms, .landing-mosaic-code, .landing-mosaic-resource, .landing-mosaic-topic { display: none; }')
   })
 
+  it('首屏按服务端槽位固定样式，关联缺失不推动后项，无帖子时第5槽显示社区空态', async () => {
+    const homepage = await MockHomepageRepository.load()
+    const hero = homepage.modules[0]!
+    hero.items = [
+      { targetType: 'community_post', slug: 'slot-1', title: '槽位一', summary: '公开帖子', data: {}, slot: 0 },
+      { targetType: 'lab', slug: 'slot-3', title: '槽位三', summary: '公开实训', data: {}, slot: 2 },
+      { targetType: 'resource', slug: 'slot-4', title: '槽位四', summary: '公开资源', data: {}, slot: 3 },
+      { targetType: 'community_post', slug: 'slot-5', title: '槽位五', summary: '公开帖子', data: {}, slot: 4 },
+    ]
+    const render = async () => {
+      const app = createSSRApp(LandingRenderer, { homepage, preview: true })
+      app.component('RouterLink', { setup: (_, { slots }) => () => h('a', {}, slots.default?.()) })
+      return renderToString(app)
+    }
+    let html = await render()
+    expect(html.match(/landing-mosaic-visual/g)).toBeNull()
+    expect(html.match(/<button[^>]*landing-mosaic-code[^>]*>[\s\S]*?<\/button>/)?.[0]).toContain('槽位三')
+    expect(html.match(/<button[^>]*landing-mosaic-resource[^>]*>[\s\S]*?<\/button>/)?.[0]).toContain('槽位四')
+    expect(html.match(/<button[^>]*landing-mosaic-topic[^>]*>[\s\S]*?<\/button>/)?.[0]).toContain('槽位五')
+
+    hero.items = hero.items.filter((item) => item.slot !== 4)
+    html = await render()
+    const empty = html.match(/<button[^>]*landing-mosaic-topic[^>]*>[\s\S]*?<\/button>/)?.[0] || ''
+    expect(empty).toContain('更多社区帖子正在路上')
+    expect(empty).toContain('浏览社区')
+  })
+
   it('后台轻量分组按权限过滤，社区先于学习且保留五组全部路由', () => {
     expect(visibleAdminNavigation(['homepage.read'])).toEqual([{ label: '门户与系统', items: [['homepage', '门户落地页', '/homepage', 'homepage.read']] }])
     expect(visibleAdminNavigation([])).toEqual([])

@@ -5,6 +5,7 @@ const openedDialogs: HTMLDialogElement[] = []
 </script>
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+import AppIcon from './AppIcon.vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -78,7 +79,7 @@ onBeforeUnmount(() => {
       <div class="dialog-card" @click.stop>
         <div class="dialog-title">
           <strong :id="titleId">{{ title }}</strong>
-          <button class="icon-button" type="button" :aria-label="`关闭${title}`" @click="close">×</button>
+          <button class="icon-button" type="button" :aria-label="`关闭${title}`" @click="close"><AppIcon name="close" :size="18" /></button>
         </div>
         <slot :close="close" />
       </div>

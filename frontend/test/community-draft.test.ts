@@ -6,7 +6,7 @@ import { createMemoryHistory, createRouter, isNavigationFailure, NavigationFailu
 import { useCommunityDraft } from '../src/community/composables/useCommunityDraft'
 import { useCommunityStore } from '../src/stores/community'
 import { communityApi } from '../src/services/api/community'
-import type { CommunityPostDetailDto } from '@ai-learning-hub/contracts'
+import type { CommunityAuthorDto, CommunityPostDetailDto } from '@ai-learning-hub/contracts'
 import CommunityQuickComposer from '../src/community/CommunityQuickComposer.vue'
 import CommunityComposer from '../src/community/CommunityComposer.vue'
 import CommunityDraftConflict from '../src/community/CommunityDraftConflict.vue'
@@ -305,6 +305,76 @@ describe('共享发布器与草稿账号隔离', () => {
     await vi.advanceTimersByTimeAsync(2000)
     expect(editor.savedAt).toBe('本地演示草稿已保存'); expect(communityApi.saveDraft).not.toHaveBeenCalled()
     await editor.loadTopics(); expect(communityApi.topics).toHaveBeenCalledOnce()
+    view.unmount()
+  })
+  it('快捷顶部只保留内容类型和关闭按钮，且不覆盖可见范围', async () => {
+    const pinia = getActivePinia()!
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/community', component: { render: () => null } }] })
+    await router.push('/community')
+    const editor = useCommunityDraft(), store = useCommunityStore()
+    store.openComposer({ visibility: 'school' }); store.composerInline = true; await settle()
+    const app = createSSRApp(CommunityQuickComposer)
+    app.use(pinia); app.use(router)
+    const html = await renderToString(app)
+    expect(html).toContain('aria-label="发布内容类型"')
+    expect(html).toContain('aria-label="收起快捷发布"')
+    expect(html).not.toContain('aria-label="可见范围"')
+    expect(html).not.toContain('登录社区用户')
+    expect(html).not.toContain('仅同校用户')
+    expect(editor.form.visibility).toBe('school')
+    editor.discard(); store.openComposer(); await settle()
+    expect(editor.form.visibility).toBe('public')
+  })
+  it('发布成功胶囊展示三位真实社区用户并返回主滚动区顶部', async () => {
+    const pinia = getActivePinia()!
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/community', component: { render: () => null } }] })
+    await router.push('/community')
+    const users: CommunityAuthorDto[] = ['林宇', '周楠', '陈曦'].map((displayName, index) => ({ id: `user-${index}`, username: `user-${index}`, displayName, avatar: null, school: null, major: null, verifiedType: 'none' }))
+    const store = useCommunityStore()
+    store.publishNotice = { id: 'published-post', text: '发布成功，已插入当前列表顶部' }
+    store.context = { todayPlan: null, continueCourse: null, continueLab: null, currentChallenge: null, trendingTopics: [], suggestedUsers: users, needsInterests: false }
+    const scrollTo = vi.fn(), scrollElement = Object.assign(new EventTarget(), { scrollTop: 251, scrollHeight: 1400, clientHeight: 400, scrollTo })
+    const root = ref(scrollElement as unknown as HTMLElement)
+    const view = setupComponent<{ backToTop: () => void; updateBackToTop: () => void; showBackToTop: boolean }>(CommunityComposer, {}, [pinia, router], [[communityScrollRoot, root]])
+    view.state.updateBackToTop()
+    expect(view.state.showBackToTop).toBe(true)
+    scrollElement.scrollTop = 250; view.state.updateBackToTop()
+    expect(view.state.showBackToTop).toBe(false)
+    scrollElement.scrollTop = 251; view.state.updateBackToTop()
+    view.state.backToTop()
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
+    const app = createSSRApp(CommunityComposer)
+    app.use(pinia); app.use(router); app.provide(communityScrollRoot, root)
+    const html = await renderToString(app)
+    expect(html).toContain('community-publish-feedback')
+    expect(html).toContain('已发布')
+    expect(html.match(/avatar-xs/g)).toHaveLength(3)
+    expect(html).not.toContain('查看动态')
+    expect(html).not.toContain('关闭发布提示')
+    view.unmount()
+  })
+  it('普通浏览超过四分之一时显示返回顶部控件', async () => {
+    const pinia = getActivePinia()!
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/community', component: { render: () => null } }] })
+    await router.push('/community')
+    expect(useCommunityStore().publishNotice).toBeNull()
+    const root = ref({ scrollTop: 251, scrollHeight: 1400, clientHeight: 400, scrollTo: vi.fn() } as unknown as HTMLElement)
+    const app = createSSRApp(CommunityComposer)
+    app.use(pinia); app.use(router); app.provide(communityScrollRoot, root)
+    expect(await renderToString(app)).toContain('community-publish-feedback')
+  })
+  it('首次登录从欢迎页进入社区后绑定后创建的滚动根节点', async () => {
+    const pinia = getActivePinia()!
+    const router = createRouter({ history: createMemoryHistory(), routes: ['/welcome', '/community'].map((path) => ({ path, component: { render: () => null } })) })
+    await router.push('/welcome')
+    let main: HTMLElement | null = null
+    vi.stubGlobal('document', { querySelector: vi.fn(() => main) })
+    const scrollElement = Object.assign(new EventTarget(), { scrollTop: 251, scrollHeight: 1400, clientHeight: 400, scrollTo: vi.fn() })
+    router.afterEach(() => { void nextTick(() => { main = scrollElement as unknown as HTMLElement }) })
+    const view = setupComponent<{ showBackToTop: boolean }>(CommunityComposer, {}, [pinia, router])
+    await router.push('/community'); await settle()
+    scrollElement.dispatchEvent(new Event('scroll'))
+    expect(view.state.showBackToTop).toBe(true)
     view.unmount()
   })
   it('清空已暂存文字不会恢复旧正文，也不额外创建空服务端草稿', async () => {

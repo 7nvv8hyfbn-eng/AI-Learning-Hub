@@ -2,6 +2,7 @@
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import NotFoundState from '../components/NotFoundState.vue'
+import AppIcon from '../components/base/AppIcon.vue'
 import LabWorkspaceShell from '../components/lab/LabWorkspaceShell.vue'
 import { getLabDefinition } from '../labs/registry'
 import { canTransition, progressForState } from '../labs/stateMachine'
@@ -274,7 +275,7 @@ onBeforeUnmount(stopTimer)
     @reset="reset"
     @submit="submit"
   >
-    <RouterLink class="text-link" :to="`/community/search?bindingId=${route.params.labId}`">查看实训相关成果 ↗</RouterLink>
+    <RouterLink class="text-link" :to="`/community/search?bindingId=${route.params.labId}`">查看实训相关成果 <AppIcon name="arrow-up-right" :size="14" /></RouterLink>
     <section v-if="state === 'submitted'" class="community-lab-share"><strong>把这次实践变成有帮助的学习交流</strong><p>只预填实训名称和结果摘要，不包含日志、评分细则或敏感输入。</p><button class="button primary" type="button" @click="shareResult">分享实训成果</button></section>
     <section v-if="dataMode === 'api'" class="workspace-type">
       <div class="workspace-heading"><div><strong>服务端步骤动作</strong><small>当前只允许：{{ currentApiAction }}</small></div><span class="status" :class="state">{{ state }}</span></div>

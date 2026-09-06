@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue'
+import AppIcon from '../components/base/AppIcon.vue'
 
 withDefaults(defineProps<{ label?: string }>(), { label: '更多动态操作' })
 const id = `community-menu-${useId()}`, trigger = ref<HTMLButtonElement>(), panel = ref<HTMLElement>()
@@ -27,7 +28,7 @@ onBeforeUnmount(() => { close(); window.removeEventListener('resize', close); wi
 </script>
 <template>
   <div class="community-post-menu">
-    <button ref="trigger" type="button" class="community-menu-trigger" :aria-label="label" aria-haspopup="menu" :aria-expanded="opened" :aria-controls="id" @click="toggle"><slot name="trigger">•••</slot></button>
+    <button ref="trigger" type="button" class="community-menu-trigger" :aria-label="label" aria-haspopup="menu" :aria-expanded="opened" :aria-controls="id" @click="toggle"><slot name="trigger"><AppIcon name="more-circle" :size="18" /></slot></button>
     <Teleport to="body"><div :id="id" ref="panel" class="community-menu-panel" popover="auto" role="menu" :style="position" @toggle="onToggle" @click="close"><slot /></div></Teleport>
   </div>
 </template>

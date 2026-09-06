@@ -228,4 +228,90 @@ export class CourseService {
     })
     return this.detail(courseId)
   }
+
+  async createDraftFromCollection(collectionId: string, input: { courseId?: string; slug?: string; title?: string }, actorId: string) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`collection-course:${collectionId}:${input.courseId || input.slug || ''}`},0))::text`
+      const collection = await tx.learningCollection.findUnique({
+        where: { id: collectionId },
+        include: {
+          items: {
+            include: {
+              contribution: {
+                include: { post: { include: { author: true } }, videoAsset: true },
+              },
+            },
+            orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+          },
+        },
+      })
+      if (!collection) throw new NotFoundException('合集不存在')
+      if (!collection.items.length) throw new BadRequestException('空合集不能生成课程')
+      const invalid = collection.items.find(({ contribution }) =>
+        !contribution.teachingReuseConsent ||
+        contribution.post.status !== 'published' ||
+        contribution.post.visibility !== 'public' ||
+        !!contribution.post.deletedAt ||
+        contribution.post.author.status !== 'active')
+      if (invalid) throw new BadRequestException(`作品“${invalid.contribution.post.title || invalid.contribution.postId}”未公开发布、作者失效或未授权教学复用`)
+
+      let courseId = input.courseId
+      let versionId: string
+      if (courseId) {
+        const existing = await tx.collectionCourseReference.findUnique({ where: { collectionId_courseId: { collectionId, courseId } } })
+        if (existing) return existing
+        versionId = await this.ensureDraft(courseId, tx)
+      } else {
+        const slug = input.slug?.trim(), title = input.title?.trim()
+        if (!slug || !title) throw new BadRequestException('新建课程需要课程标识和标题')
+        const durationMinutes = collection.items.reduce((total, item) => total + Math.max(1, Math.ceil((item.contribution.videoAsset?.durationSeconds || 600) / 60)), 0)
+        const data = { category: '资源合集', mode: 'self-paced', durationMinutes }
+        const course = await tx.course.create({
+          data: { slug, title, summary: collection.description || collection.learningGoal || `由“${collection.name}”合集生成的课程草稿`, payload: this.support.json(data) },
+        })
+        const version = await tx.courseVersion.create({ data: { courseId: course.id, versionNo: 1, snapshot: this.support.json({ title, summary: course.summary, data }) } })
+        await tx.course.update({ where: { id: course.id }, data: { currentDraftVersionId: version.id } })
+        courseId = course.id
+        versionId = version.id
+      }
+
+      const chapter = await tx.courseChapter.create({
+        data: { courseVersionId: versionId, title: collection.name, description: collection.learningGoal || collection.description, sortOrder: 0 },
+      })
+      for (const [sortOrder, item] of collection.items.entries()) {
+        const source = item.contribution
+        const lesson = await tx.courseLesson.create({
+          data: {
+            chapterId: chapter.id,
+            title: source.post.title || '未命名资源',
+            summary: source.post.plainText.slice(0, 240),
+            lessonType: source.kind,
+            durationMinutes: Math.min(600, Math.max(1, Math.ceil((source.videoAsset?.durationSeconds || 600) / 60))),
+            sortOrder,
+          },
+        })
+        await tx.lessonBlock.create({
+          data: {
+            lessonId: lesson.id,
+            blockType: 'resource',
+            sortOrder: 0,
+            content: this.support.json({
+              title: source.post.title || '学习资源',
+              route: source.kind === 'video' ? `/resources/watch/${source.postId}` : `/resources/read/${source.postId}`,
+              sourcePostId: source.postId,
+              sourceAuthorId: source.post.authorId,
+            }),
+          },
+        })
+      }
+      const reference = await tx.collectionCourseReference.create({
+        data: { collectionId, courseId: courseId!, courseVersionId: versionId, createdBy: actorId, sourceRevision: collection.revision },
+      })
+      await tx.auditLog.create({
+        data: { actorId, action: 'resource_collection_to_course', targetType: 'course', targetId: courseId!, details: { collectionId, courseVersionId: versionId, sourceRevision: collection.revision } },
+      })
+      return reference
+    })
+    return { courseId: result.courseId, courseVersionId: result.courseVersionId, collectionId: result.collectionId, sourceRevision: result.sourceRevision }
+  }
 }

@@ -192,5 +192,5 @@ manifest.json是素材/默认规则/中文分类别名唯一映射源；manifest
 
 | 参考assetKey | 用途 | 状态 | 输出 |
 | --- | --- | --- | --- |
-| icon-reference--catalog | catalog造型参考，独立生成 | 已生成并重绘真SVG | 外部证据保留原图；真SVG位于icons/catalog/ |
-| icon-reference--achievements | 成就徽章造型参考，独立生成 | 已生成并重绘真SVG | 外部证据保留原图；真SVG位于icons/achievements/ |
+| icon-reference--catalog | catalog造型参考，独立生成 | 已归档 | UI 图标已统一迁移到 `icons/iconfont.js` Symbol 源 |
+| icon-reference--achievements | 成就徽章造型参考，独立生成 | 已归档 | 成就图标已统一迁移到 `icons/iconfont.js` Symbol 源 |

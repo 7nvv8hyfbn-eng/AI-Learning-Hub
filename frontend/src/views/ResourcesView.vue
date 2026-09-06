@@ -1,97 +1,203 @@
 <script setup lang="ts">
-import type { ResourceItem } from '../types'
-import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import type { ResourceContributionKind, ResourceHubHomeDto, ResourceHubItemDto } from '@ai-learning-hub/contracts'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppDialog from '../components/base/AppDialog.vue'
 import AppIcon from '../components/base/AppIcon.vue'
-import CategoryCover from '../components/base/CategoryCover.vue'
-import ResourceCard from '../components/cards/ResourceCard.vue'
-import ContentPagination from '../components/ContentPagination.vue'
-import PageHero from '../components/PageHero.vue'
+import ResourceHubCard from '../components/ResourceHubCard.vue'
 import ResourcePreviewDialog from '../components/ResourcePreviewDialog.vue'
 import { behaviorApi } from '../services/api/behavior'
 import { dataMode } from '../services/api/client'
+import { useCommunityStore } from '../stores/community'
 import { useAuthStore } from '../stores/auth'
 import { mapSelectedResource, useResourcesStore } from '../stores/content/resources'
-import { useLearningStore } from '../stores/learning'
+import { resourceHubApi } from '../services/api/resourceHub'
 
 const route = useRoute()
 const router = useRouter()
-const store = useLearningStore()
+const community = useCommunityStore()
 const auth = useAuthStore()
-const resourcesStore = useResourcesStore()
-const { items: resources } = storeToRefs(resourcesStore)
-const query = ref('')
-const category = ref('全部资源')
-const theme = ref('全部主题')
-const difficulty = ref('全部难度')
-const format = ref('全部格式')
-const sort = ref('最新发布')
-const featuredOnly = ref(false)
-const uploadOpen = ref(false)
-const uploadStatus = ref('')
-const categories = ['全部资源', '学习手册', '提示词模板', '部署指南', 'Agent 案例', '命令速查', '硬件资料']
-const filtered = computed(() => {
-  const result = resources.value.filter((item) =>
-    item.title.includes(query.value) &&
-    (category.value === '全部资源' || item.category === category.value) &&
-    (theme.value === '全部主题' || item.theme === theme.value) &&
-    (difficulty.value === '全部难度' || item.difficulty === difficulty.value) &&
-    (format.value === '全部格式' || item.format === format.value) &&
-    (!featuredOnly.value || item.featured))
-  return sort.value === '下载最多' ? [...result].sort((a, b) => b.downloads - a.downloads) : [...result].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-})
-const favoriteResources = computed(() => resources.value.filter((item) => store.isFavorite('resource', item.id)))
-const preview = computed(() => {
-  const listed = resources.value.find((item) => item.id === route.query.preview)
-  return listed || mapSelectedResource(resourcesStore.selected, route.query.preview)
-})
-const previewOpen = computed({
-  get: () => typeof route.query.preview === 'string',
+const legacyResources = useResourcesStore()
+const home = ref<ResourceHubHomeDto | null>(null)
+const results = ref<ResourceHubItemDto[]>([])
+const queryKind = ['video', 'article', 'document'].includes(String(route.query.kind)) ? String(route.query.kind) as ResourceContributionKind : 'all'
+const keyword = ref(typeof route.query.q === 'string' ? route.query.q : '')
+const category = ref(typeof route.query.category === 'string' ? route.query.category : '')
+const kind = ref<'all' | ResourceContributionKind>(queryKind)
+const rankingPeriod = ref<'week' | 'month' | 'all'>('week')
+const bannerIndex = ref(0)
+const loading = ref(true)
+const error = ref('')
+const notice = ref('')
+const nextCursor = ref<string | null>(null)
+let requestVersion = 0
+const isFiltering = computed(() => !!(keyword.value.trim() || category.value || kind.value !== 'all'))
+const ranking = computed(() => home.value?.rankings[rankingPeriod.value] || [])
+const activeBanner = computed(() => home.value?.banners[bannerIndex.value])
+const legacySlug = computed(() => typeof route.query.preview === 'string' ? route.query.preview : typeof route.query.resource === 'string' ? route.query.resource : '')
+const legacyPreview = computed(() => legacyResources.items.find((item) => item.id === legacySlug.value) || mapSelectedResource(legacyResources.selected, legacySlug.value))
+const legacyPreviewOpen = computed({
+  get: () => !!legacySlug.value,
   set: (open) => {
     if (open) return
     const query = { ...route.query }
     delete query.preview
-    router.replace({ query })
+    delete query.resource
+    void router.replace({ query })
   },
 })
-const openPreview = (item: ResourceItem) => router.push({ query: { ...route.query, preview: item.id } })
-const submitUpload = () => {
-  uploadStatus.value = '演示模式：表单已通过前端校验，未向服务器上传文件。'
+const publish = (value: ResourceContributionKind) => {
+  community.openComposer({
+    type: value === 'video' ? 'lab_result' : value === 'article' ? 'frontier_discussion' : 'note',
+    title: '',
+    contentBlocks: [],
+    bindings: [],
+    topicIds: [],
+    visibility: 'public',
+    status: 'published',
+    contribution: { kind: value, tags: [], teachingReuseConsent: false },
+  })
+  community.composerMode = 'advanced'
+  community.composerInline = false
 }
-const search = () => resourcesStore.load({ page: 1, keyword: query.value }, true)
-onMounted(() => { void resourcesStore.load() })
-watch(() => route.query.preview, async (slug) => {
-  if (dataMode !== 'api' || typeof slug !== 'string') return
-  await resourcesStore.detail(slug)
-  if (!auth.user) return
-  try {
-    await behaviorApi.recordView('resource', slug)
-  } catch (error) {
-    window.dispatchEvent(new CustomEvent('api-error', { detail: { message: error instanceof Error ? error.message : '资源浏览记录写入失败' } }))
+const load = async () => {
+  loading.value = true; error.value = ''
+  try { home.value = await resourceHubApi.home() }
+  catch (cause) { error.value = cause instanceof Error ? cause.message : '资源中心读取失败' }
+  finally { loading.value = false }
+}
+const syncFilters = async () => {
+  const query = {
+    ...route.query,
+    q: keyword.value.trim() || undefined,
+    category: category.value || undefined,
+    kind: kind.value === 'all' ? undefined : kind.value,
   }
+  await router.replace({ query })
+}
+const search = async (syncUrl = true, append = false) => {
+  const version = ++requestVersion
+  loading.value = true; error.value = ''
+  try {
+    if (syncUrl) await syncFilters()
+    const response = await resourceHubApi.list({ keyword: keyword.value.trim(), category: category.value, kind: kind.value, cursor: append ? nextCursor.value || undefined : undefined, limit: 18 })
+    if (version !== requestVersion) return
+    results.value = append ? [...results.value, ...response.items] : response.items
+    nextCursor.value = response.nextCursor
+  }
+  catch (cause) { error.value = cause instanceof Error ? cause.message : '资源搜索失败' }
+  finally { if (version === requestVersion) loading.value = false }
+}
+const selectCategory = async (code: string) => { category.value = code; await search() }
+const selectKind = async (value: typeof kind.value) => { kind.value = value; await search() }
+const watchLater = async (postId: string) => {
+  try { await resourceHubApi.addToCollection('watch-later', postId); notice.value = '已加入稍后再看' }
+  catch (cause) { error.value = cause instanceof Error ? cause.message : '加入稍后再看失败' }
+}
+const banner = (step: number) => {
+  const count = home.value?.banners.length || 0
+  if (count > 1) bannerIndex.value = (bannerIndex.value + step + count) % count
+}
+onMounted(async () => {
+  void load()
+  void legacyResources.load().catch((cause) => { error.value = cause instanceof Error ? cause.message : '旧资源读取失败' })
+  if (isFiltering.value) void search(false)
+  await nextTick()
+  const saved = Number(sessionStorage.getItem(`resource-hub-scroll:${route.fullPath}`) || 0)
+  if (saved > 0) window.scrollTo({ top: saved })
+})
+onBeforeUnmount(() => sessionStorage.setItem(`resource-hub-scroll:${route.fullPath}`, String(window.scrollY)))
+watch(() => [route.query.q, route.query.category, route.query.kind], ([q, nextCategory, nextKind]) => {
+  const normalizedKind = ['video', 'article', 'document'].includes(String(nextKind)) ? nextKind as ResourceContributionKind : 'all'
+  const normalizedQ = typeof q === 'string' ? q : ''
+  const normalizedCategory = typeof nextCategory === 'string' ? nextCategory : ''
+  if (normalizedQ === keyword.value && normalizedCategory === category.value && normalizedKind === kind.value) return
+  keyword.value = normalizedQ; category.value = normalizedCategory; kind.value = normalizedKind
+  void search(false)
+})
+watch(legacySlug, async (slug) => {
+  if (!slug || dataMode !== 'api') return
+  try {
+    await legacyResources.detail(slug)
+    if (auth.user) await behaviorApi.recordView('resource', slug)
+  } catch (cause) { error.value = cause instanceof Error ? cause.message : '旧资源读取失败' }
 }, { immediate: true })
 </script>
 
 <template>
-  <div class="page-container">
-    <PageHero title="资源中心" description="汇集学习手册、提示词模板、部署指南、Agent 案例、命令速查和硬件资料。" visual-key="resourcesHeroAssetId">
-      <form class="hero-search" @submit.prevent="search"><input v-model="query" aria-label="搜索资源" placeholder="搜索资源名称…" /><button class="button primary">搜索</button></form>
-    </PageHero>
-    <div class="category-tabs" role="tablist"><button v-for="item in categories" :key="item" type="button" :class="{ active: category === item }" @click="category = item">{{ item }}</button></div>
-    <section class="featured-resources"><div class="section-heading"><div><span class="eyebrow">精选推荐</span><h2>精选资源推荐</h2></div></div><div class="featured-resource-row"><button v-for="item in resources.filter((resource) => resource.featured).slice(0, 4)" :key="item.id" type="button" @click="openPreview(item)"><CategoryCover :title="item.title" :media="item" :variant="item.coverVariant" :icon="item.icon" /><span><small>{{ item.theme }} · {{ item.format }}</small><strong>{{ item.title }}</strong><em>预览资源 <AppIcon name="arrow-right" :size="14" /></em></span></button></div></section>
-    <div class="resource-layout">
-      <section>
-        <div class="catalog-toolbar resource-toolbar"><strong>{{ category }} <small>共 {{ filtered.length }} 个{{ dataMode === 'api' ? '已发布' : '演示' }}资源</small></strong><label>资源类型<select v-model="category"><option v-for="item in categories" :key="item">{{ item }}</option></select></label><label>主题<select v-model="theme"><option>全部主题</option><option>大模型</option><option>Agent</option><option>编程工具</option><option>智能硬件</option></select></label><label>难度<select v-model="difficulty"><option>全部难度</option><option>入门</option><option>中级</option><option>进阶</option></select></label><label>格式<select v-model="format"><option>全部格式</option><option>PDF</option><option>DOCX</option><option>PPTX</option><option>ZIP</option><option>TXT</option></select></label><label>排序<select v-model="sort"><option>最新发布</option><option>下载最多</option></select></label><label class="check-label"><input v-model="featuredOnly" type="checkbox" />仅看精选</label></div>
-        <div v-if="filtered.length" class="card-grid three"><ResourceCard v-for="item in filtered" :key="item.id" :resource="item" @preview="openPreview" /></div>
-        <div v-else class="inline-empty"><h3>当前筛选下没有资源</h3><p>切换分类或关闭精选筛选。</p></div>
-        <ContentPagination :page="resourcesStore.page" :page-size="resourcesStore.pageSize" :total="resourcesStore.total" @change="resourcesStore.load({ page: $event, keyword: query })" />
-        <section class="recent-table"><div class="section-heading"><h2>最近更新</h2></div><div class="table-row table-head"><span>资源名称</span><span>类型</span><span>主题</span><span>更新时间</span><span>下载次数</span><span>收藏</span></div><div v-for="item in resources.slice(0, 6)" :key="item.id" class="table-row"><button class="table-title" type="button" @click="openPreview(item)"><strong>{{ item.title }}</strong><small>{{ item.format }}</small></button><span>{{ item.category }}</span><span>{{ item.theme }}</span><span>{{ item.updatedAt }}</span><span>{{ item.downloads.toLocaleString() }}</span><button class="icon-button" type="button" :class="{ active: store.isFavorite('resource', item.id) }" :aria-pressed="store.isFavorite('resource', item.id)" :aria-label="`${store.isFavorite('resource', item.id) ? '取消收藏' : '收藏'}${item.title}`" @click="store.toggleFavorite('resource', item.id)"><AppIcon name="bookmark" :size="18" /></button></div></section>
+  <div class="page-container resource-hub-page">
+    <header class="resource-hub-heading">
+      <div><h1>资源中心</h1><p>分享实践过程，沉淀可复用的高校 AI 学习资源</p></div>
+      <form class="resource-hub-search" role="search" @submit.prevent="search()">
+        <AppIcon name="search" :size="17" />
+        <input v-model="keyword" aria-label="搜索资源" placeholder="搜索视频、图文或资料…" />
+        <button type="submit" aria-label="搜索"><AppIcon name="search" :size="19" /></button>
+      </form>
+    </header>
+
+    <p v-if="error" class="community-error" role="alert">{{ error }} <button class="text-link" @click="load">重试</button></p>
+    <p v-if="notice" class="community-notice" role="status">{{ notice }}</p>
+    <div v-if="loading && !home" class="resource-hub-loading">正在读取共创资源…</div>
+    <template v-else-if="home">
+      <section v-if="activeBanner" class="resource-hub-banner">
+        <img v-if="activeBanner.coverUrl" :src="activeBanner.coverUrl" :alt="`${activeBanner.title}推荐图`" />
+        <div class="resource-hub-banner-mask" />
+        <div class="resource-hub-banner-copy"><span>本周共创推荐</span><h2>{{ activeBanner.title }}</h2><p>{{ activeBanner.summary }}</p><RouterLink class="button primary" :to="activeBanner.route">{{ activeBanner.kind === 'video' ? '观看演示' : '阅读作品' }}<i class="resource-direction-arrow" aria-hidden="true" /></RouterLink></div>
+        <template v-if="home.banners.length > 1">
+          <button class="resource-banner-arrow prev" aria-label="上一条推荐" @click="banner(-1)"><i class="resource-direction-arrow" aria-hidden="true" /></button>
+          <button class="resource-banner-arrow next" aria-label="下一条推荐" @click="banner(1)"><i class="resource-direction-arrow" aria-hidden="true" /></button>
+          <div class="resource-banner-dots"><button v-for="(_, index) in home.banners" :key="index" :class="{ active: index === bannerIndex }" :aria-label="`切换到第 ${index + 1} 条推荐`" @click="bannerIndex = index" /></div>
+        </template>
       </section>
-      <aside class="study-aside"><h3>热门下载</h3><ol class="rank-list"><li v-for="item in [...resources].sort((a, b) => b.downloads - a.downloads).slice(0, 5)" :key="item.id"><button type="button" @click="openPreview(item)">{{ item.title }}</button><small>{{ item.downloads }} 次</small></li></ol><h3>我的收藏</h3><div v-if="favoriteResources.length" class="resource-favorites"><button v-for="item in favoriteResources.slice(0, 4)" :key="item.id" type="button" @click="openPreview(item)">{{ item.title }}<small>{{ item.format }}</small></button></div><p v-else>还没有收藏资源，可在资源卡右下角添加。</p><template v-if="dataMode === 'mock'"><h3>资源共建</h3><p>演示模式只做表单校验，不会伪造服务器上传。</p><button class="button primary full-width" type="button" @click="uploadOpen = true">上传资源</button></template><h3>使用小贴士</h3><p>{{ dataMode === 'api' ? '预览内容和统计来自已发布资源。' : '演示资源不代表真实下载文件。' }}</p></aside>
-    </div>
+      <section v-else class="resource-hub-banner resource-hub-banner-empty">
+        <div class="resource-hub-banner-copy"><span>资源共创</span><h2>还没有可推荐的公开作品</h2><p>从一次实训、一个教程或一份学习资料开始，把过程沉淀给更多同学。</p><button class="button primary" @click="publish('article')">发布第一份作品<i class="resource-direction-arrow" aria-hidden="true" /></button></div>
+      </section>
+
+      <nav class="resource-category-nav" aria-label="资源分类">
+        <button :class="{ active: !category }" @click="selectCategory('')"><AppIcon name="resource" :size="25" /><span>全部资源</span></button>
+        <button v-for="entry in home.categories.filter((value) => value.code !== 'uncategorized')" :key="entry.id" :class="{ active: category === entry.code }" @click="selectCategory(entry.code)"><AppIcon :name="entry.icon" :size="25" /><span>{{ entry.name }}</span></button>
+      </nav>
+      <div class="resource-hub-toolbar">
+        <div class="resource-kind-tabs" role="tablist" aria-label="内容形态">
+          <button v-for="entry in [{ key: 'all', label: '全部' }, { key: 'video', label: '视频' }, { key: 'article', label: '图文' }, { key: 'document', label: '资料' }]" :key="entry.key" :class="{ active: kind === entry.key }" @click="selectKind(entry.key as typeof kind)">{{ entry.label }}</button>
+        </div>
+        <div class="resource-hub-contribute-actions" aria-label="资源投稿">
+          <button class="button primary" @click="publish('video')"><AppIcon name="upload" :size="16" />上传视频</button>
+          <button class="button secondary" @click="publish('article')"><AppIcon name="edit" :size="16" />写图文</button>
+          <button class="button secondary" @click="publish('document')"><AppIcon name="file" :size="16" />分享资料</button>
+        </div>
+      </div>
+
+      <section v-if="isFiltering" class="resource-results">
+        <div class="resource-section-heading"><div><span>搜索与筛选</span><h2>{{ category ? home.categories.find((entry) => entry.code === category)?.name : '全部资源' }}</h2></div><strong>{{ results.length }} 项</strong></div>
+        <div v-if="results.length" class="resource-hub-grid three"><ResourceHubCard v-for="entry in results" :key="entry.id" :item="entry" show-watch-later @watch-later="watchLater" /></div>
+        <div v-else class="inline-empty"><h3>没有匹配的共创资源</h3><p>调整搜索词或内容形态后再试。</p></div>
+        <button v-if="nextCursor" class="button secondary resource-load-more" :disabled="loading" @click="search(false, true)">{{ loading ? '读取中…' : '加载更多' }}</button>
+      </section>
+
+      <template v-else>
+        <div class="resource-hub-main-layout">
+          <main>
+            <section>
+              <div class="resource-section-heading"><div><span>值得先看</span><h2>本周精选</h2></div><button class="text-link" @click="selectKind('video')">查看全部<i class="resource-direction-arrow" aria-hidden="true" /></button></div>
+              <div class="resource-hub-grid featured"><ResourceHubCard v-for="entry in home.featured" :key="entry.id" :item="entry" variant="featured" show-watch-later @watch-later="watchLater" /></div>
+            </section>
+            <section v-for="section in home.sections" :key="section.key">
+              <div class="resource-section-heading"><div><span>师生共创</span><h2>{{ section.title }}</h2></div><button class="text-link" @click="selectCategory(section.categoryCode || '')">更多内容<i class="resource-direction-arrow" aria-hidden="true" /></button></div>
+              <div class="resource-hub-grid three"><ResourceHubCard v-for="entry in section.items.slice(0, 3)" :key="entry.id" :item="entry" show-watch-later @watch-later="watchLater" /></div>
+            </section>
+          </main>
+          <aside class="resource-hub-rail">
+            <section><h2>热门榜单</h2><div class="resource-ranking-tabs"><button v-for="entry in [{ key: 'week', label: '本周' }, { key: 'month', label: '本月' }, { key: 'all', label: '总榜' }]" :key="entry.key" :class="{ active: rankingPeriod === entry.key }" @click="rankingPeriod = entry.key as typeof rankingPeriod">{{ entry.label }}</button></div><ol><li v-for="(entry, index) in ranking" :key="entry.id"><b>{{ index + 1 }}</b><RouterLink :to="entry.route"><img v-if="entry.coverUrl" :src="entry.coverUrl" alt="" loading="lazy" /><span><strong>{{ entry.title }}</strong><small><AppIcon name="play" :size="12" />{{ entry.stats.views.toLocaleString() }}</small></span></RouterLink></li></ol></section>
+            <section><div class="resource-rail-title"><h2>我的播放列表</h2><RouterLink to="/resources/studio">查看全部</RouterLink></div><RouterLink class="resource-playlist-row" to="/resources/collections/watch-later"><AppIcon name="bookmark" /><span><strong>稍后再看</strong><small>仅自己可见</small></span></RouterLink><RouterLink v-for="entry in home.collections.slice(0, 3)" :key="entry.id" class="resource-playlist-row" :to="`/resources/collections/${entry.id}`"><AppIcon name="folder" /><span><strong>{{ entry.name }}</strong><small>{{ entry.itemCount }} 项 · {{ entry.visibility === 'private' ? '私有' : '社区可见' }}</small></span></RouterLink><RouterLink class="resource-playlist-row" :to="`/community/user/${auth.user?.username || 'student'}?tab=liked`"><AppIcon name="heart" /><span><strong>喜欢的视频</strong><small>{{ home.likedVideos.length }} 项</small></span></RouterLink><button class="button primary full-width" @click="publish('video')"><AppIcon name="upload" :size="16" />上传视频</button></section>
+          </aside>
+        </div>
+
+        <section v-if="home.liveReplay.length" class="resource-live-replay">
+          <div class="resource-section-heading"><div><span>课堂与活动</span><h2>直播回放</h2></div></div>
+          <div class="resource-hub-grid replay"><ResourceHubCard v-for="entry in home.liveReplay" :key="entry.id" :item="entry" variant="compact" show-watch-later @watch-later="watchLater" /></div>
+        </section>
+      </template>
+    </template>
   </div>
-  <ResourcePreviewDialog v-model="previewOpen" :resource="preview" :detail="resourcesStore.selected?.slug === preview?.id ? resourcesStore.selected : null" />
-  <AppDialog v-model="uploadOpen" title="共享学习资源"><form class="dialog-form" @submit.prevent="submitUpload"><label>资源名称<input required maxlength="60" autofocus /></label><label>资源类型<select required><option>学习手册</option><option>提示词模板</option><option>部署指南</option></select></label><label>文件<input required type="file" accept=".pdf,.docx,.pptx,.zip,.txt" /></label><button class="button primary" type="submit">验证提交</button><p v-if="uploadStatus" role="status">{{ uploadStatus }}</p></form></AppDialog>
+  <ResourcePreviewDialog v-model="legacyPreviewOpen" :resource="legacyPreview" :detail="legacyResources.selected?.slug === legacyPreview?.id ? legacyResources.selected : null" />
 </template>

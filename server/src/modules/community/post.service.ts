@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, HttpException, Injectable, NotFoundException } from '@nestjs/common'
 import { createHash } from 'node:crypto'
 import { Prisma } from '@prisma/client'
-import type { CommunityContentBlock, CommunityPostDetailDto, CommunityTopicDto, CommunityPostSummaryDto, CommunityBindingInput } from '@ai-learning-hub/contracts'
+import type { CommunityContentBlock, CommunityPostDetailDto, CommunityTopicDto, CommunityPostSummaryDto, CommunityBindingInput, ResourceContributionDto, ResourceContributionInput } from '@ai-learning-hub/contracts'
 import { PrismaService } from '../../prisma/prisma.service'
 import { ContentReferenceService } from '../../common/content-reference/content-reference.service'
 import { SignalsService } from '../signals/signals.service'
@@ -13,6 +13,7 @@ import { actionEvent, idempotency, lockFileReferences, postRevision } from '../.
 export const postInclude = {
   author: { include: authorInclude }, bindings: { orderBy: { sortOrder: 'asc' as const } },
   topics: { include: { topic: true } }, question: true,
+  contribution: { include: { category: true, videoAsset: { include: { sourceFile: true, posterFile: true } }, attachmentFile: true } },
 } satisfies Prisma.CommunityPostInclude
 export type HydratedPost = Prisma.CommunityPostGetPayload<{ include: typeof postInclude }>
 
@@ -50,27 +51,71 @@ export class CommunityPostService {
   }
   async save(userId: string, input: PostDto, id?: string, audit?: { actorId: string; action: string; reason: string }, key?: string) {
     const viewer = await this.visibility.viewer(userId)
-    const current = id ? await this.prisma.communityPost.findUnique({ where: { id } }) : null
+    const current = id ? await this.prisma.communityPost.findUnique({ where: { id }, include: { contribution: true } }) : null
     if (id && (!current || current.authorId !== userId || current.deletedAt)) throw new ForbiddenException('只有作者可以编辑自己的内容')
     if (current && input.expectedRevision === undefined) throw new BadRequestException('编辑动态必须提供 expectedRevision')
     if (current && !['draft', 'published'].includes(current.status)) throw new ForbiddenException('审核中的内容暂不可编辑')
     if (input.visibility === 'school' && !viewer.schoolId) throw new BadRequestException('未认证学校，不能发布同校内容')
-    if (input.status === 'published' && ['question', 'project'].includes(input.type) && !input.title?.trim()) throw new BadRequestException('问答和项目需要标题')
-    const { clean, plainText } = await this.blocks(userId, input.contentBlocks, input.status === 'draft')
+    const contribution: ResourceContributionInput | undefined = input.contribution || (current?.contribution ? {
+      kind: current.contribution.kind,
+      categoryId: current.contribution.categoryId || undefined,
+      tags: current.contribution.tags,
+      teachingReuseConsent: current.contribution.teachingReuseConsent,
+      sourceName: current.contribution.sourceName || undefined,
+      sourceUrl: current.contribution.sourceUrl || undefined,
+      videoAssetId: current.contribution.videoAssetId || undefined,
+      attachmentFileId: current.contribution.attachmentFileId || undefined,
+      coverFileId: current.contribution.coverFileId || undefined,
+    } : undefined)
+    if (input.status === 'published' && (['question', 'project'].includes(input.type) || contribution) && !input.title?.trim()) throw new BadRequestException(contribution ? '资源投稿需要标题' : '问答和项目需要标题')
+    const { clean, plainText } = await this.blocks(userId, input.contentBlocks, input.status === 'draft' || !!contribution && contribution.kind !== 'article')
     const references = await this.refs.resolveMany(input.bindings, userId, true)
-    if (input.status === 'published' && input.type === 'lab_result' && !input.bindings.some((ref) => ref.type === 'lab_run')) throw new BadRequestException('实训成果需要关联本人已提交的实训记录')
-    if (input.status === 'published' && input.type === 'project') {
+    if (!contribution && input.status === 'published' && input.type === 'lab_result' && !input.bindings.some((ref) => ref.type === 'lab_run')) throw new BadRequestException('实训成果需要关联本人已提交的实训记录')
+    if (!contribution && input.status === 'published' && input.type === 'project') {
       const labIds = input.bindings.filter((ref) => ref.type === 'lab').map((ref) => references.get(`lab:${ref.id}`)!.id)
       if (!await this.prisma.lab.count({ where: { id: { in: labIds }, labType: 'project' } })) throw new BadRequestException('创客项目需要关联现有综合项目实训')
     }
-    if (input.status === 'published' && input.type === 'frontier_discussion' && !input.bindings.some((ref) => ref.type === 'article')) throw new BadRequestException('前沿讨论需要关联文章')
+    if (!contribution && input.status === 'published' && input.type === 'frontier_discussion' && !input.bindings.some((ref) => ref.type === 'article')) throw new BadRequestException('前沿讨论需要关联文章')
     if (!!input.sourceType !== !!input.sourceId) throw new BadRequestException('分享来源类型与标识必须同时提供')
     if (input.sourceType === 'note' && !await this.prisma.learningNote.findFirst({ where: { id: input.sourceId, userId } })) throw new ForbiddenException('笔记只能由本人主动分享')
     if (input.sourceType === 'lab_run' && !input.bindings.some((ref) => ref.type === 'lab_run' && ref.id === input.sourceId)) throw new BadRequestException('实训来源与关联记录不一致')
     if (['challenge', 'article'].includes(input.sourceType || '') && !input.bindings.some((ref) => ref.type === input.sourceType && ref.id === input.sourceId)) throw new BadRequestException('分享来源与关联内容不一致')
     const topics = await this.prisma.communityTopic.findMany({ where: { id: { in: input.topicIds }, status: 'active' } })
     if (topics.length !== input.topicIds.length) throw new BadRequestException('话题已关闭或不存在')
-    const contentHash = createHash('sha256').update(plainText.replace(/\s+/g, '').toLowerCase()).digest('hex')
+    let normalizedContribution: ResourceContributionInput | undefined
+    if (contribution) {
+      const tags = contribution.tags.map((tag) => tag.trim().replace(/\s+/g, ' ')).filter(Boolean)
+        .filter((tag, index, all) => all.findIndex((candidate) => candidate.toLocaleLowerCase() === tag.toLocaleLowerCase()) === index)
+      normalizedContribution = {
+        kind: contribution.kind,
+        categoryId: contribution.categoryId,
+        tags,
+        teachingReuseConsent: contribution.teachingReuseConsent,
+        coverFileId: contribution.coverFileId,
+        ...(contribution.kind === 'video' ? { videoAssetId: contribution.videoAssetId } : {}),
+        ...(contribution.kind === 'document' ? { attachmentFileId: contribution.attachmentFileId } : {}),
+        ...(contribution.kind === 'article' ? { sourceName: contribution.sourceName, sourceUrl: contribution.sourceUrl } : {}),
+      }
+      if (contribution.categoryId && !await this.prisma.resourceCategory.count({ where: { id: contribution.categoryId, active: true } })) throw new BadRequestException('资源分类不存在或已停用')
+      if (contribution.videoAssetId) {
+        const video = await this.prisma.videoAsset.findFirst({ where: { id: contribution.videoAssetId, uploaderId: userId } })
+        if (!video) throw new ForbiddenException('视频必须由本人上传')
+        if (input.status === 'published' && video.status !== 'ready') throw new BadRequestException(video.status === 'failed' ? '视频处理失败，请重试后发布' : '视频尚未处理完成')
+      }
+      if (contribution.kind === 'video' && !contribution.videoAssetId) throw new BadRequestException('视频投稿需要已上传的视频')
+      if (contribution.kind === 'document' && !contribution.attachmentFileId) throw new BadRequestException('资料投稿需要附件')
+      const fileIds = [contribution.attachmentFileId, contribution.coverFileId].filter((value): value is string => !!value)
+      if (fileIds.length) {
+        const files = await this.prisma.fileRecord.findMany({ where: { id: { in: [...new Set(fileIds)] }, uploadedBy: userId }, select: { id: true, mimeType: true, size: true } })
+        if (files.length !== new Set(fileIds).size) throw new ForbiddenException('封面和附件必须由本人上传')
+        const cover = files.find((file) => file.id === contribution.coverFileId)
+        if (cover && (!['image/png', 'image/jpeg', 'image/webp'].includes(cover.mimeType) || cover.size > 5 * 1024 * 1024)) throw new BadRequestException('投稿封面仅支持不超过 5MB 的 PNG、JPEG 或 WebP')
+        const attachment = files.find((file) => file.id === contribution.attachmentFileId)
+        const attachmentMaxBytes = Math.max(1, Math.min(500, Number(process.env.RESOURCE_ATTACHMENT_MAX_MB || 100))) * 1024 * 1024
+        if (attachment && (!['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/zip', 'application/x-zip-compressed', 'text/plain'].includes(attachment.mimeType) || attachment.size > attachmentMaxBytes)) throw new BadRequestException('资料附件的类型或大小不符合要求')
+      }
+    }
+    const contentHash = createHash('sha256').update(`${input.title || ''}\n${plainText}\n${JSON.stringify(normalizedContribution || null)}`.replace(/\s+/g, '').toLowerCase()).digest('hex')
     const post = await this.prisma.$transaction(async (tx) => {
       await lockFileReferences(tx)
       const request = await idempotency(tx, audit?.actorId || userId, `post:${id || 'new'}`, key, input)
@@ -88,6 +133,35 @@ export class CommunityPostService {
       const data = { authorId: userId, postType: input.type, status: input.status, visibility: input.visibility, schoolId: viewer.schoolId, title: input.title?.trim() || null, body: plainText, plainText, contentBlocks: json(clean), contentHash, sourceType: input.sourceType || null, sourceId: input.sourceId || null, publishedAt: input.status === 'published' ? current?.publishedAt || new Date() : null, ...(id ? { editedAt: new Date() } : {}) }
       if (latest) await postRevision(tx, latest.id, userId, 'user', '编辑前版本')
       const saved = id ? await tx.communityPost.update({ where: { id, revision: latest!.revision }, data: { ...data, revision: { increment: 1 } } }) : await tx.communityPost.create({ data })
+      if (normalizedContribution) {
+        await tx.resourceContribution.upsert({
+          where: { postId: saved.id },
+          create: {
+            postId: saved.id,
+            kind: normalizedContribution.kind,
+            categoryId: normalizedContribution.categoryId || null,
+            videoAssetId: normalizedContribution.videoAssetId || null,
+            attachmentFileId: normalizedContribution.attachmentFileId || null,
+            coverFileId: normalizedContribution.coverFileId || null,
+            tags: normalizedContribution.tags,
+            teachingReuseConsent: normalizedContribution.teachingReuseConsent,
+            sourceName: normalizedContribution.sourceName || null,
+            sourceUrl: normalizedContribution.sourceUrl || null,
+          },
+          update: {
+            kind: normalizedContribution.kind,
+            categoryId: normalizedContribution.categoryId || null,
+            videoAssetId: normalizedContribution.videoAssetId || null,
+            attachmentFileId: normalizedContribution.attachmentFileId || null,
+            coverFileId: normalizedContribution.coverFileId || null,
+            tags: normalizedContribution.tags,
+            teachingReuseConsent: normalizedContribution.teachingReuseConsent,
+            sourceName: normalizedContribution.sourceName || null,
+            sourceUrl: normalizedContribution.sourceUrl || null,
+            revision: { increment: 1 },
+          },
+        })
+      }
       await tx.communityPostBinding.deleteMany({ where: { postId: saved.id } })
       await tx.communityPostTopic.deleteMany({ where: { postId: saved.id } })
       await tx.communityPostBinding.createMany({ data: input.bindings.map((ref, sortOrder) => ({ postId: saved.id, targetType: ref.type, targetId: references.get(`${ref.type}:${ref.id}`)!.id, titleSnapshot: references.get(`${ref.type}:${ref.id}`)!.title, sortOrder })), skipDuplicates: true })
@@ -122,6 +196,25 @@ export class CommunityPostService {
     })
     return { deleted: true }
   }
+  async unpublish(userId: string, id: string) {
+    await this.visibility.viewer(userId)
+    const post = await this.prisma.communityPost.findUnique({ where: { id } })
+    if (!post || post.authorId !== userId) throw new ForbiddenException('只有作者可以下架自己的动态')
+    if (post.status !== 'published' || post.deletedAt) throw new BadRequestException('只有已发布动态可以下架')
+    await this.prisma.$transaction(async (tx) => {
+      await lockFileReferences(tx)
+      await tx.$queryRaw`SELECT id FROM community_posts WHERE id = ${id} FOR UPDATE`
+      await postRevision(tx, id, userId)
+      const changed = await tx.communityPost.updateMany({ where: { id, authorId: userId, status: 'published', deletedAt: null }, data: { status: 'draft', publishedAt: null, revision: { increment: 1 } } })
+      if (!changed.count) throw new ConflictException('动态状态已变化，请刷新')
+      await tx.communityProfile.updateMany({ where: { pinnedPostId: id }, data: { pinnedPostId: null, revision: { increment: 1 } } })
+      await tx.communityProfile.updateMany({ where: { userId }, data: { postCount: await tx.communityPost.count({ where: { authorId: userId, status: 'published', deletedAt: null } }) } })
+      for (const { topicId } of await tx.communityPostTopic.findMany({ where: { postId: id } })) await tx.communityTopic.update({ where: { id: topicId }, data: { postCount: await tx.communityPostTopic.count({ where: { topicId, post: { status: 'published', deletedAt: null } } }) } })
+      await postRevision(tx, id, userId)
+      await actionEvent(tx, userId, 'post_unpublished', 'post', id)
+    })
+    return { unpublished: true }
+  }
   async mapMany(userId: string, rows: HydratedPost[]): Promise<CommunityPostDetailDto[]> {
     const ids = rows.map((row) => row.id)
     const [reactions, bookmarks, follows, topicFollows, teachers] = await Promise.all([
@@ -152,7 +245,45 @@ export class CommunityPostService {
       recommendationReasons: [], labels: row.status === 'limited' ? [...row.labels, '内容正在人工复核'] : row.labels,
       question: row.question ? { status: row.question.status as 'open' | 'solved' | 'closed', acceptedCommentId: row.question.acceptedCommentId, teacherAnswered: teachers.some((c) => c.postId === row.id) } : null,
       publishedAt: (row.publishedAt || row.createdAt).toISOString(), editedAt: row.editedAt?.toISOString() || null,
+      contribution: row.contribution ? this.contribution(row.contribution) : null,
     }))
+  }
+
+  private contribution(row: HydratedPost['contribution']): ResourceContributionDto | null {
+    if (!row) return null
+    return {
+      postId: row.postId,
+      kind: row.kind,
+      categoryId: row.categoryId || undefined,
+      tags: row.tags,
+      teachingReuseConsent: row.teachingReuseConsent,
+      sourceName: row.sourceName || undefined,
+      sourceUrl: row.sourceUrl || undefined,
+      videoAssetId: row.videoAssetId || undefined,
+      attachmentFileId: row.attachmentFileId || undefined,
+      coverFileId: row.coverFileId || undefined,
+      category: row.category ? { id: row.category.id, code: row.category.code, name: row.category.name, description: row.category.description, icon: row.category.icon, sortOrder: row.category.sortOrder } : null,
+      video: row.videoAsset ? {
+        id: row.videoAsset.id,
+        status: row.videoAsset.status,
+        originalName: row.videoAsset.originalName,
+        originalMimeType: row.videoAsset.originalMimeType,
+        durationSeconds: row.videoAsset.durationSeconds,
+        width: row.videoAsset.width,
+        height: row.videoAsset.height,
+        rotation: row.videoAsset.rotation,
+        attempts: row.videoAsset.attempts,
+        lastError: row.videoAsset.lastError,
+        posterUrl: null,
+        createdAt: row.videoAsset.createdAt.toISOString(),
+        updatedAt: row.videoAsset.updatedAt.toISOString(),
+      } : null,
+      attachment: row.attachmentFile ? { id: row.attachmentFile.id, name: row.attachmentFile.originalName, size: row.attachmentFile.size, mimeType: row.attachmentFile.mimeType } : null,
+      coverUrl: null,
+      featured: row.featured,
+      liveReplay: row.liveReplay,
+      revision: row.revision,
+    }
   }
   async detail(userId: string, id: string, ownDrafts = true) {
     const row = await this.prisma.communityPost.findFirst({ where: { AND: [await this.visibility.where(userId, ownDrafts), { id }] }, include: postInclude })

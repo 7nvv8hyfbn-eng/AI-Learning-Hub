@@ -13,7 +13,8 @@ PostgreSQL 是 API 模式的唯一正式数据源，Prisma 模型位于 `server/
 | 课程 | `courses`、`course_versions`、`course_instructors`、`course_resources`、`course_labs`、`course_chapters`、`course_lessons`、`lesson_blocks` |
 | 学习记录 | `lesson_progress`、`learning_notes`、`favorites`、`learning_plans`、`learning_plan_items` |
 | 实训 | `labs`、`lab_versions`、`lab_steps`、`lab_tools`、`lab_tool_bindings`、`lab_resources`、`lab_runs`、`lab_run_snapshots`、`lab_run_events`、`lab_reports` |
-| 资源与文件 | `files`、`resources`、`resource_categories`、`resource_versions`、`tags`、`resource_tags`、`resource_views`、`resource_downloads` |
+| 资源与文件 | `files`、`resources`、`resource_categories`、`resource_versions`、`tags`、`resource_tags`、`resource_views`、`resource_downloads`、`resource_contributions`、`video_assets` |
+| 资源合集与进度 | `learning_collections`、`learning_collection_items`、`resource_watch_progress`、`collection_course_references` |
 | AI 前沿 | `articles`、`article_versions`、`article_categories`、`article_tags`、`article_views`、`article_publications`、`article_recommendations` |
 | 测评与题库 | `question_banks`、`questions`、`question_versions`、`question_options`、`knowledge_points`、`papers`、`paper_questions`、`challenges`、`challenge_rules`、`assessment_attempts`、`assessment_answers`、`wrong_questions`、`user_knowledge_stats`、`ranking_snapshots` |
 | 成长与统计 | `growth_points`、`achievements`、`user_achievements`、`certificates`、`user_certificates`、`growth_module_settings`、`activity_events`、`daily_user_statistics`、`daily_content_statistics`、`user_recommendations` |
@@ -33,6 +34,7 @@ PostgreSQL 是 API 模式的唯一正式数据源，Prisma 模型位于 `server/
 - 文件仅保存元数据、摘要和对象键，不保存二进制。
 - 社区互动复合唯一键保证重复请求幂等；计数与互动关系在同一事务更新，数据库同时约束非负计数、同校范围及举报单一目标。
 - 社区帖子和评论软删除；父评论删除保留回复结构，采纳答案删除后问题恢复未解决。多态内容绑定由统一解析服务验证已发布状态和所有权。
+- 资源共创以社区帖子为内容主表；视频处理状态、合集顺序、本人观看进度和课程引用分别落独立关系，公开读取同时检查帖子、作者和媒体状态。
 - 注册相关账号、角色、资料、活动与会话原子写入；验证／重置令牌只保存 SHA-256 哈希、30分钟有效且一次使用。草稿复用 `community_posts.status=draft`，只允许作者管理。
 
 ## 迁移与初始化

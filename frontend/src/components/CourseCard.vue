@@ -8,7 +8,11 @@ import BaseContentCard from './base/BaseContentCard.vue'
 import AppIcon from './base/AppIcon.vue'
 import type { Course } from '../types'
 
-const props = withDefaults(defineProps<{ course: Course; compact?: boolean }>(), { compact: false })
+const props = withDefaults(defineProps<{
+  course: Course
+  compact?: boolean
+  variant?: 'default' | 'topics-board'
+}>(), { compact: false, variant: 'default' })
 const store = useLearningStore()
 const auth = useAuthStore()
 const favorite = computed(() => store.isFavorite('course', props.course.id))
@@ -20,8 +24,12 @@ const accountDataMessage = computed(() => {
 </script>
 
 <template>
-  <BaseContentCard class="course-card" :compact="compact" :title="course.title" :to="`/courses/${course.id}`" :media="course" :cover-variant="course.coverVariant" :icon="course.icon" :tag="course.category">
-      <div class="meta"><span>{{ course.level }}</span><span>{{ course.hours == null ? '时长 —' : `${course.hours} 小时` }}</span><span>{{ course.learners == null ? '学习人数 —' : `${(course.learners / 1000).toFixed(1)}k 人` }}</span></div>
+  <BaseContentCard class="course-card" :class="{ 'course-card--topics-board': variant === 'topics-board' }" :compact="compact" :title="course.title" :to="`/courses/${course.id}`" :media="course" :cover-variant="course.coverVariant" :icon="course.icon" :tag="course.category">
+      <div class="meta">
+        <span><AppIcon v-if="variant === 'topics-board'" name="target" :size="14" />{{ course.level }}</span>
+        <span><AppIcon v-if="variant === 'topics-board'" name="clock" :size="14" />{{ course.hours == null ? '时长 —' : `${course.hours} 小时` }}</span>
+        <span><AppIcon v-if="variant === 'topics-board'" name="users" :size="14" />{{ course.learners == null ? '学习人数 —' : `${(course.learners / 1000).toFixed(1)}k 人` }}</span>
+      </div>
       <RouterLink :to="`/courses/${course.id}`"><h3>{{ course.title }}</h3></RouterLink>
       <p>{{ course.description }}</p>
       <ProgressBar v-if="accountDataReady" :value="store.courseProgress[course.id] ?? course.progress ?? 0" label="学习进度" />
