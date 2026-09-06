@@ -5,6 +5,7 @@ import AppIcon from '../components/base/AppIcon.vue'
 import AppDialog from '../components/base/AppDialog.vue'
 import CommunityAvatar from '../components/base/CommunityAvatar.vue'
 import { communityArt } from '../assets/community/manifest'
+import homeAvatar from '../assets/avatar-home.jpg'
 import { useAuthStore } from '../stores/auth'
 import { useCommunityStore } from '../stores/community'
 import { communityApi } from '../services/api/community'
@@ -21,6 +22,7 @@ const groups = [
   { label: '发现与学习', items: communityNavigation.filter((item) => !['/profile', '/bookmarks', '/notifications', '/community/drafts'].includes(item.path)) },
   { label: '个人', items: communityNavigation.filter((item) => ['/profile', '/bookmarks', '/notifications', '/community/drafts'].includes(item.path)) },
 ]
+const homePath = groups[0].items[0].path
 watch(collapsed, (value) => { try { localStorage.setItem('community-sidebar-collapsed', String(value)) } catch { /* 隐私模式仍可使用当前选择。 */ } })
 let polling: number | undefined
 const loadUnread = async () => { if (document.visibilityState !== 'visible') return; const epoch = store.epoch; try { const result = await communityApi.unread(); if (epoch === store.epoch) store.unread = result.count } catch { /* 内容区保留可重试错误，不中断正在阅读的页面。 */ } }
@@ -34,7 +36,7 @@ onBeforeUnmount(() => window.clearInterval(polling))
     <aside class="community-sidebar">
       <RouterLink class="brand community-brand" to="/community"><span class="brand-mark">A</span><span class="nav-label"><strong>AI MAKER CAMPUS</strong><small>高校 AI 创客学习平台</small></span></RouterLink>
       <button class="sidebar-collapse icon-button" type="button" :aria-label="collapsed ? '展开侧栏' : '收起侧栏'" @click="collapsed = !collapsed"><AppIcon name="menu" :size="20" /></button>
-      <nav class="community-sidebar-nav" aria-label="学习社区导航"><section v-for="group in groups" :key="group.label" class="community-nav-group"><h2 class="nav-label">{{ group.label }}</h2><RouterLink v-for="item in group.items" :key="item.path" :to="item.path" :title="item.label" :class="{ active: communityNavActive(route.path, item.path) }" :aria-current="communityNavActive(route.path, item.path) ? 'page' : undefined"><AppIcon :name="item.icon" :size="21" /><span class="nav-label">{{ item.label }}</span><b v-if="item.path === '/notifications' && store.unread" class="notification-count">{{ store.unread }}</b></RouterLink></section></nav>
+      <nav class="community-sidebar-nav" aria-label="学习社区导航"><section v-for="group in groups" :key="group.label" class="community-nav-group"><h2 class="nav-label">{{ group.label }}</h2><RouterLink v-for="item in group.items" :key="item.path" :to="item.path" :title="item.label" :class="{ active: communityNavActive(route.path, item.path) }" :aria-current="communityNavActive(route.path, item.path) ? 'page' : undefined"><img v-if="item.path === homePath" class="nav-home-avatar" :src="homeAvatar" alt="" /><AppIcon v-else :name="item.icon" :size="21" /><span class="nav-label">{{ item.label }}</span><b v-if="item.path === '/notifications' && store.unread" class="notification-count">{{ store.unread }}</b></RouterLink></section></nav>
       <button class="button primary community-publish" type="button" title="发布内容" @click="store.openComposer()"><AppIcon name="plus" :size="20" /><span class="nav-label">发布内容</span></button>
       <div class="community-account">
         <CommunityPostMenu label="账户菜单"><template #trigger><CommunityAvatar :src="auth.user?.avatarUrl" :username="auth.user?.username" :name="auth.user?.displayName || '学习者'" /><span class="nav-label"><strong>{{ auth.user?.displayName }}</strong><small>{{ auth.dataMode === 'mock' ? '显式演示模式' : '统一学习账号' }}</small></span><AppIcon class="nav-label account-more" name="more-circle" :size="18" /></template><RouterLink :to="profileRoute" role="menuitem">个人主页</RouterLink><RouterLink :to="`${profileRoute}?settings=1`" role="menuitem">账号设置</RouterLink><button type="button" role="menuitem" @click="logout">退出登录</button></CommunityPostMenu>
@@ -50,3 +52,12 @@ onBeforeUnmount(() => window.clearInterval(polling))
     <button class="community-floating-publish" aria-label="快捷发布" @click="store.openComposer()"><AppIcon name="plus" /></button>
   </div>
 </template>
+<style scoped>
+.nav-home-avatar {
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+</style>
