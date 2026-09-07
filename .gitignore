@@ -7,3 +7,5 @@ design/
 **/dist/
 **/*.tsbuildinfo
 server/var/
+
+.DS_Store
