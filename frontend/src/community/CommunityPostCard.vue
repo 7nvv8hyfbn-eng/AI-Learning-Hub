@@ -25,6 +25,42 @@ const unpublish = () => act(async () => { await communityApi.unpublish(props.pos
 const report = () => act(async () => { await communityApi.report(props.post.id, reason.value, description.value); reportOpen.value = false })
 const edit = () => act(async () => { const post = await communityApi.post(props.post.id); store.openComposer({ expectedRevision: post.revision, type: post.type, title: post.title || '', contentBlocks: post.contentBlocks, bindings: post.bindings.filter((b) => b.status !== 'unavailable').map((b) => ({ type: b.type, id: b.id })), topicIds: post.topics.map((t) => t.id), visibility: post.visibility, status: post.status === 'draft' ? 'draft' : 'published', contribution: post.contribution ? { kind: post.contribution.kind, categoryId: post.contribution.categoryId, tags: post.contribution.tags, teachingReuseConsent: post.contribution.teachingReuseConsent, sourceName: post.contribution.sourceName, sourceUrl: post.contribution.sourceUrl, videoAssetId: post.contribution.videoAssetId, attachmentFileId: post.contribution.attachmentFileId, coverFileId: post.contribution.coverFileId } : undefined }, post.id) })
 const openPost = () => { void communityApi.signals({ eventType: 'community_post_click', targetType: 'post', targetId: props.post.id, requestId: props.requestId }).catch(() => undefined) }
+const exportOpen = ref(false)
+const exportPost = (format: 'json' | 'markdown' | 'csv') => {
+  const title = props.post.title || `学习讨论-${props.post.id}`
+  const body = props.post.contentBlocks.map((block) => block.type === 'paragraph' ? block.text : block.type === 'code' ? block.code : block.type === 'quote' ? block.text : block.alt).filter(Boolean).join('\n')
+  const data = {
+    id: props.post.id,
+    title: props.post.title || '',
+    type: props.post.type,
+    typeLabel: postLabels[props.post.type],
+    author: props.post.author.displayName,
+    publishedAt: props.post.publishedAt,
+    topics: props.post.topics.map((topic) => topic.name),
+    content: body,
+  }
+  let content = '', mime = 'text/plain;charset=utf-8', ext = 'txt'
+  if (format === 'json') { content = JSON.stringify(data, null, 2); mime = 'application/json;charset=utf-8'; ext = 'json' }
+  else if (format === 'markdown') {
+    ext = 'md'; content = [
+      `# ${data.title}`,
+      '',
+      `> 类型：${data.typeLabel} · 作者：${data.author} · 时间：${new Date(data.publishedAt).toLocaleString('zh-CN')}`,
+      '',
+      body,
+      '',
+      data.topics.length ? `**话题：** # ${data.topics.join(' # ')}` : '',
+    ].filter((line, index, arr) => line !== '' || arr.slice(0, index).some(Boolean)).join('\n')
+  }
+  else {
+    ext = 'csv'; const esc = (value: string) => `"${String(value).replace(/"/g, '""')}"`
+    content = [['ID', '标题', '类型', '作者', '发布时间', '话题', '内容'].join(','), [data.id, data.title, data.typeLabel, data.author, data.publishedAt, data.topics.join(';'), body].map(esc).join(',')].join('\n')
+  }
+  const url = URL.createObjectURL(new Blob([content], { type: mime }))
+  const link = document.createElement('a')
+  link.href = url; link.download = `${title}.${ext}`; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url)
+  exportOpen.value = false
+}
 const bodyClick = (event: MouseEvent) => {
   if (props.detail || (event.target as HTMLElement).closest('a, button, input, textarea, select, pre, code') || window.getSelection()?.toString()) return
   openPost(); void router.push(`/community/post/${props.post.id}`)
@@ -37,7 +73,7 @@ const bindingClick = (binding: CommunityBindingDto) => {
 }
 </script>
 <template><article class="community-post" :data-post-id="post.id">
-  <header class="community-post-header"><RouterLink class="author-avatar-link" :to="`/community/user/${post.author.username}`"><CommunityAvatar :src="post.author.avatar" :username="post.author.username" :name="post.author.displayName" /></RouterLink><div class="community-author"><RouterLink :to="`/community/user/${post.author.username}`"><strong>{{ post.author.displayName }}</strong><span v-if="post.author.verifiedType !== 'none'" class="community-badge">{{ badgeLabels[post.author.verifiedType] }}</span></RouterLink><small>{{ post.author.school || post.author.major || '学习社区' }} · <RouterLink class="community-post-time" :to="`/community/post/${post.id}`" :title="new Date(post.publishedAt).toLocaleString('zh-CN')" @click="openPost">{{ relativeTime(post.publishedAt) }}</RouterLink><span v-if="post.editedAt"> · 已编辑</span></small></div><span class="community-type" :class="post.type">{{ postLabels[post.type] }}</span><CommunityPostMenu><button v-if="post.author.id !== auth.user?.id" type="button" role="menuitem" :disabled="store.operations[`follow:user:${post.author.id}`]" @click="act(() => store.follow(post.author.id, false, !followingAuthor, undefined, post), false)">{{ followingAuthor ? '取消关注' : '关注作者' }}</button><template v-if="post.author.id === auth.user?.id"><button v-if="showPin && post.status === 'published' && post.visibility === 'public'" type="button" role="menuitem" @click="$emit('pin', pinned ? null : post.id)">{{ pinned ? '取消置顶' : '置顶到个人主页' }}</button><button type="button" role="menuitem" @click="edit">编辑动态</button><button v-if="post.contribution && post.status === 'published'" type="button" role="menuitem" @click="unpublishOpen = true">下架为草稿</button><button type="button" role="menuitem" @click="deleteOpen = true">删除动态</button></template><button type="button" role="menuitem" @click="hide('hide')">隐藏此内容</button><button type="button" role="menuitem" @click="hide('not-interested')">减少此类内容</button><template v-if="post.author.id !== auth.user?.id"><button type="button" role="menuitem" @click="hide('mute')">静音作者</button><button type="button" role="menuitem" @click="hide('block')">屏蔽作者</button></template><button type="button" role="menuitem" @click="reportOpen = true">举报内容</button></CommunityPostMenu></header>
+  <header class="community-post-header"><RouterLink class="author-avatar-link" :to="`/community/user/${post.author.username}`"><CommunityAvatar :src="post.author.avatar" :username="post.author.username" :name="post.author.displayName" /></RouterLink><div class="community-author"><RouterLink :to="`/community/user/${post.author.username}`"><strong>{{ post.author.displayName }}</strong><span v-if="post.author.verifiedType !== 'none'" class="community-badge">{{ badgeLabels[post.author.verifiedType] }}</span></RouterLink><small>{{ post.author.school || post.author.major || '学习社区' }} · <RouterLink class="community-post-time" :to="`/community/post/${post.id}`" :title="new Date(post.publishedAt).toLocaleString('zh-CN')" @click="openPost">{{ relativeTime(post.publishedAt) }}</RouterLink><span v-if="post.editedAt"> · 已编辑</span></small></div><span class="community-type" :class="post.type">{{ postLabels[post.type] }}</span><button class="community-type community-export-btn" type="button" @click="exportOpen = true">瀵煎嚭</button><CommunityPostMenu><button v-if="post.author.id !== auth.user?.id" type="button" role="menuitem" :disabled="store.operations[`follow:user:${post.author.id}`]" @click="act(() => store.follow(post.author.id, false, !followingAuthor, undefined, post), false)">{{ followingAuthor ? '取消关注' : '关注作者' }}</button><template v-if="post.author.id === auth.user?.id"><button v-if="showPin && post.status === 'published' && post.visibility === 'public'" type="button" role="menuitem" @click="$emit('pin', pinned ? null : post.id)">{{ pinned ? '取消置顶' : '置顶到个人主页' }}</button><button type="button" role="menuitem" @click="edit">编辑动态</button><button v-if="post.contribution && post.status === 'published'" type="button" role="menuitem" @click="unpublishOpen = true">下架为草稿</button><button type="button" role="menuitem" @click="deleteOpen = true">删除动态</button></template><button type="button" role="menuitem" @click="hide('hide')">隐藏此内容</button><button type="button" role="menuitem" @click="hide('not-interested')">减少此类内容</button><template v-if="post.author.id !== auth.user?.id"><button type="button" role="menuitem" @click="hide('mute')">静音作者</button><button type="button" role="menuitem" @click="hide('block')">屏蔽作者</button></template><button type="button" role="menuitem" @click="reportOpen = true">举报内容</button></CommunityPostMenu></header>
   <div v-if="post.question" class="question-state"><span :class="{ solved: post.question.status === 'solved' }"><AppIcon v-if="post.question.status === 'solved'" name="check" :size="14" />{{ post.question.status === 'solved' ? '已解决' : '等待回答' }}</span><small v-if="post.question.teacherAnswered">认证教师参与回答</small></div>
   <h2 v-if="post.title" class="community-post-title"><RouterLink :to="`/community/post/${post.id}`" @click="openPost">{{ post.title }}</RouterLink></h2>
   <div :class="{ 'community-post-body': !detail }" @click="bodyClick"><CommunityBlocks :blocks="post.contentBlocks" :compact="!detail && !expanded" @overflow="overflowed = $event" /></div>
@@ -54,4 +90,5 @@ const bindingClick = (binding: CommunityBindingDto) => {
   <AppDialog v-model="reportOpen" title="举报内容"><form class="dialog-form" @submit.prevent="report"><label>举报原因<select v-model="reason"><option>内容不准确</option><option>不当内容或骚扰</option><option>泄露个人信息</option><option>垃圾广告</option><option>版权问题</option></select></label><label>补充说明<textarea v-model="description" maxlength="1000" rows="3" /></label><p>举报信息仅供有权限的审核人员处理，不向作者公开。</p><button class="button primary" :disabled="pending">提交举报</button></form></AppDialog>
   <AppDialog v-model="unpublishOpen" title="下架自己的资源作品"><p>作品将从资源中心、社区、作者页和合集公开入口撤下，并保留为私人草稿，之后仍可编辑并重新发布。</p><button class="button primary" :disabled="pending" @click="unpublish">确认下架</button></AppDialog>
   <AppDialog v-model="deleteOpen" title="删除自己的动态"><p>动态将不再对社区显示，讨论记录保留用于审计。</p><button class="button primary" :disabled="pending" @click="remove">确认删除</button></AppDialog>
+  <AppDialog v-model="exportOpen" title="导出动态"><p>选择导出格式：</p><div class="community-export-options"><button class="button secondary" type="button" @click="exportPost('json')">JSON</button><button class="button secondary" type="button" @click="exportPost('markdown')">Markdown</button><button class="button secondary" type="button" @click="exportPost('csv')">CSV</button></div></AppDialog>
 </article></template>
