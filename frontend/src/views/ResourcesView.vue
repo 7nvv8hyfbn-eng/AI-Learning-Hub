@@ -11,6 +11,7 @@ import { useCommunityStore } from '../stores/community'
 import { useAuthStore } from '../stores/auth'
 import { mapSelectedResource, useResourcesStore } from '../stores/content/resources'
 import { resourceHubApi } from '../services/api/resourceHub'
+import { ensureAuth } from '../composables/useRequireAuth'
 
 const route = useRoute()
 const router = useRouter()
@@ -46,8 +47,22 @@ const legacyPreviewOpen = computed({
   },
 })
 const publish = (value: ResourceContributionKind) => {
+  if (!ensureAuth('登录后可发布共创内容', () => publish(value))) return
+  if (value === 'article') {
+    community.openComposer({
+      type: 'frontier_discussion',
+      title: '',
+      contentBlocks: [],
+      bindings: [],
+      topicIds: [],
+      visibility: 'public',
+      status: 'published',
+    })
+    community.composerInline = false
+    return
+  }
   community.openComposer({
-    type: value === 'video' ? 'lab_result' : value === 'article' ? 'frontier_discussion' : 'note',
+    type: value === 'video' ? 'lab_result' : 'note',
     title: '',
     contentBlocks: [],
     bindings: [],

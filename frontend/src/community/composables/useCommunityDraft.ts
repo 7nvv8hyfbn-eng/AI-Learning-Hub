@@ -165,7 +165,7 @@ export const useCommunityDraft = defineStore('community-draft', () => {
     form.value = { type: 'general', title: '', contentBlocks: [], bindings: [], topicIds: [], visibility: 'public', status: 'published' }
     queueMicrotask(() => { hydrating = false })
   }, { flush: 'sync' })
-  const close = () => { if (saving.value) { error.value = '正在保存或上传，请稍后再关闭'; return }; if (dirty.value) closePrompt.value = true; else store.composerOpen = false }
+  const close = () => { if (saving.value) { error.value = '正在保存或上传，请稍后再关闭'; return }; if (dirty.value) void saveAndClose(); else store.composerOpen = false }
   const discard = () => { if (saving.value) return; clearTimeout(timer); clearTimeout(remoteTimer); clearLocal(); requestKey = ''; requestBody = ''; unconfirmed = undefined; dirty.value = false; closePrompt.value = false; store.composerOpen = false }
   const saveAndClose = async () => { if (await save(true)) { closePrompt.value = false; store.composerOpen = false } }
   const readServer = async () => {
