@@ -28,6 +28,31 @@ export class CommunityController {
   constructor(private readonly posts: CommunityPostService, private readonly comments: CommunityCommentService, private readonly interactions: CommunityInteractionService, private readonly notifications: CommunityNotificationService, private readonly context: CommunityContextService, private readonly feed: LearningFeedPipeline, private readonly visibility: CommunityVisibilityPolicyService, private readonly signals: SignalsService, private readonly prisma: PrismaService, @Inject(STORAGE_SERVICE) private readonly storage: StorageService, private readonly files: FileAccessService, private readonly searchService: CommunitySearchService) {}
   @Get('search') search(@CurrentUser() user: AuthUser, @Query() input: SearchDto) { return this.searchService.search(user.id, input) }
   @Get('onboarding/schools') schools() { return this.prisma.school.findMany({ where: { status: 'active' }, select: { id: true, name: true, departments: { select: { id: true, name: true } } }, orderBy: { name: 'asc' } }) }
+  @Get('study-ranking') async studyRanking(@CurrentUser() user: AuthUser) {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const [points, watch, lessons] = await Promise.all([
+      this.prisma.growthPoint.findMany({ select: { userId: true, points: true, createdAt: true } }),
+      this.prisma.resourceWatchProgress.findMany({ select: { userId: true, watchedSeconds: true, updatedAt: true } }),
+      this.prisma.lessonProgress.findMany({ select: { userId: true, progress: true, updatedAt: true, lesson: { select: { durationMinutes: true } } } })
+    ])
+    const totals = new Map<string, number>()
+    const weekly = new Map<string, number>()
+    const add = (userId: string, minutes: number, fresh: boolean) => {
+      if (minutes <= 0) return
+      totals.set(userId, (totals.get(userId) ?? 0) + minutes)
+      if (fresh) weekly.set(userId, (weekly.get(userId) ?? 0) + minutes)
+    }
+    for (const row of points) add(row.userId, row.points * 6, row.createdAt >= weekAgo)
+    for (const row of watch) add(row.userId, row.watchedSeconds / 60, row.updatedAt >= weekAgo)
+    for (const row of lessons) add(row.userId, (row.lesson?.durationMinutes ?? 0) * (row.progress / 100), row.updatedAt >= weekAgo)
+    const users = await this.prisma.user.findMany({ where: { id: { in: [...totals.keys()] } }, select: { id: true, username: true, displayName: true, major: true, school: { select: { name: true } } } })
+    const build = (minutes: Map<string, number>) => users
+      .map((item) => ({ userId: item.id, username: item.username, displayName: item.displayName, school: item.school?.name ?? '', major: item.major ?? '', hours: Math.round(((minutes.get(item.id) ?? 0) / 60) * 10) / 10 }))
+      .filter((item) => item.hours > 0)
+      .sort((a, b) => b.hours - a.hours)
+    const pack = (items: ReturnType<typeof build>) => ({ items, myRank: items.findIndex((item) => item.userId === user.id) + 1, myHours: items.find((item) => item.userId === user.id)?.hours ?? 0 })
+    return { total: pack(build(totals)), week: pack(build(weekly)) }
+  }
   @Post('onboarding') onboarding(@CurrentUser() user: AuthUser, @Body() input: OnboardingDto) { return this.context.onboarding(user.id, input) }
   @Patch('profile/username') username(@CurrentUser() user: AuthUser, @Body() input: UsernameDto) { return this.context.changeUsername(user.id, input.username) }
   @Get('users/by-username/:username') byUsername(@CurrentUser() user: AuthUser, @Param('username') username: string) { return this.context.byUsername(user.id, username) }
