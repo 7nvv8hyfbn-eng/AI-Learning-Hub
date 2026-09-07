@@ -3,7 +3,7 @@ import CommunityAvatar from '../components/base/CommunityAvatar.vue'
 import FollowButton from '../components/base/FollowButton.vue'
 import type { CourseDetailDto } from '@ai-learning-hub/contracts'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CourseCard from '../components/CourseCard.vue'
 import AppDialog from '../components/base/AppDialog.vue'
@@ -11,6 +11,7 @@ import AppIcon from '../components/base/AppIcon.vue'
 import NotFoundState from '../components/NotFoundState.vue'
 import ProgressBar from '../components/ProgressBar.vue'
 import CategoryCover from '../components/base/CategoryCover.vue'
+import { copyText, downloadText, exportWatermark, safeFileBase } from '../community/contentExport'
 import { dataMode } from '../services/api/client'
 import { useAuthStore } from '../stores/auth'
 import { mapCourse, useCoursesStore } from '../stores/content/courses'
@@ -79,6 +80,37 @@ const copyCode = async () => {
 const saveNote = async () => {
   if (await store.saveNote(courseId.value, noteDraft.value, dataMode === 'api' ? currentApiLesson.value?.id : undefined)) noteOpen.value = false
 }
+const instructorName = computed(() => courseDetail.value?.data.instructor?.name || (dataMode === 'api' ? '课程讲师' : '林知远老师'))
+const overviewLines = computed(() => [
+  `${course.value?.title || '课程'}（${course.value?.category || '课程'} · ${course.value?.level || '入门'}）`,
+  course.value?.description || '',
+  `讲师：${instructorName.value}`,
+  `共 ${displayLessons.value.length} 课时：`,
+  ...displayLessons.value.map((lesson, index) => `${index + 1}. ${lesson}`),
+])
+const courseCopied = ref(false), exportOpen = ref(false)
+let courseCopiedTimer: ReturnType<typeof setTimeout> | undefined
+const copyOverview = async () => {
+  if (!course.value || !await copyText(overviewLines.value.join('\n'))) return
+  courseCopied.value = true
+  clearTimeout(courseCopiedTimer)
+  courseCopiedTimer = setTimeout(() => { courseCopied.value = false }, 1800)
+}
+const exportCourse = (format: 'txt' | 'md') => {
+  if (!course.value) return
+  const meta = { author: instructorName.value, origin: course.value.title }
+  const base = `${safeFileBase(instructorName.value)}-${safeFileBase(course.value.title)}-课程速览`
+  if (format === 'md') {
+    const markdown = [`# ${course.value.title}`, '', `> ${exportWatermark(meta).join(' · ')}`, '', course.value.description || '', '', ...displayLessons.value.map((lesson, index) => `${index + 1}. ${lesson}`), '', '示例代码：', '', '```python', code, '```'].join('\n')
+    downloadText(`${base}.md`, markdown, 'text/markdown;charset=utf-8')
+  } else {
+    downloadText(`${base}.txt`, [...exportWatermark(meta), '————————————', ...overviewLines.value, '', '示例代码：', code].join('\n'))
+  }
+  exportOpen.value = false
+}
+const onDocClick = (event: MouseEvent) => { if (exportOpen.value && !(event.target as HTMLElement).closest('.content-export')) exportOpen.value = false }
+onMounted(() => { if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') document.addEventListener('click', onDocClick) })
+onBeforeUnmount(() => { if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') document.removeEventListener('click', onDocClick); clearTimeout(courseCopiedTimer) })
 const shareNote = () => { if (!ensureAuth('登录后可主动分享学习笔记', shareNote)) return; useCommunityStore().openComposer({ type: 'note', title: `${course.value?.title || '课程'}学习笔记`, contentBlocks: [{ type: 'paragraph', text: store.notes[noteKey.value] || noteDraft.value }], bindings: [{ type: 'course', id: courseId.value }, ...(currentApiLesson.value ? [{ type: 'lesson' as const, id: currentApiLesson.value.id }] : [])] }) }
 const completeCurrentLesson = () => {
   const lessonId = dataMode === 'api' ? currentApiLesson.value?.id : currentLesson.value
@@ -117,7 +149,7 @@ watch(courseId, async () => {
     <section class="course-hero">
       <div class="hero-copy"><span class="tag purple">{{ course.category }}</span><h1>{{ course.title }}</h1><p>{{ course.description }}{{ dataMode === 'mock' ? ' 从核心概念出发，逐步走向受控实践。' : '' }}</p><div class="meta"><span>{{ course.level }}</span><span>{{ chapterCount }} 章 · {{ displayLessons.length }} 节</span><span>{{ course.learners === undefined ? '学习人数 —' : `${course.learners.toLocaleString()} 人学习` }}</span><span>{{ dataMode === 'api' ? (courseDetail?.data.rating ? `${courseDetail.data.rating} 分` : '评分 —') : '4.9 分' }}</span></div><div class="teacher"><CommunityAvatar :name="courseDetail?.data.instructor?.name || '讲师'" :avatar-key="dataMode === 'mock' ? 'official-teacher' : undefined" /><div><strong>{{ courseDetail?.data.instructor?.name || (dataMode === 'api' ? '讲师待配置' : '林知远老师') }}</strong><small>{{ courseDetail?.data.instructor?.title || (dataMode === 'api' ? '信息待配置' : '高校 AI 应用课程讲师') }}</small></div><FollowButton v-if="dataMode === 'mock'" :active="followed" @click="followed = !followed" /></div></div>
       <CategoryCover :title="course.title" :media="course" eager />
-      <aside class="hero-progress"><ProgressBar v-if="accountDataReady" :value="store.courseProgress[course.id] ?? course.progress ?? 0" label="学习进度" /><p v-else class="notice">{{ accountDataMessage }}</p><strong>当前第 {{ currentLesson }} / {{ displayLessons.length }} 课时</strong><button class="button primary full-width" type="button" :disabled="!displayLessons.length" @click="startLearning()">{{ store.courseProgress[course.id] ? '继续学习' : '开始学习' }}</button><button class="button secondary full-width" type="button" :disabled="!displayLessons.length" @click="completeCurrentLesson">完成本节</button><button class="button secondary full-width" type="button" @click="store.toggleFavorite('course', course.id)">{{ store.isFavorite('course', course.id) ? '已收藏' : '收藏课程' }}</button></aside>
+      <aside class="hero-progress"><ProgressBar v-if="accountDataReady" :value="store.courseProgress[course.id] ?? course.progress ?? 0" label="学习进度" /><p v-else class="notice">{{ accountDataMessage }}</p><strong>当前第 {{ currentLesson }} / {{ displayLessons.length }} 课时</strong><button class="button primary full-width" type="button" :disabled="!displayLessons.length" @click="startLearning()">{{ store.courseProgress[course.id] ? '继续学习' : '开始学习' }}</button><button class="button secondary full-width" type="button" :disabled="!displayLessons.length" @click="completeCurrentLesson">完成本节</button><button class="button secondary full-width" type="button" @click="store.toggleFavorite('course', course.id)">{{ store.isFavorite('course', course.id) ? '已收藏' : '收藏课程' }}</button><button class="button secondary full-width" type="button" @click="copyOverview">{{ courseCopied ? '已复制速览' : '复制课程速览' }}</button><details class="content-export full-width" :open="exportOpen" @toggle="exportOpen = ($event.target as HTMLDetailsElement).open"><summary aria-label="下载课程速览"><AppIcon name="download" :size="14" />下载课程速览<AppIcon name="chevron-down" :size="12" /></summary><div class="content-export-menu"><button type="button" @click="exportCourse('txt')">纯文本 .txt</button><button type="button" @click="exportCourse('md')">Markdown .md</button></div></details></aside>
     </section>
     <RouterLink class="text-link" :to="`/community/search?bindingId=${courseId}`">查看课程相关讨论 <AppIcon name="arrow-up-right" :size="14" /></RouterLink>
     <div class="learning-layout">

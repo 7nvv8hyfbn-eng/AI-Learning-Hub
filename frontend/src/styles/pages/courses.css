@@ -6,6 +6,7 @@
 .teacher small { color: var(--muted); }
 .teacher .button { margin-left: 8px; }
 .hero-progress { display: flex; flex-direction: column; gap: 15px; padding: 21px; border: 1px solid var(--border); border-radius: var(--radius-card); background: white; box-shadow: var(--shadow); }
+.hero-progress .content-export > summary { width: 100%; min-height: 42px; font-size: .9rem; font-weight: 600; }
 .learning-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr) 270px; align-items: start; gap: 20px; }
 .sticky { position: sticky; top: 92px; }
 .outline-title { display: flex; justify-content: space-between; width: 100%; min-height: 42px; border: 0; background: transparent; cursor: pointer; }
