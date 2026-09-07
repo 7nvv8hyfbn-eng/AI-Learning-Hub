@@ -3,6 +3,11 @@ import { dataMode, request, writeRequest } from './client'
 import { assertMockCommunityWrite, mockCommunity } from './community.mock'
 import { randomId } from './random-id'
 import type { AuthUser, CampusIdentityVerificationDto, CampusIdentityVerificationInput, CommunityDraftDto, CommunitySearchResultDto, CommunitySearchType, IdentityVerificationStatus, OnboardingInput } from '@ai-learning-hub/contracts'
+
+export interface CommunityStudyRankingRow { userId: string; username: string; displayName: string; school: string; major: string; hours: number }
+export interface CommunityPersonStudyRanking { items: CommunityStudyRankingRow[]; myRank: number; myHours: number }
+export interface CommunitySchoolStudyRankingRow { schoolId: string; name: string; hours: number }
+export type CommunityStudyPeriod = 'total' | 'week'
 const demoImages = new Map<string, File>()
 const call = <T>(path: string, method = 'GET', body?: unknown, key?: string): Promise<T> => dataMode === 'api'
   ? method === 'GET' ? request<T>(`/community${path}`) : writeRequest<T>(`/community${path}`, method, body, key)
@@ -11,6 +16,9 @@ export const communityApi = {
   feed: (mode: CommunityFeedMode, type: CommunityPostType | 'all', cursor?: string) => call<CommunityFeedDto>(`/feed?${new URLSearchParams({ mode, type, ...(cursor ? { cursor } : {}) })}`),
   updates: (since: string, mode: CommunityFeedMode, type: CommunityPostType | 'all') => call<{ count: number }>(`/feed/updates?${new URLSearchParams({ since, mode, type })}`),
   context: () => call<CommunityContextDto>('/context'),
+  studyRankingPerson: (period: CommunityStudyPeriod) => call<CommunityPersonStudyRanking>(`/study-ranking?${new URLSearchParams({ dimension: 'person', period })}`),
+  studyRankingSchoolBoard: (period: CommunityStudyPeriod) => call<{ items: CommunitySchoolStudyRankingRow[] }>(`/study-ranking?${new URLSearchParams({ dimension: 'school', period })}`),
+  studyRankingSchool: (schoolId: string, period: CommunityStudyPeriod) => call<CommunityPersonStudyRanking>(`/study-ranking/school/${schoolId}?period=${period}`),
   eligibility: () => call<CommunityEligibilityDto>('/eligibility'),
   verification: () => call<CampusIdentityVerificationDto>('/verification'),
   submitVerification: (input: CampusIdentityVerificationInput) => call<CampusIdentityVerificationDto>('/verification', 'PUT', input),
