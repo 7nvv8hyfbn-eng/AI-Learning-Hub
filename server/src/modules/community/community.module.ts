@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { AuthModule } from '../auth/auth.module'
 import { StorageModule } from '../storage/storage.module'
 import { SignalsModule } from '../signals/signals.module'
+import { GrowthModule } from '../growth/growth.module'
 import { ContentReferenceModule } from '../../common/content-reference/content-reference.module'
 import { CommunityVisibilityModule } from './visibility.module'
 import { CommunityController } from './community.controller'
@@ -16,7 +17,7 @@ import { ContentSupportModule } from '../../common/content/content-support.modul
 import { CommunityAdminService } from './admin.service'
 import { CommunityGovernanceController, CommunityGovernanceAdminController, CommunityRecoveryController } from './governance.controller'
 @Module({
-  imports: [AuthModule, StorageModule, SignalsModule, ContentReferenceModule, CommunityVisibilityModule, ContentSupportModule],
+  imports: [AuthModule, StorageModule, SignalsModule, GrowthModule, ContentReferenceModule, CommunityVisibilityModule, ContentSupportModule],
   controllers: [CommunityController, CommunityAdminController, CommunityGovernanceController, CommunityGovernanceAdminController, CommunityRecoveryController],
   providers: [CommunityPostService, CommunityCommentService, CommunityInteractionService, CommunityContextService, LearningFeedPipeline, CommunitySearchService, CommunityAdminService],
   exports: [CommunityPostService],

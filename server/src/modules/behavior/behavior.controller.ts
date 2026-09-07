@@ -8,12 +8,18 @@ import { Permissions } from '../auth/permissions.decorator'
 import { PermissionsGuard } from '../auth/permissions.guard'
 import type { AuthUser } from '../auth/auth.types'
 import { BehaviorService } from './behavior.service'
+import { GrowthService } from '../growth/growth.service'
 import { CreatePlanDto, FavoriteDto, LabActionDto, LessonProgressDto, NoteDto, SubmitAssessmentDto, UpdatePlanDto, ViewEventDto } from './behavior.dto'
 
 @Controller()
 @UseGuards(AuthGuard)
 export class BehaviorController {
-  constructor(private readonly behavior: BehaviorService, private readonly prisma: PrismaService) {}
+  constructor(private readonly behavior: BehaviorService, private readonly prisma: PrismaService, private readonly growthEngine: GrowthService) {}
+
+  @Get('me/achievements')
+  achievements(@CurrentUser() user: AuthUser) {
+    return this.growthEngine.studentAchievements(user.id)
+  }
 
   @Post('courses/:courseId/enroll')
   async enroll(@CurrentUser() user: AuthUser, @Param('courseId') courseId: string) {

@@ -337,6 +337,23 @@ export const demoAchievements = [
   ['learning-star', '本周之星', '进入本周排行榜前 20%'],
 ].map(([code, name, description]) => ({ code, name, description }))
 
+export const growthAchievements = [
+  { code: 'first-login', name: '初来乍到', description: '第一次来到学习社区', rule: { type: 'event_count', event: 'student_register', threshold: 1 } },
+  { code: 'profile-done', name: '崭新起点', description: '完成新手指引并完善个人资料', rule: { type: 'event_count', event: 'onboarding_completed', threshold: 1 } },
+  { code: 'first-post', name: '勇敢第一帖', description: '在社区发布第一篇帖子', rule: { type: 'event_count', event: 'community_post_publish', threshold: 1 } },
+  { code: 'posts-5', name: '活跃分享者', description: '累计发布 5 篇帖子', rule: { type: 'event_count', event: 'community_post_publish', threshold: 5 } },
+  { code: 'answer-1', name: '答疑新星', description: '第一次回答被提问者采纳', rule: { type: 'event_count', event: 'answer_accepted', threshold: 1 } },
+  { code: 'answer-5', name: '好评答主', description: '回答累计被采纳 5 次', rule: { type: 'event_count', event: 'answer_accepted', threshold: 5 } },
+  { code: 'useful-10', name: '干货制造机', description: '内容累计被标记"有用" 10 次', rule: { type: 'event_count', event: 'community_useful_add', threshold: 10 } },
+  { code: 'lesson-10', name: '课程行者', description: '累计学完 10 节课', rule: { type: 'lesson_complete', threshold: 10 } },
+  { code: 'lab-5', name: '实训达人', description: '完成 5 个实训项目', rule: { type: 'lab_complete', threshold: 5 } },
+  { code: 'assessment-5', name: '测评高手', description: '通过 5 次统一测评', rule: { type: 'assessment_pass', threshold: 5 } },
+  { code: 'streak-7', name: '七日之约', description: '连续学习 7 天', rule: { type: 'streak', days: 7 } },
+  { code: 'points-1000', name: '千分俱乐部', description: '累计积分突破 1000', rule: { type: 'points', threshold: 1000 } },
+] as const
+
+export type GrowthAchievementFixture = (typeof growthAchievements)[number]
+
 export const demoCertificates = [
   ['ai-basics-pass', 'AI 基础能力证书', '完成 AI 基础课程并通过综合测评'],
   ['agent-practice', 'AI Agent 实践证书', '完成 Agent 学习路径与项目'],

@@ -113,7 +113,7 @@ export interface CommunityPostSummaryDto {
   publishedAt: string; editedAt: string | null
   contribution?: ResourceContributionDto | null
 }
-export interface CommunityPostDetailDto extends CommunityPostSummaryDto { body: string }
+export interface CommunityPostDetailDto extends CommunityPostSummaryDto { body: string; pointsAwarded?: number }
 export interface CommunityPostInput {
   coverFileId?: string | null
   expectedRevision?: number

@@ -183,7 +183,9 @@ export class LearningFeedPipeline {
       try { context = await this.context.context(userId); candidates = await this.rank(userId, query, policy, now) }
       catch {
         degraded = true
-        const rows = await this.prisma.communityPost.findMany({ where: { AND: [await this.visibility.where(userId), { publishedAt: { lte: now }, ...(query.type !== 'all' ? { postType: query.type } : {}) }, ...(query.mode === 'following' ? [{ OR: [{ authorId: { in: (await this.prisma.communityUserFollow.findMany({ where: { followerId: userId } })).map((f) => f.followeeId) } }, { topics: { some: { topic: { follows: { some: { userId } } } } } }] }] : [])] }, orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }], take: 300 })
+        const viewer = await this.visibility.viewer(userId)
+        const circle: Prisma.CommunityPostWhereInput = viewer.schoolId ? { OR: [{ authorId: userId }, { author: { schoolId: viewer.schoolId } }] } : { authorId: userId }
+        const rows = await this.prisma.communityPost.findMany({ where: { AND: [await this.visibility.where(userId), query.mode === 'following' ? { OR: [circle, { OR: [{ authorId: { in: (await this.prisma.communityUserFollow.findMany({ where: { followerId: userId } })).map((f) => f.followeeId) } }, { topics: { some: { topic: { follows: { some: { userId } } } } } }] }] } : circle, { publishedAt: { lte: now }, ...(query.type !== 'all' ? { postType: query.type } : {}) }] }, orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }], take: 300 })
         candidates = rows.map((row) => ({ postId: row.id, source: 'safe_chronological_fallback', reasonCodes: [], dimensions: {}, total: 0, authorId: row.authorId, postType: row.postType, official: false, publishedAt: (row.publishedAt || row.createdAt).toISOString() }))
       }
       session = await this.prisma.communityFeedSession.create({ data: { viewerId: userId, mode: query.mode, contentType: query.type, policyVersion: policy.version, entries: json(this.assemble(candidates, policy, context, query.mode === 'for_you' && !degraded, query.type)), context: json(context), degraded, expiresAt: new Date(now.getTime() + 3600000) } })

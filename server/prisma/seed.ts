@@ -12,6 +12,7 @@ import {
   demoLabs,
   demoLearningPlans,
   demoResources,
+  growthAchievements,
   demoStudents,
   demoThemes,
   fixtureMinimums,
@@ -554,8 +555,16 @@ async function seed() {
   for (const fixture of demoAchievements) {
     const saved = await prisma.achievement.upsert({
       where: { code: fixture.code },
-      update: { name: fixture.name, description: fixture.description },
-      create: { code: fixture.code, name: fixture.name, description: fixture.description, rule: { event: fixture.code, count: 1 } },
+      update: { name: fixture.name, description: fixture.description, enabled: false },
+      create: { code: fixture.code, name: fixture.name, description: fixture.description, rule: { event: fixture.code, count: 1 }, enabled: false },
+    })
+    achievementIds.set(fixture.code, saved.id)
+  }
+  for (const fixture of growthAchievements) {
+    const saved = await prisma.achievement.upsert({
+      where: { code: fixture.code },
+      update: { name: fixture.name, description: fixture.description, rule: fixture.rule, enabled: true },
+      create: { code: fixture.code, name: fixture.name, description: fixture.description, rule: fixture.rule, enabled: true },
     })
     achievementIds.set(fixture.code, saved.id)
   }

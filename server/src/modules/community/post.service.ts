@@ -6,6 +6,7 @@ import type { CommunityContentBlock, CommunityPostDetailDto, CommunityTopicDto, 
 import { PrismaService } from '../../prisma/prisma.service'
 import { ContentReferenceService } from '../../common/content-reference/content-reference.service'
 import { SignalsService } from '../signals/signals.service'
+import { GrowthService } from '../growth/growth.service'
 import { CommunityVisibilityPolicyService } from './visibility.service'
 import { authorDto, authorInclude, json } from './community.mapper'
 import type { CommunityQueryDto, PostDto } from './community.dto'
@@ -23,7 +24,7 @@ export type HydratedPost = Prisma.CommunityPostGetPayload<{ include: typeof post
 
 @Injectable()
 export class CommunityPostService {
-  constructor(private readonly prisma: PrismaService, private readonly refs: ContentReferenceService, private readonly visibility: CommunityVisibilityPolicyService, private readonly signals: SignalsService, private readonly detection: ContentDetectionService) {}
+  constructor(private readonly prisma: PrismaService, private readonly refs: ContentReferenceService, private readonly visibility: CommunityVisibilityPolicyService, private readonly signals: SignalsService, private readonly detection: ContentDetectionService, private readonly growth: GrowthService) {}
 
   async blocks(userId: string, blocks: CommunityContentBlock[], draft = false) {
     if (!blocks.length && !draft) throw new BadRequestException('请填写正文')
@@ -138,11 +139,11 @@ export class CommunityPostService {
       }
     }
     const contentHash = createHash('sha256').update(`${input.title || ''}\n${plainText}\n${JSON.stringify(normalizedContribution || null)}${coverFileId || ''}`.replace(/\s+/g, '').toLowerCase()).digest('hex')
-    const post = await this.prisma.$transaction(async (tx) => {
+    const { saved, pointsAwarded } = await this.prisma.$transaction(async (tx) => {
       await lockFileReferences(tx)
       const scope = audit?.action === 'official_publish' ? `post:${userId}:new` : `post:${id || 'new'}`
       const request = await idempotency(tx, audit?.actorId || userId, scope, key, input)
-      if (request.resourceId) return tx.communityPost.findUniqueOrThrow({ where: { id: request.resourceId } })
+      if (request.resourceId) return { saved: await tx.communityPost.findUniqueOrThrow({ where: { id: request.resourceId } }), pointsAwarded: 0 }
       const fileIds = clean.flatMap((block) => block.type === 'image' ? [block.fileId] : [])
       if (fileIds.length && await tx.fileRecord.count({ where: { quarantinedAt: null, id: { in: fileIds }, uploadedBy: userId } }) !== new Set(fileIds).size) throw new BadRequestException('图片已失效，请重新上传')
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`community-write:${userId}`},0))::text`
@@ -201,12 +202,15 @@ export class CommunityPostService {
       for (const topicId of topicIds) await tx.communityTopic.update({ where: { id: topicId }, data: { postCount: await tx.communityPostTopic.count({ where: { topicId, post: { status: 'published', deletedAt: null } } }) } })
       if (publishing) await this.signals.record(userId, 'community_post_publish', 'post', saved.id, { postType: input.type, topicIds: input.topicIds, bindingKeys: input.bindings.map((ref) => `${ref.type}:${references.get(`${ref.type}:${ref.id}`)!.id}`) }, tx)
       else await actionEvent(tx, audit?.actorId || userId, input.status === 'draft' ? 'post_draft_saved' : 'post_edited', 'post', saved.id, {}, audit ? 'admin-web' : 'student-web')
+      const pointsAwarded = publishing ? await this.growth.award(tx, userId, 'community_post_publish', `post:${saved.id}:publish`) : 0
       await postRevision(tx, saved.id, audit?.actorId || userId, audit ? 'admin' : 'user', audit?.reason || '')
       if (audit) await tx.communityModerationAction.create({ data: { ...audit, targetType: 'post', targetId: saved.id } })
       await request.complete(saved.id)
-      return saved
+      return { saved, pointsAwarded }
     })
-    return this.detail(userId, post.id)
+    const detail = await this.detail(userId, saved.id)
+    void this.growth.checkAchievements(userId).catch(() => undefined)
+    return { ...detail, pointsAwarded }
   }
   async remove(userId: string, id: string) {
     await this.visibility.viewer(userId)
@@ -217,7 +221,7 @@ export class CommunityPostService {
       await tx.$queryRaw`SELECT id FROM community_posts WHERE id = ${id} FOR UPDATE`
       await postRevision(tx, id, userId)
       const changed = await tx.communityPost.updateMany({ where: { id, authorId: userId, deletedAt: null }, data: { deletedAt: new Date(), status: 'removed', revision: { increment: 1 } } })
-      if (changed.count) { await postRevision(tx, id, userId); await actionEvent(tx, userId, 'post_deleted', 'post', id) }
+      if (changed.count) { await postRevision(tx, id, userId); await actionEvent(tx, userId, 'post_deleted', 'post', id); await this.growth.rollbackContent(tx, [`post:${id}:`]) }
       await tx.communityProfile.updateMany({ where: { userId }, data: { postCount: await tx.communityPost.count({ where: { authorId: userId, status: 'published', deletedAt: null } }) } })
       for (const { topicId } of await tx.communityPostTopic.findMany({ where: { postId: id } })) await tx.communityTopic.update({ where: { id: topicId }, data: { postCount: await tx.communityPostTopic.count({ where: { topicId, post: { status: 'published', deletedAt: null } } }) } })
     })

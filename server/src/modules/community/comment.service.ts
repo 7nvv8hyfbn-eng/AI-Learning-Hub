@@ -6,6 +6,7 @@ import { CommunityPostService } from './post.service'
 import { CommunityVisibilityPolicyService } from './visibility.service'
 import { CommunityNotificationService } from './notification.service'
 import { SignalsService } from '../signals/signals.service'
+import { GrowthService } from '../growth/growth.service'
 import { authorDto, authorInclude, json } from './community.mapper'
 import type { CommentDto } from './community.dto'
 import { actionEvent, idempotency, lockFileReferences } from '../../common/persistence'
@@ -13,7 +14,7 @@ import { ContentDetectionService } from './content-detection.service'
 
 @Injectable()
 export class CommunityCommentService {
-  constructor(private readonly prisma: PrismaService, private readonly posts: CommunityPostService, private readonly visibility: CommunityVisibilityPolicyService, private readonly notifications: CommunityNotificationService, private readonly signals: SignalsService, private readonly detection: ContentDetectionService) {}
+  constructor(private readonly prisma: PrismaService, private readonly posts: CommunityPostService, private readonly visibility: CommunityVisibilityPolicyService, private readonly notifications: CommunityNotificationService, private readonly signals: SignalsService, private readonly detection: ContentDetectionService, private readonly growth: GrowthService) {}
   async list(userId: string, postId: string, admin = false, id?: string): Promise<CommunityCommentDto[]> {
     if (!admin) await this.visibility.assertPost(userId, postId)
     const [rows, question, feedback] = await Promise.all([
@@ -62,12 +63,14 @@ export class CommunityCommentService {
       if (status === 'pending_review') await tx.communityQuestionState.updateMany({ where: { acceptedCommentId: saved.id }, data: { acceptedCommentId: null, status: 'open', solvedAt: null } })
       if (countChange === 1) {
         await this.signals.record(userId, parent ? 'community_reply_create' : 'community_comment_create', 'post', postId, { authorId: post.authorId, postType: post.postType, commentId: saved.id }, tx)
+        await this.growth.award(tx, userId, 'community_comment_create', `comment:${saved.id}:create`)
         await this.notifications.send(parent?.authorId || post.authorId, userId, parent ? 'reply' : 'comment', 'post', postId, tx)
       }
       if (id) await actionEvent(tx, userId, 'comment_edited', 'comment', saved.id)
       await request.complete(saved.id)
       return saved
     })
+    void this.growth.checkAchievements(userId).catch(() => undefined)
     const result = (await this.list(userId, postId, false, row.id))[0]
     if (!result) throw new NotFoundException('评论已保存，但当前不可见，请重新加载')
     return result
@@ -78,7 +81,7 @@ export class CommunityCommentService {
     if (!comment || comment.authorId !== userId) throw new ForbiddenException('只能删除自己的评论')
     await this.prisma.$transaction(async (tx) => {
       const changed = await tx.communityComment.updateMany({ where: { id, authorId: userId, deletedAt: null }, data: { deletedAt: new Date(), status: 'removed', revision: { increment: 1 } } })
-      if (changed.count) await actionEvent(tx, userId, 'comment_deleted', 'comment', id)
+      if (changed.count) { await actionEvent(tx, userId, 'comment_deleted', 'comment', id); await this.growth.rollbackContent(tx, [`comment:${id}:`]) }
       if (changed.count && comment.status === 'published') await tx.communityPost.update({ where: { id: comment.postId }, data: { commentCount: { decrement: 1 } } })
       await tx.communityQuestionState.updateMany({ where: { acceptedCommentId: id }, data: { acceptedCommentId: null, status: 'open', solvedAt: null } })
     })
@@ -92,8 +95,10 @@ export class CommunityCommentService {
     if (!comment || (await this.visibility.authorExclusions(userId)).authors.includes(comment.authorId)) throw new NotFoundException('回答不存在')
     await this.prisma.$transaction(async (tx) => {
       await tx.communityQuestionState.update({ where: { postId }, data: { status: 'solved', acceptedCommentId: commentId, solvedAt: new Date() } })
+      await this.growth.award(tx, comment.authorId, 'answer_accepted', `comment:${commentId}:accepted`)
       await this.notifications.send(comment.authorId, userId, 'answer_accepted', 'post', postId, tx)
     })
+    void this.growth.checkAchievements(comment.authorId).catch(() => undefined)
     return this.posts.detail(userId, postId)
   }
 }

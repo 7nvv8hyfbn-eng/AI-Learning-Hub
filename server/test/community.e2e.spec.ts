@@ -65,14 +65,14 @@ beforeAll(async () => {
   const other = await db.school.create({ data: { code: `${prefix}-other`, name: '另一测试学校' } })
   const role = await db.role.findUniqueOrThrow({ where: { code: 'student' } })
   const create = async (suffix: string, schoolId: string | null) => {
-    const user = await db.user.create({ data: { username: `${prefix}-${suffix}`, displayName: `学习者 ${suffix}`, email: `${prefix}-${suffix}@example.invalid`, passwordHash: await hash(password, 4), schoolId, userRoles: { create: { roleId: role.id } }, communityProfile: { create: {} } } })
-    const result = await request<{ accessToken: string }>('/auth/login', undefined, 'POST', { email: user.email, password })
+    const user = await db.user.create({ data: { username: `${prefix}-${suffix}`, displayName: `学习者 ${suffix}`, email: `${prefix}-${suffix}@example.invalid`, passwordHash: await hash(password, 4), schoolId, userRoles: { create: { roleId: role.id } }, communityProfile: { create: {} }, identityVerification: { create: { realNameEncrypted: 'synthetic-only', idNumberEncrypted: 'synthetic-only', idNumberFingerprint: `${prefix}-${suffix}`, idNumberLast4: '0000', className: '隔离验收班', studentNo: `${prefix}-${suffix}`, status: 'approved' } } } })
+    const result = await request<{ accessToken: string }>('/auth/login', undefined, 'POST', { identifier:user.email, password })
     expect(result.status).toBe(201)
     return { id: user.id, token: result.data.accessToken }
   }
   const actors = await Promise.all([create('a', school.id), create('b', school.id), create('c', other.id), create('none', null)])
   ;[{ id: aId, token: a }, { id: bId, token: b }, { id: cId, token: c }, { id: noSchoolId, token: noSchool }] = actors
-  admin = (await request<{ accessToken: string }>('/auth/login', undefined, 'POST', { email: process.env.SEED_ADMIN_EMAIL, password: process.env.SEED_ADMIN_PASSWORD })).data.accessToken
+  admin = (await request<{ accessToken: string }>('/auth/login', undefined, 'POST', { identifier:process.env.SEED_ADMIN_EMAIL, password: process.env.SEED_ADMIN_PASSWORD })).data.accessToken
   topicA = (await db.communityTopic.create({ data: { slug: `${prefix}-a`, name: '学习方法甲' } })).id
   topicB = (await db.communityTopic.create({ data: { slug: `${prefix}-b`, name: '学习方法乙' } })).id
 }, 30000)
@@ -336,7 +336,7 @@ describe('COMM-001 真实 HTTP / PostgreSQL 安全与业务闭环', () => {
     expect(JSON.stringify(post)).not.toContain('community-run-1')
     expect(post.bindings.filter((binding) => binding.type === 'lab')).toHaveLength(1)
     expect(new Set(post.bindings.map((binding) => `${binding.type}:${binding.id}`)).size).toBe(post.bindings.length)
-    const student = (await request<{ accessToken: string }>('/auth/login', undefined, 'POST', { email: process.env.SEED_STUDENT_EMAIL, password })).data.accessToken
+    const student = (await request<{ accessToken: string }>('/auth/login', undefined, 'POST', { identifier:process.env.SEED_STUDENT_EMAIL, password })).data.accessToken
     const sameSchool = await request<CommunityPostDetailDto>('/community/posts/community-lab_result-14', student)
     expect(sameSchool.status).toBe(200)
     expect(sameSchool.data.bindings.filter((binding) => binding.type === 'lab')).toHaveLength(1)
@@ -476,7 +476,7 @@ describe('COMM-001 真实 HTTP / PostgreSQL 安全与业务闭环', () => {
     expect((await request(`/community/posts/${post.id}`, b)).status).toBe(200)
   })
   it('资料头像和封面裁切为WebP，可替换移除且孤立文件不能经资料地址读取', async () => {
-    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=', 'base64')
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWNgYGD4DwABBAEAfbLI3wAAAABJRU5ErkJggg==', 'base64')
     const upload = async (kind: 'avatar' | 'banner', expectedUserRevision: number, expectedProfileRevision: number) => {
       const form = new FormData()
       form.append('file', new Blob([png], { type: 'image/png' }), `${kind}.png`)
