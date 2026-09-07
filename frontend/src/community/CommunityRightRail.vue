@@ -30,7 +30,7 @@ const follow = async (id: string, topic: boolean, active: boolean) => { error.va
   </section>
   <section class="community-rail-card rail-topics-card">
     <h2>正在讨论的话题</h2>
-    <div v-for="topic in (store.context?.trendingTopics || []).slice(0, 5)" :key="topic.id" class="rail-topic"><RouterLink :to="`/community/topic/${topic.slug}`"><strong># {{ topic.name }}</strong><small>{{ topic.postCount }} 条学习交流</small></RouterLink><FollowButton :active="topic.following" :label="`${topic.following ? '取消关注' : '关注'}话题 ${topic.name}`" :pending="store.operations[`follow:topic:${topic.id}`]" @click="follow(topic.id, true, !topic.following)" /></div>
+    <div v-for="topic in (store.context?.trendingTopics || []).slice(0, 5)" :key="topic.id" class="rail-topic"><RouterLink :to="`/community/topic/${topic.slug}`"><strong># {{ topic.name }}</strong><small>{{ topic.postCount }} 条学习交流<span v-if="topic.postCount >= 10" class="rail-topic-heat"><AppIcon name="energy" :size="13" />{{ topic.postCount >= 50 ? '热' : '上升' }}</span></small></RouterLink><FollowButton :active="topic.following" :label="`${topic.following ? '取消关注' : '关注'}话题 ${topic.name}`" :pending="store.operations[`follow:topic:${topic.id}`]" @click="follow(topic.id, true, !topic.following)" /></div>
     <p v-if="!store.context?.trendingTopics.length">暂无话题，先分享一个学习问题。</p>
     <RouterLink class="text-link rail-more" to="/community/search?type=topics">查看更多话题 <AppIcon name="arrow-right" :size="14" /></RouterLink>
     <img v-bind="communityArt.topicPlanet" class="rail-planet" alt="" loading="lazy" />

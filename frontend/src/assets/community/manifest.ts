@@ -4,6 +4,8 @@ import topicPlanet from './rail/topic-planet.webp'
 import sidebarPlanet from './decoration/sidebar-planet.webp'
 import bindingCubes from './decoration/course-binding-cubes.webp'
 import emptyStudy from './empty/community-empty.webp'
+import booksSorting from './decoration/books-sorting.svg'
+import treasureChest from './decoration/treasure-chest.svg'
 import officialTeacher from './avatars/official-teacher.webp'
 import learningAssistant from './avatars/ai-learning-assistant.webp'
 import studentMale01 from './avatars/student-male-01.webp'
@@ -21,6 +23,10 @@ export const communityArt = {
   bindingCubes: { src: bindingCubes, width: 360, height: 220 },
   empty: { src: emptyStudy, width: 480, height: 360 },
 } as const
+
+export const booksSortingIcon = booksSorting
+
+export const treasureChestIcon = treasureChest
 
 export const communityAvatars: Record<string, string> = {
   'official-teacher': officialTeacher,

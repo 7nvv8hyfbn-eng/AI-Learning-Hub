@@ -1,6 +1,11 @@
-.community-right-rail { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 0; display: grid; grid-auto-rows: max-content; align-content: start; gap: 16px; scrollbar-width: thin; }
-.community-rail-card { position: relative; isolation: isolate; border: 1px solid var(--amc-border); background: var(--amc-surface); border-radius: var(--amc-radius-card); padding: 20px 22px; box-shadow: var(--amc-shadow-card); }
-.community-rail-card h2 { font-size: 17px; line-height: 1.45; margin-bottom: 12px; font-weight: 650; }
+.community-right-rail { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px 0; display: grid; grid-auto-rows: max-content; align-content: start; gap: 18px; scrollbar-width: thin; }
+.community-rail-card { position: relative; isolation: isolate; border: 1px solid var(--amc-border); background: var(--amc-surface); border-radius: 16px; padding: 20px 22px; box-shadow: 0 2px 12px rgba(31, 41, 55, .05); transition: box-shadow .25s var(--amc-ease), transform .25s var(--amc-ease); animation: community-fade-in .3s var(--amc-ease); }
+.community-rail-card:hover { box-shadow: 0 14px 32px rgba(31, 41, 55, .11); transform: translateY(-4px); }
+.community-rail-card h2 { font-size: 16px; line-height: 1.4; margin-bottom: 14px; font-weight: 750; display: flex; align-items: center; gap: 9px; }
+.community-rail-card h2::before { content: ""; width: 4px; height: 16px; border-radius: 3px; background: var(--rail-accent, var(--amc-orange)); flex-shrink: 0; }
+.learning-rhythm-card { --rail-accent: #16a34a; }
+.rail-topics-card { --rail-accent: #2563eb; }
+.rail-people-card { --rail-accent: #7c3aed; }
 .rail-notebook { position: absolute; top: 0; right: 0; width: 180px; height: 90px; object-fit: contain; pointer-events: none; z-index: -1; }
 .rail-task { display: grid; grid-template-columns: 25px minmax(0, 1fr); align-items: center; gap: 13px; margin-top: 14px; }
 .rail-task-icon { color: var(--task-color); }
@@ -16,13 +21,18 @@
 .rail-topics-card::before { content: ""; position: absolute; right: 12px; top: 17px; width: 95px; height: 30px; background-image: radial-gradient(var(--amc-orange-border) 1px, transparent 1px); background-size: 12px 12px; opacity: .65; pointer-events: none; z-index: -1; }
 .rail-planet { position: absolute; bottom: 0; right: 0; width: 195px; height: 91px; object-fit: contain; pointer-events: none; opacity: .7; z-index: -1; }
 .rail-topic, .rail-person { display: flex; align-items: center; gap: 10px; margin-top: 11px; }
-.rail-topic > a, .rail-person > a { flex: 1; min-width: 0; }
+.rail-topic { flex-wrap: wrap; }
+.rail-topic > a, .rail-person > a { flex: 1 1 0; min-width: 0; }
 .rail-person > a { display: flex; align-items: center; gap: 9px; }
 .rail-person > a > span:last-child { min-width: 0; }
+.rail-topic > .follow-button { flex: 0 0 auto; }
 .rail-topic strong, .rail-person strong { display: block; font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.rail-topic strong { color: var(--amc-text-primary); }
 .rail-topic small, .rail-person small { display: block; font-size: 12px; line-height: 1.4; color: var(--amc-text-secondary); margin-top: 3px; }
+.rail-topic-heat { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 650; color: #ea580c; margin-left: 2px; }
+.rail-topic-heat .app-icon { color: #f97316; }
 .rail-more { display: inline-flex; margin-top: 8px; min-height: 26px; font-size: 12px; }
-.rail-avatar-group { display: flex; padding-top: 14px; padding-left: 8px; }
-.rail-avatar-group .community-avatar { margin-left: -8px; border: 2px solid var(--amc-surface); }
-.rail-avatar-group .icon-button { width: 32px; min-width: 32px; min-height: 32px; margin-left: 5px; }
+.rail-avatar-group { display: flex; align-items: center; padding-top: 16px; padding-left: 8px; }
+.rail-avatar-group .community-avatar { margin-left: -8px; border: 2px solid var(--amc-surface); box-shadow: 0 2px 6px rgba(31, 41, 55, .12); }
+.rail-avatar-group .icon-button { width: 34px; min-width: 34px; min-height: 34px; margin-left: 6px; border: 1px solid var(--amc-border); background: var(--amc-surface); color: var(--amc-text-secondary); border-radius: 50%; }
 .community-rail-footer { font-size: 12px; color: var(--amc-text-secondary); padding: 0 15px; }
