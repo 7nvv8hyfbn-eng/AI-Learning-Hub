@@ -17,6 +17,7 @@ export const relativeTime = (value: string, now = Date.now()) => {
 }
 export const communityNavigation = [
   { label: '社区首页', path: '/community', icon: 'message', desktop: true, mobile: true, mobileOrder: 1, requiresAuth: true },
+  { label: '学时排名', path: '/study-ranking', icon: 'trophy', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
   { label: '学习主题', path: '/topics', icon: 'layers', desktop: true, mobile: true, mobileOrder: 2, requiresAuth: true },
   { label: '实训项目', path: '/labs', icon: 'terminal', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
   { label: '资源中心', path: '/resources', icon: 'folder', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
