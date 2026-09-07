@@ -13,6 +13,8 @@ const props = withDefaults(defineProps<{
   modelValue: boolean
   title: string
   closeOnBackdrop?: boolean
+  /** 关闭前守卫:返回 false 则阻止本次关闭(用于"内容未保存"确认);所有关闭途径(✕/Esc/遮罩)都会先经过它 */
+  beforeClose?: () => boolean
 }>(), { closeOnBackdrop: true })
 
 const emit = defineEmits<{ 'update:modelValue': [value: boolean] }>()
@@ -28,7 +30,11 @@ const releaseBodyLock = () => {
   if (--bodyLockCount === 0) document.body.style.overflow = bodyOverflowBeforeDialogs
 }
 
-const close = () => emit('update:modelValue', false)
+const close = () => {
+  // 关闭前守卫:业务方可通过 beforeClose 阻止误关闭(如内容未保存)
+  if (props.beforeClose && !props.beforeClose()) return
+  emit('update:modelValue', false)
+}
 
 const syncDialog = async (open: boolean) => {
   await nextTick()

@@ -11,6 +11,8 @@ import { useCommunityStore } from '../stores/community'
 import { useAuthStore } from '../stores/auth'
 import { mapSelectedResource, useResourcesStore } from '../stores/content/resources'
 import { resourceHubApi } from '../services/api/resourceHub'
+import RichEditPanel from '../community/coop/RichEditPanel.vue'
+import type { RichEditResult } from '../community/coop/coop-types'
 
 const route = useRoute()
 const router = useRouter()
@@ -45,6 +47,20 @@ const legacyPreviewOpen = computed({
     void router.replace({ query })
   },
 })
+/**
+ * 「写图文」→ 在当前页弹出悬浮窗式富文本编辑面板(不跳路由,数据不离开页面)。
+ * 面板保存返回时通过 onRichSave 拿到 { title, html, images }。
+ */
+const richOpen = ref(false)
+const openRichEditor = () => {
+  richOpen.value = true
+}
+const onRichSave = (result: RichEditResult) => {
+  richOpen.value = false
+  // 演示环境:内容带回后打印;接入真实发布时在这里调用资源/社区提交接口
+  console.log('[写图文] 保存返回:', { title: result.title, htmlLength: result.html.length, images: result.images.length })
+  window.alert(`已保存返回(演示):标题「${result.title || '未填写'}」,内容 ${result.html.length} 字符`)
+}
 const publish = (value: ResourceContributionKind) => {
   community.openComposer({
     type: value === 'video' ? 'lab_result' : value === 'article' ? 'frontier_discussion' : 'note',
@@ -162,7 +178,7 @@ watch(legacySlug, async (slug) => {
         </div>
         <div class="resource-hub-contribute-actions" aria-label="资源投稿">
           <button class="button primary" @click="publish('video')"><AppIcon name="upload" :size="16" />上传视频</button>
-          <button class="button secondary" @click="publish('article')"><AppIcon name="edit" :size="16" />写图文</button>
+          <button class="button secondary" @click="openRichEditor()"><AppIcon name="edit" :size="16" />写图文</button>
           <button class="button secondary" @click="publish('document')"><AppIcon name="file" :size="16" />分享资料</button>
         </div>
       </div>
@@ -200,4 +216,6 @@ watch(legacySlug, async (slug) => {
     </template>
   </div>
   <ResourcePreviewDialog v-model="legacyPreviewOpen" :resource="legacyPreview" :detail="legacyResources.selected?.slug === legacyPreview?.id ? legacyResources.selected : null" />
+  <!-- 「写图文」悬浮窗式富文本编辑面板 -->
+  <RichEditPanel v-model="richOpen" @save="onRichSave" />
 </template>
