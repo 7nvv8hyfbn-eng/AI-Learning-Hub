@@ -163,7 +163,11 @@ export class ResourceHubService {
       (!query.authorId || item.author?.id === query.authorId))
     items.sort(query.sort === 'popular'
       ? (a, b) => b.stats.views - a.stats.views || b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id)
-      : (a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id))
+      : query.sort === 'likes'
+        ? (a, b) => b.stats.likes - a.stats.likes || b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id)
+        : query.sort === 'bookmarks'
+          ? (a, b) => b.stats.bookmarks - a.stats.bookmarks || b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id)
+          : (a, b) => b.publishedAt.localeCompare(a.publishedAt) || b.id.localeCompare(a.id))
     const offset = cursorOffset(query.cursor)
     const page = items.slice(offset, offset + query.limit)
     return { items: page, nextCursor: offset + page.length < items.length ? Buffer.from(String(offset + page.length)).toString('base64url') : null }
@@ -201,6 +205,10 @@ export class ResourceHubService {
     return {
       banners: banners.map((item) => bannerFiles.has(item.id) ? { ...item, coverUrl: this.mediaUrl(bannerFiles.get(item.id)!, userId) } : item),
       categories,
+      categoryCounts: categories.reduce<Record<string, number>>((counts, category) => {
+        counts[category.code] = items.filter((item) => item.category?.code === category.code).length
+        return counts
+      }, { all: items.length }),
       featured,
       sections,
       rankings: {

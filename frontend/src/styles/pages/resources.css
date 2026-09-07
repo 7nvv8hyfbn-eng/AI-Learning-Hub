@@ -188,3 +188,27 @@
   .resource-collection-order { grid-column: 2; grid-template-columns: repeat(3, 32px); }
   .resource-studio-collections { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* === P1 迭代：卡片交互 / 分类角标 / 排序 / 骨架屏 / 吸顶 === */
+.resource-hub-card { transition: transform .18s ease, box-shadow .18s ease; }
+.resource-hub-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(60, 42, 30, .12); }
+.resource-hub-cover-wrap { position: relative; }
+.resource-hub-quick-save { position: absolute; z-index: 2; top: 10px; right: 10px; display: grid; place-items: center; width: 32px; height: 32px; padding: 0; color: var(--brand); border: 0; border-radius: 9px; background: rgba(255, 255, 255, .92); box-shadow: 0 2px 8px rgba(20, 18, 16, .18); cursor: pointer; opacity: 0; transform: translateY(-2px); transition: opacity .15s ease, transform .15s ease; }
+.resource-hub-cover-wrap:hover .resource-hub-quick-save, .resource-hub-quick-save:focus-visible { opacity: 1; transform: none; }
+.resource-hub-card-stats { gap: 10px; color: var(--muted); }
+.resource-hub-card-stats span { display: inline-flex; align-items: center; gap: 3px; }
+.resource-category-nav { position: sticky; z-index: 30; top: 0; padding: 8px 0 4px; background: rgba(250, 248, 246, .95); backdrop-filter: blur(4px); }
+.resource-category-nav button { position: relative; }
+.resource-category-nav button.active { color: var(--brand); border-color: var(--brand); background: #fff7f3; box-shadow: inset 0 0 0 1px var(--brand); font-weight: 700; }
+.resource-category-count { position: absolute; top: 6px; right: 8px; min-width: 20px; padding: 1px 5px; border-radius: 999px; background: #ffe9e0; color: var(--brand); font-size: 11px; line-height: 16px; font-weight: 700; }
+.resource-sort { display: inline-flex; align-items: center; gap: 6px; color: var(--secondary); font-size: 13px; }
+.resource-sort select { height: 34px; padding: 0 8px; border: 1px solid var(--border); border-radius: 9px; background: white; color: var(--text); font-size: 13px; cursor: pointer; }
+.resource-hub-skeleton { display: grid; gap: 14px; padding: 4px 0 20px; }
+.resource-skeleton-banner, .resource-skeleton-card i, .resource-skeleton-card b { border-radius: 12px; background: linear-gradient(100deg, #efe9e4 40%, #f7f3ef 50%, #efe9e4 60%); background-size: 200% 100%; animation: resource-skeleton-shine 1.4s ease infinite; }
+.resource-skeleton-banner { height: 190px; }
+.resource-skeleton-card { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 16px; background: white; }
+.resource-skeleton-card i { height: 120px; }
+.resource-skeleton-card b { height: 14px; }
+.resource-skeleton-card b.short { width: 55%; }
+@keyframes resource-skeleton-shine { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .resource-skeleton-banner, .resource-skeleton-card i, .resource-skeleton-card b { animation: none; } }

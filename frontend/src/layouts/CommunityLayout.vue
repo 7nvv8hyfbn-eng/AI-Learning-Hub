@@ -38,6 +38,11 @@ onBeforeUnmount(() => window.clearInterval(polling))
       <button class="button primary community-publish" type="button" title="发布内容" @click="store.openComposer()"><AppIcon name="plus" :size="20" /><span class="nav-label">发布内容</span></button>
       <div class="community-account">
         <CommunityPostMenu label="账户菜单"><template #trigger><CommunityAvatar :src="auth.user?.avatarUrl" :username="auth.user?.username" :name="auth.user?.displayName || '学习者'" /><span class="nav-label"><strong>{{ auth.user?.displayName }}</strong><small>{{ auth.dataMode === 'mock' ? '显式演示模式' : '统一学习账号' }}</small></span><AppIcon class="nav-label account-more" name="more-circle" :size="18" /></template><RouterLink :to="profileRoute" role="menuitem">个人主页</RouterLink><RouterLink :to="`${profileRoute}?settings=1`" role="menuitem">账号设置</RouterLink><button type="button" role="menuitem" @click="logout">退出登录</button></CommunityPostMenu>
+        <nav class="community-account-links" aria-label="我的内容">
+          <RouterLink :to="profileRoute" title="我发布的"><AppIcon name="edit" :size="16" /><span class="nav-label">我发布的</span></RouterLink>
+          <RouterLink to="/bookmarks" title="我的收藏"><AppIcon name="bookmark" :size="16" /><span class="nav-label">我的收藏</span></RouterLink>
+          <RouterLink :to="`${profileRoute}?tab=liked`" title="我的点赞"><AppIcon name="heart" :size="16" /><span class="nav-label">我的点赞</span></RouterLink>
+        </nav>
         <RouterLink class="text-link nav-label portal-link" to="/welcome">查看品牌门户 <AppIcon name="arrow-right" :size="14" /></RouterLink>
       </div>
       <img v-bind="communityArt.sidebarPlanet" class="sidebar-decoration" alt="" loading="lazy" />

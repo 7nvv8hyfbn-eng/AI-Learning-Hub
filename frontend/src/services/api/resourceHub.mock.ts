@@ -85,6 +85,7 @@ export async function mockResourceHub<T>(path: string, method = 'GET', body?: un
         return bannerUrl ? { ...entry, coverUrl: bannerUrl } : entry
       }),
       categories: demoResourceHubCategories.map((entry) => ({ ...entry })),
+      categoryCounts: demoResourceHubCategories.reduce<Record<string, number>>((counts, entry) => ({ ...counts, [entry.code]: entries.filter((item) => item.category?.code === entry.code).length }), { all: entries.length }),
       featured: entries.filter((entry) => entry.featured).slice(0, 2),
       sections: ['ai-foundation', 'lab-demo', 'model-deployment', 'agent-practice'].map((code) => ({ key: code, title: category(code)!.name, categoryCode: code, items: entries.filter((entry) => entry.category?.code === code).slice(0, 6) })),
       rankings: { week: entries.slice(0, 5), month: [...entries].sort((a, b) => b.stats.likes - a.stats.likes).slice(0, 5), all: [...entries].sort((a, b) => b.stats.views - a.stats.views).slice(0, 5) },

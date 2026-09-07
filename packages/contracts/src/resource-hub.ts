@@ -117,6 +117,7 @@ export interface LearningCollectionInput {
 export interface ResourceHubHomeDto {
   banners: ResourceHubItemDto[]
   categories: ResourceHubCategoryDto[]
+  categoryCounts: Record<string, number>
   featured: ResourceHubItemDto[]
   sections: ResourceHubSectionDto[]
   rankings: {

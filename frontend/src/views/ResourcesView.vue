@@ -24,6 +24,14 @@ const queryKind = ['video', 'article', 'document'].includes(String(route.query.k
 const keyword = ref(typeof route.query.q === 'string' ? route.query.q : '')
 const category = ref(typeof route.query.category === 'string' ? route.query.category : '')
 const kind = ref<'all' | ResourceContributionKind>(queryKind)
+const sort = ref<'latest' | 'popular' | 'likes' | 'bookmarks'>(['latest', 'popular', 'likes', 'bookmarks'].includes(String(route.query.sort)) ? String(route.query.sort) as 'latest' | 'popular' | 'likes' | 'bookmarks' : 'latest')
+const sortOptions: Array<{ value: 'latest' | 'popular' | 'likes' | 'bookmarks'; label: string }> = [
+  { value: 'latest', label: '最新发布' },
+  { value: 'popular', label: '最多浏览' },
+  { value: 'likes', label: '最多点赞' },
+  { value: 'bookmarks', label: '最多收藏' },
+]
+const onSortChange = (event: Event) => { const value = (event.target as HTMLSelectElement).value; if (value === 'latest' || value === 'popular' || value === 'likes' || value === 'bookmarks') void selectSort(value) }
 const rankingPeriod = ref<'week' | 'month' | 'all'>('week')
 const bannerIndex = ref(0)
 const loading = ref(true)
@@ -49,16 +57,7 @@ const legacyPreviewOpen = computed({
 const publish = (value: ResourceContributionKind) => {
   if (!ensureAuth('登录后可发布共创内容', () => publish(value))) return
   if (value === 'article') {
-    community.openComposer({
-      type: 'frontier_discussion',
-      title: '',
-      contentBlocks: [],
-      bindings: [],
-      topicIds: [],
-      visibility: 'public',
-      status: 'published',
-    })
-    community.composerInline = false
+    void router.push('/community/publish')
     return
   }
   community.openComposer({
@@ -86,6 +85,7 @@ const syncFilters = async () => {
     q: keyword.value.trim() || undefined,
     category: category.value || undefined,
     kind: kind.value === 'all' ? undefined : kind.value,
+    sort: sort.value === 'latest' ? undefined : sort.value,
   }
   await router.replace({ query })
 }
@@ -94,7 +94,7 @@ const search = async (syncUrl = true, append = false) => {
   loading.value = true; error.value = ''
   try {
     if (syncUrl) await syncFilters()
-    const response = await resourceHubApi.list({ keyword: keyword.value.trim(), category: category.value, kind: kind.value, cursor: append ? nextCursor.value || undefined : undefined, limit: 18 })
+    const response = await resourceHubApi.list({ keyword: keyword.value.trim(), category: category.value, kind: kind.value, sort: sort.value, cursor: append ? nextCursor.value || undefined : undefined, limit: 18 })
     if (version !== requestVersion) return
     results.value = append ? [...results.value, ...response.items] : response.items
     nextCursor.value = response.nextCursor
@@ -104,6 +104,7 @@ const search = async (syncUrl = true, append = false) => {
 }
 const selectCategory = async (code: string) => { category.value = code; await search() }
 const selectKind = async (value: typeof kind.value) => { kind.value = value; await search() }
+const selectSort = async (value: typeof sort.value) => { sort.value = value; await search() }
 const watchLater = async (postId: string) => {
   try { await resourceHubApi.addToCollection('watch-later', postId); notice.value = '已加入稍后再看' }
   catch (cause) { error.value = cause instanceof Error ? cause.message : '加入稍后再看失败' }
@@ -121,12 +122,13 @@ onMounted(async () => {
   if (saved > 0) window.scrollTo({ top: saved })
 })
 onBeforeUnmount(() => sessionStorage.setItem(`resource-hub-scroll:${route.fullPath}`, String(window.scrollY)))
-watch(() => [route.query.q, route.query.category, route.query.kind], ([q, nextCategory, nextKind]) => {
+watch(() => [route.query.q, route.query.category, route.query.kind, route.query.sort], ([q, nextCategory, nextKind, nextSort]) => {
   const normalizedKind = ['video', 'article', 'document'].includes(String(nextKind)) ? nextKind as ResourceContributionKind : 'all'
   const normalizedQ = typeof q === 'string' ? q : ''
   const normalizedCategory = typeof nextCategory === 'string' ? nextCategory : ''
-  if (normalizedQ === keyword.value && normalizedCategory === category.value && normalizedKind === kind.value) return
-  keyword.value = normalizedQ; category.value = normalizedCategory; kind.value = normalizedKind
+  const normalizedSort = ['latest', 'popular', 'likes', 'bookmarks'].includes(String(nextSort)) ? nextSort as typeof sort.value : 'latest'
+  if (normalizedQ === keyword.value && normalizedCategory === category.value && normalizedKind === kind.value && normalizedSort === sort.value) return
+  keyword.value = normalizedQ; category.value = normalizedCategory; kind.value = normalizedKind; sort.value = normalizedSort
   void search(false)
 })
 watch(legacySlug, async (slug) => {
@@ -151,7 +153,10 @@ watch(legacySlug, async (slug) => {
 
     <p v-if="error" class="community-error" role="alert">{{ error }} <button class="text-link" @click="load">重试</button></p>
     <p v-if="notice" class="community-notice" role="status">{{ notice }}</p>
-    <div v-if="loading && !home" class="resource-hub-loading">正在读取共创资源…</div>
+    <div v-if="loading && !home" class="resource-hub-skeleton" role="status" aria-label="资源加载中">
+      <i class="resource-skeleton-banner" />
+      <div class="resource-hub-grid three"><div v-for="index in 9" :key="index" class="resource-skeleton-card"><i /><b /><b class="short" /></div></div>
+    </div>
     <template v-else-if="home">
       <section v-if="activeBanner" class="resource-hub-banner">
         <img v-if="activeBanner.coverUrl" :src="activeBanner.coverUrl" :alt="`${activeBanner.title}推荐图`" />
@@ -168,24 +173,25 @@ watch(legacySlug, async (slug) => {
       </section>
 
       <nav class="resource-category-nav" aria-label="资源分类">
-        <button :class="{ active: !category }" @click="selectCategory('')"><AppIcon name="resource" :size="25" /><span>全部资源</span></button>
-        <button v-for="entry in home.categories.filter((value) => value.code !== 'uncategorized')" :key="entry.id" :class="{ active: category === entry.code }" @click="selectCategory(entry.code)"><AppIcon :name="entry.icon" :size="25" /><span>{{ entry.name }}</span></button>
+        <button :class="{ active: !category }" @click="selectCategory('')"><AppIcon name="resource" :size="25" /><span>全部资源</span><b v-if="home.categoryCounts?.all" class="resource-category-count">{{ home.categoryCounts.all }}</b></button>
+        <button v-for="entry in home.categories.filter((value) => value.code !== 'uncategorized')" :key="entry.id" :class="{ active: category === entry.code }" @click="selectCategory(entry.code)"><AppIcon :name="entry.icon" :size="25" /><span>{{ entry.name }}</span><b v-if="home.categoryCounts?.[entry.code]" class="resource-category-count">{{ home.categoryCounts[entry.code] }}</b></button>
       </nav>
       <div class="resource-hub-toolbar">
         <div class="resource-kind-tabs" role="tablist" aria-label="内容形态">
           <button v-for="entry in [{ key: 'all', label: '全部' }, { key: 'video', label: '视频' }, { key: 'article', label: '图文' }, { key: 'document', label: '资料' }]" :key="entry.key" :class="{ active: kind === entry.key }" @click="selectKind(entry.key as typeof kind)">{{ entry.label }}</button>
         </div>
         <div class="resource-hub-contribute-actions" aria-label="资源投稿">
-          <button class="button primary" @click="publish('video')"><AppIcon name="upload" :size="16" />上传视频</button>
-          <button class="button secondary" @click="publish('article')"><AppIcon name="edit" :size="16" />写图文</button>
-          <button class="button secondary" @click="publish('document')"><AppIcon name="file" :size="16" />分享资料</button>
+          <label class="resource-sort"><span>排序</span><select :value="sort" aria-label="排序方式" @change="onSortChange"><option v-for="entry in sortOptions" :key="entry.value" :value="entry.value">{{ entry.label }}</option></select></label>
+          <button class="button primary" :disabled="!auth.user" @click="publish('video')"><AppIcon name="upload" :size="16" />上传视频</button>
+          <button class="button secondary" :disabled="!auth.user" @click="publish('article')"><AppIcon name="edit" :size="16" />写图文</button>
+          <button class="button secondary" :disabled="!auth.user" @click="publish('document')"><AppIcon name="file" :size="16" />分享资料</button>
         </div>
       </div>
 
       <section v-if="isFiltering" class="resource-results">
         <div class="resource-section-heading"><div><span>搜索与筛选</span><h2>{{ category ? home.categories.find((entry) => entry.code === category)?.name : '全部资源' }}</h2></div><strong>{{ results.length }} 项</strong></div>
         <div v-if="results.length" class="resource-hub-grid three"><ResourceHubCard v-for="entry in results" :key="entry.id" :item="entry" show-watch-later @watch-later="watchLater" /></div>
-        <div v-else class="inline-empty"><h3>没有匹配的共创资源</h3><p>调整搜索词或内容形态后再试。</p></div>
+        <div v-else class="inline-empty"><h3>没有匹配的共创资源</h3><p>调整搜索词或内容形态后再试，或者发布第一份作品。</p><button class="button primary" @click="router.push('/community/publish')">发布图文作品</button></div>
         <button v-if="nextCursor" class="button secondary resource-load-more" :disabled="loading" @click="search(false, true)">{{ loading ? '读取中…' : '加载更多' }}</button>
       </section>
 

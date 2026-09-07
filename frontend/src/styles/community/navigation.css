@@ -34,3 +34,25 @@
 .community-floating-publish { position: fixed; right: 28px; bottom: 28px; z-index: 25; width: 44px; height: 44px; display: none; place-items: center; border: 0; border-radius: 50%; background: var(--amc-orange); color: var(--amc-surface); box-shadow: var(--amc-shadow-float); }
 .sidebar-collapsed .community-floating-publish { display: grid; }
 .mobile-publish-button { order: 3; flex: 1; display: grid; place-items: center; color: var(--amc-orange); border: 0; background: none; font-size: 12px; }
+
+/* === P1 迭代：个人卡片快捷入口 / 发布页 === */
+.community-account-links { display: grid; gap: 2px; margin: 8px 0 2px; }
+.community-account-links a { display: flex; align-items: center; gap: 9px; min-height: 30px; padding: 4px 8px; color: var(--amc-text-secondary); border-radius: var(--amc-radius-xs); font-size: 12px; }
+.community-account-links a:hover { color: var(--amc-orange); background: var(--amc-orange-soft); }
+.community-publish-page { display: grid; gap: 16px; max-width: 1080px; margin: 0 auto; padding: 8px 0 40px; }
+.community-publish-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
+.community-publish-editor { min-width: 0; }
+.community-publish-meta { display: grid; gap: 14px; position: sticky; top: 16px; }
+.community-publish-meta > section { padding: 16px; border: 1px solid var(--amc-border); border-radius: var(--amc-radius-card); background: var(--amc-surface); }
+.community-publish-meta h2 { margin: 0 0 10px; font-size: 14px; }
+.community-publish-meta h2 small { margin-left: 6px; color: var(--amc-text-secondary); font-size: 12px; font-weight: 400; }
+.community-publish-meta ul { margin: 0; padding-left: 18px; color: var(--amc-text-secondary); font-size: 13px; line-height: 1.8; }
+.community-publish-meta label { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid var(--amc-border); border-radius: var(--amc-radius-control); margin-bottom: 8px; cursor: pointer; }
+.community-publish-meta label:has(input:checked) { border-color: var(--amc-orange); background: var(--amc-orange-soft); }
+.community-publish-meta label span { display: grid; }
+.community-publish-meta label small { color: var(--amc-text-secondary); }
+.community-publish-topics { display: flex; flex-wrap: wrap; gap: 8px; }
+.community-publish-topics button { padding: 6px 12px; border: 1px solid var(--amc-border); border-radius: 999px; background: var(--amc-bg-soft); color: var(--amc-text-body); font-size: 13px; cursor: pointer; }
+.community-publish-topics button.active { color: var(--amc-orange); border-color: var(--amc-orange); background: var(--amc-orange-soft); font-weight: 700; }
+.community-publish-actions { display: flex; justify-content: flex-end; align-items: center; gap: 14px; }
+@media (max-width: 1023px) { .community-publish-layout { grid-template-columns: 1fr; } .community-publish-meta { position: static; } }

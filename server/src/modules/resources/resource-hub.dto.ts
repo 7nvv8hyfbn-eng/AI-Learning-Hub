@@ -7,7 +7,7 @@ export class ResourceHubQueryDto {
   @IsOptional() @IsString() @MaxLength(80) category = ''
   @IsOptional() @IsIn(['all', 'video', 'article', 'document']) kind: 'all' | 'video' | 'article' | 'document' = 'all'
   @IsOptional() @IsString() @MaxLength(100) authorId = ''
-  @IsOptional() @IsIn(['latest', 'popular']) sort: 'latest' | 'popular' = 'latest'
+  @IsOptional() @IsIn(['latest', 'popular', 'likes', 'bookmarks']) sort: 'latest' | 'popular' | 'likes' | 'bookmarks' = 'latest'
   @IsOptional() @IsString() @MaxLength(200) cursor = ''
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(48) limit = 18
 }
