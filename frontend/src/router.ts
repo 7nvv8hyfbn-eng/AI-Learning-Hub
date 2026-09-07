@@ -23,6 +23,7 @@ const router = createRouter({
     { path: '/notifications', component: () => import('./community/NotificationsView.vue'), meta: { title: '消息通知', requiresAuth: true, layout: 'community', communityMode: 'wide' } },
     { path: '/__homepage-preview', name: 'homepage-preview', component: () => import('./views/HomepagePreviewView.vue'), meta: { title: '落地页草稿预览', layout: 'landing', requiresAuth: false } },
     { path: '/topics', name: 'topics', component: () => import('./views/TopicsView.vue'), meta: { title: '学习主题', layout: 'adaptive', requiresAuth: true, communityMode: 'wide' } },
+{ path: '/study-ranking', name: 'study-ranking', component: () => import('./views/StudyRankingView.vue'), meta: { title: '学时排名', layout: 'adaptive', requiresAuth: true, communityMode: 'wide' } },
     { path: '/courses/:courseId', name: 'course', component: () => import('./views/CourseView.vue'), meta: { title: '课程学习', layout: 'adaptive', requiresAuth: true, communityMode: 'wide' } },
     { path: '/labs', name: 'labs', component: () => import('./views/LabsView.vue'), meta: { title: '实训项目', layout: 'adaptive', requiresAuth: true, communityMode: 'wide' } },
     { path: '/labs/:labId', name: 'lab', component: () => import('./views/LabWorkspaceView.vue'), meta: { title: '实训工作台', dark: true, layout: 'immersive', requiresAuth: true } },
