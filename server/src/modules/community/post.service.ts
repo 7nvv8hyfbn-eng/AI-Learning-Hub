@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, HttpExcepti
 import { createHash } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import type { CommunityContentBlock, CommunityPostDetailDto, CommunityTopicDto, CommunityPostSummaryDto, CommunityBindingInput, ResourceContributionDto, ResourceContributionInput } from '@ai-learning-hub/contracts'
+import { sanitizeCommunityHtml, communityHtmlToText } from '@ai-learning-hub/contracts'
 import { PrismaService } from '../../prisma/prisma.service'
 import { ContentReferenceService } from '../../common/content-reference/content-reference.service'
 import { SignalsService } from '../signals/signals.service'
@@ -27,7 +28,7 @@ export class CommunityPostService {
     const files: string[] = []
     const clean = blocks.map((block): CommunityContentBlock => {
       const keys = Object.keys(block).filter((key) => (block as unknown as Record<string, unknown>)[key] !== undefined)
-      const allowed = block.type === 'image' ? ['type', 'fileId', 'alt'] : block.type === 'code' ? ['type', 'code', 'language'] : ['type', 'text']
+      const allowed = block.type === 'image' ? ['type', 'fileId', 'alt'] : block.type === 'code' ? ['type', 'code', 'language'] : block.type === 'html' ? ['type', 'html'] : ['type', 'text']
       if (keys.some((key) => !allowed.includes(key))) throw new BadRequestException('内容块字段与类型不匹配')
       if (block.type === 'image') {
         if (!block.fileId || ++imageCount > 4) throw new BadRequestException('最多上传 4 张图片')
@@ -38,6 +39,12 @@ export class CommunityPostService {
         if (typeof block.code !== 'string' || !block.code.trim()) throw new BadRequestException('代码块不能为空')
         return { type: 'code', language: block.language || 'text', code: block.code }
       }
+      if (block.type === 'html') {
+        if (typeof block.html !== 'string') throw new BadRequestException('正文块不能为空')
+        const html = sanitizeCommunityHtml(block.html)
+        if (!communityHtmlToText(html)) throw new BadRequestException('正文块不能为空')
+        return { type: 'html', html }
+      }
       if (typeof block.text !== 'string' || !block.text.trim()) throw new BadRequestException('正文块不能为空')
       return { type: block.type, text: block.text.trim() }
     })
@@ -45,7 +52,7 @@ export class CommunityPostService {
       const count = await this.prisma.fileRecord.count({ where: { id: { in: [...new Set(files)] }, uploadedBy: userId, mimeType: { in: ['image/png', 'image/jpeg', 'image/webp'] }, size: { lte: 5 * 1024 * 1024 }, extension: { in: ['.png', '.jpg', '.jpeg', '.webp'] } } })
       if (count !== new Set(files).size) throw new BadRequestException('图片必须由本人上传且为不超过 5MB 的 PNG、JPEG 或 WebP')
     }
-    const plainText = clean.map((block) => block.type === 'code' ? block.code : block.type === 'image' ? block.alt || '' : block.text).join('\n')
+    const plainText = clean.map((block) => block.type === 'code' ? block.code : block.type === 'image' ? block.alt || '' : block.type === 'html' ? communityHtmlToText(block.html) : block.text).join('\n')
     if ((!draft && plainText.length < 1) || plainText.length > 20000) throw new BadRequestException('正文需要 1～20000 字')
     return { clean, plainText }
   }

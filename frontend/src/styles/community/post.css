@@ -19,6 +19,24 @@
 .community-content p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--amc-font-body-large); line-height: 1.75; margin-bottom: 12px; color: var(--amc-text-body); }
 .community-content.compact .community-text-blocks > p { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .community-content blockquote { margin: 10px 0; border-left: 3px solid var(--amc-purple); background: var(--amc-surface-purple); padding: 12px; color: var(--amc-text-secondary); font-size: 14px; }
+.community-html-block { overflow-wrap: anywhere; font-size: var(--amc-font-body-large); line-height: 1.75; color: var(--amc-text-body); }
+.community-html-block > :first-child { margin-top: 0; }
+.community-html-block > :last-child { margin-bottom: 12px; }
+.community-html-block p { white-space: pre-wrap; margin: 0 0 12px; }
+.community-html-block h3, .community-html-block h4, .community-html-block h5, .community-html-block h6 { margin: 14px 0 8px; line-height: 1.4; }
+.community-html-block h3 { font-size: 17px; }
+.community-html-block h4 { font-size: 15px; }
+.community-html-block h5, .community-html-block h6 { font-size: 14px; }
+.community-html-block ul, .community-html-block ol { margin: 0 0 12px; padding-left: 22px; }
+.community-html-block li { margin: 4px 0; }
+.community-html-block a { color: var(--amc-orange); text-decoration: underline; text-underline-offset: 2px; }
+.community-html-block img { max-width: 100%; border-radius: 8px; margin: 6px 0; }
+.community-html-block pre { padding: 10px 12px; border-radius: 8px; background: var(--amc-bg-soft); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; overflow-x: auto; margin: 0 0 12px; }
+.community-html-block table { border-collapse: collapse; margin: 0 0 12px; }
+.community-html-block td, .community-html-block th { border: 1px solid var(--amc-border); padding: 6px 10px; }
+.community-html-block blockquote { margin: 10px 0; border-left: 3px solid var(--amc-purple); background: var(--amc-surface-purple); padding: 12px; color: var(--amc-text-secondary); font-size: 14px; }
+.community-html-block hr { border: 0; border-top: 1px solid var(--amc-border); margin: 14px 0; }
+.community-content.compact .community-html-block { max-height: 190px; overflow: hidden; }
 .community-content.compact blockquote { max-height: 140px; overflow: hidden; }
 .community-gallery { display: grid; gap: 6px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 15px 0; overflow: hidden; border-radius: 12px; }
 .community-gallery button { display: grid; place-items: center; min-width: 0; border: 0; padding: 0; background: var(--amc-bg-soft); aspect-ratio: 4 / 3; overflow: hidden; }

@@ -1,6 +1,7 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type { CommunityBindingInput, CommunityContentBlock, CommunityDraftDto, CommunityPostInput, CommunityTopicDto, LearningContentType } from '@ai-learning-hub/contracts'
+import { communityHtmlToText } from '@ai-learning-hub/contracts'
 import { useCommunityStore } from '../../stores/community'
 import { useAuthStore } from '../../stores/auth'
 import { communityApi } from '../../services/api/community'
@@ -15,7 +16,7 @@ import { randomId } from '../../services/api/random-id'
 export const useCommunityDraft = defineStore('community-draft', () => {
   const store = useCommunityStore(), auth = useAuthStore()
   const form = ref<CommunityPostInput>({ type: 'general', title: '', contentBlocks: [], bindings: [], topicIds: [], visibility: 'public', status: 'published' })
-  const body = ref(''), code = ref(''), language = ref('text'), quote = ref(''), images = ref<Array<{ fileId: string; alt: string }>>([])
+  const body = ref(''), code = ref(''), language = ref('text'), quote = ref(''), richHtml = ref(''), images = ref<Array<{ fileId: string; alt: string }>>([])
   const topics = ref<CommunityTopicDto[]>([]), bindingType = ref<LearningContentType>('course'), bindingId = ref(''), bindingSearch = ref(''), bindingTitles = ref<Record<string, string>>({})
   const preview = ref(false), saving = ref(false), bindingLoading = ref(false), topicsLoading = ref(false), error = ref(''), savedAt = ref(''), closePrompt = ref(false), dirty = ref(false), draftId = ref<string>()
   const conflict = ref(false), draftUnavailable = ref(false)
@@ -27,7 +28,7 @@ export const useCommunityDraft = defineStore('community-draft', () => {
   const source = computed(() => bindingType.value in sources ? sources[bindingType.value as keyof typeof sources] : null)
   const bindingOptions = computed(() => source.value?.items.map((item) => ({ id: 'slug' in item ? String(item.slug) : item.id, title: item.title })) || [])
   const advanced = computed(() => store.composerMode === 'advanced')
-  const blocks = computed<CommunityContentBlock[]>(() => [...(body.value.trim() ? [{ type: 'paragraph' as const, text: body.value.trim() }] : []), ...(quote.value.trim() ? [{ type: 'quote' as const, text: quote.value.trim() }] : []), ...(code.value.trim() ? [{ type: 'code' as const, language: language.value, code: code.value }] : []), ...images.value.map((image) => ({ type: 'image' as const, ...image }))])
+  const blocks = computed<CommunityContentBlock[]>(() => [...(richHtml.value.trim() && !advanced.value ? [{ type: 'html' as const, html: richHtml.value }] : body.value.trim() ? [{ type: 'paragraph' as const, text: body.value.trim() }] : []), ...(quote.value.trim() ? [{ type: 'quote' as const, text: quote.value.trim() }] : []), ...(code.value.trim() ? [{ type: 'code' as const, language: language.value, code: code.value }] : []), ...images.value.map((image) => ({ type: 'image' as const, ...image }))])
   const input = () => ({ ...form.value, contentBlocks: blocks.value })
   const hasContent = () => !!(blocks.value.length || form.value.title?.trim() || form.value.bindings.length || form.value.topicIds.length || form.value.contribution)
   const key = () => `community-draft:${auth.dataMode}:${auth.user?.id || 'anonymous'}`
@@ -45,7 +46,9 @@ export const useCommunityDraft = defineStore('community-draft', () => {
   const hydrate = (value: CommunityPostInput) => {
     hydrating = true
     form.value = JSON.parse(JSON.stringify(value)); preview.value = false; error.value = ''; savedAt.value = ''; dirty.value = false; conflict.value = false; draftUnavailable.value = false
-    body.value = value.contentBlocks.filter((b) => b.type === 'paragraph').map((b) => b.text).join('\n\n')
+    const htmlBlock = value.contentBlocks.find((b) => b.type === 'html')
+    richHtml.value = htmlBlock && htmlBlock.type === 'html' ? htmlBlock.html : ''
+    body.value = htmlBlock && htmlBlock.type === 'html' ? communityHtmlToText(htmlBlock.html) : value.contentBlocks.filter((b) => b.type === 'paragraph').map((b) => b.text).join('\n\n')
     code.value = value.contentBlocks.filter((b) => b.type === 'code').map((b) => b.code).join('\n')
     quote.value = value.contentBlocks.filter((b) => b.type === 'quote').map((b) => b.text).join('\n')
     language.value = value.contentBlocks.find((b) => b.type === 'code')?.language || 'text'
@@ -149,7 +152,7 @@ export const useCommunityDraft = defineStore('community-draft', () => {
     pending = operation
     return pending
   }
-  watch([form, body, code, quote, language, images], () => {
+  watch([form, body, code, quote, language, images, richHtml], () => {
     if (hydrating || !store.composerOpen) return
     dirty.value = dirty.value || hasContent() || !!draftId.value || !!store.editingId; clearTimeout(timer); clearTimeout(remoteTimer)
     if (!dirty.value) return
@@ -160,7 +163,7 @@ export const useCommunityDraft = defineStore('community-draft', () => {
   }, { deep: true })
   watch([() => auth.user?.id, () => store.epoch], () => {
     clearTimeout(timer); clearTimeout(remoteTimer); hydrating = true
-    body.value = ''; code.value = ''; quote.value = ''; images.value = []; topics.value = []; bindingTitles.value = {}; bindingLoading.value = false; topicsLoading.value = false; draftId.value = undefined; dirty.value = false; saving.value = false; error.value = ''; closePrompt.value = false; pending = null; requestKey = ''; requestBody = ''; conflict.value = false
+    body.value = ''; code.value = ''; quote.value = ''; richHtml.value = ''; images.value = []; topics.value = []; bindingTitles.value = {}; bindingLoading.value = false; topicsLoading.value = false; draftId.value = undefined; dirty.value = false; saving.value = false; error.value = ''; closePrompt.value = false; pending = null; requestKey = ''; requestBody = ''; conflict.value = false
     savedAt.value = ''; unconfirmed = undefined; draftUnavailable.value = false
     form.value = { type: 'general', title: '', contentBlocks: [], bindings: [], topicIds: [], visibility: 'public', status: 'published' }
     queueMicrotask(() => { hydrating = false })
@@ -182,5 +185,5 @@ export const useCommunityDraft = defineStore('community-draft', () => {
   }
   const keepCopy = () => { store.editingId = undefined; draftId.value = undefined; form.value.expectedRevision = undefined; conflict.value = false; draftUnavailable.value = false; requestKey = ''; requestBody = ''; unconfirmed = undefined; error.value = ''; dirty.value = true; localSave() }
   onScopeDispose(() => { clearTimeout(timer); clearTimeout(remoteTimer) })
-  return { form, body, code, language, quote, images, topics, bindingType, bindingId, bindingSearch, bindingTitles, bindingOptions, source, preview, saving, bindingLoading, topicsLoading, error, savedAt, closePrompt, dirty, draftId, blocks, advanced, conflict, draftUnavailable, readServer, keepCopy, loadTopics, loadOptions, addBinding, upload, uploadFiles, save, restore, close, discard, saveAndClose }
+  return { form, body, code, language, quote, richHtml, images, topics, bindingType, bindingId, bindingSearch, bindingTitles, bindingOptions, source, preview, saving, bindingLoading, topicsLoading, error, savedAt, closePrompt, dirty, draftId, blocks, advanced, conflict, draftUnavailable, readServer, keepCopy, loadTopics, loadOptions, addBinding, upload, uploadFiles, save, restore, close, discard, saveAndClose }
 })

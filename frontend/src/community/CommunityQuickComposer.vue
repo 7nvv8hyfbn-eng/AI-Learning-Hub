@@ -11,6 +11,7 @@ import { useCommunityDraft } from './composables/useCommunityDraft'
 import { useCommunityScrollRoot } from './composables/useCommunityScrollRoot'
 import { loadCommunityImage } from './imageQueue'
 import { markdownToHtml } from './markdown'
+import { sanitizeCommunityHtml, communityHtmlToText } from '@ai-learning-hub/contracts'
 import type { CommunityPostType } from '@ai-learning-hub/contracts'
 const props = defineProps<{ dialog?: boolean }>()
 const store = useCommunityStore(), auth = useAuthStore(), editor = useCommunityDraft(), panel = ref<HTMLElement>()
@@ -25,6 +26,10 @@ const syncBody = () => {
   const root = contentRoot.value
   if (!root) return
   editor.body = root.innerText.replace(/\n{3,}/g, '\n\n').trim()
+  const clone = root.cloneNode(true) as HTMLElement
+  clone.querySelectorAll('img[data-file-id]').forEach((img) => img.remove())
+  const html = sanitizeCommunityHtml(clone.innerHTML)
+  editor.richHtml = communityHtmlToText(html) ? html : ''
   const kept: Array<{ fileId: string; alt: string }> = []
   root.querySelectorAll<HTMLImageElement>('img[data-file-id]').forEach((img) => {
     const fileId = img.dataset.fileId
@@ -41,7 +46,8 @@ const focus = () => {
   else if (rect && !viewport && (rect.bottom <= 0 || rect.top >= window.innerHeight)) panel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   contentRoot.value?.focus({ preventScroll: true })
 }
-watch(active, async (open) => { if (open) { await nextTick(); focus() } })
+const restoreBody = () => { const root = contentRoot.value; if (root) root.innerHTML = sanitizeCommunityHtml(editor.richHtml) }
+watch(active, async (open) => { if (open) { await nextTick(); restoreBody(); focus() } })
 const keydown = (event: KeyboardEvent) => {
   if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void editor.save() }
   if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); editor.close() }
@@ -117,7 +123,7 @@ const insertCamera = () => { const input = document.createElement('input'); inpu
 const insertAttachment = () => { const input = document.createElement('input'); input.type = 'file'; input.onchange = () => { if (input.files?.length) handleFiles(Array.from(input.files)) }; input.click() }
 const insertEmoji = () => { const root = contentRoot.value; if (!root) return; root.focus(); document.execCommand('insertHTML', false, '😊'); syncBody() }
 const insertCode = () => { const root = contentRoot.value; if (!root) return; root.focus(); document.execCommand('insertHTML', false, '<pre><code>在这里输入代码</code></pre>'); syncBody() }
-onMounted(() => { window.addEventListener('community-composer-focus', focus); if (active.value) focus() })
+onMounted(() => { window.addEventListener('community-composer-focus', focus); if (active.value) { restoreBody(); focus() } })
 onBeforeUnmount(() => window.removeEventListener('community-composer-focus', focus))
 </script>
 <template>

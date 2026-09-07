@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import type { CommunityAdminInspectionDto, CommunityAdminReportDto, CommunityAdminSummaryDto, CommunityAuthorDto, CommunityFeedPolicyDto, CommunityModerationInput, CommunityPostDetailDto, CommunityTopicDto } from '@ai-learning-hub/contracts'
+import type { CommunityAdminInspectionDto, CommunityAdminReportDto, CommunityAdminSummaryDto, CommunityAuthorDto, CommunityFeedPolicyDto, CommunityModerationInput, CommunityPostDetailDto, CommunityTopicDto, CommunityContentBlock } from '@ai-learning-hub/contracts'
+import { sanitizeCommunityHtml } from '@ai-learning-hub/contracts'
 import { communityAdminApi, type AdminCommunityComment } from '../services/community'
 import { useSessionStore } from '../stores/session'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
@@ -10,6 +11,7 @@ import AdminIcon from '../components/AdminIcon.vue'
 import AdminDialog from '../components/AdminDialog.vue'
 import AdminPagination from '../components/AdminPagination.vue'
 const session = useSessionStore(), can = (permission: string) => !!session.user?.permissions.includes(permission)
+const safeHtml = (block: CommunityContentBlock) => sanitizeCommunityHtml(block.type === 'html' ? block.html : '')
 const route = useRoute()
 const tabs = [{ key: 'posts', label: '动态内容', permission: 'community.read' }, { key: 'questions', label: '学习问答', permission: 'community.read' }, { key: 'comments', label: '评论管理', permission: 'community.read' }, { key: 'topics', label: '话题管理', permission: 'community.topic.manage' }, { key: 'reports', label: '举报处理', permission: 'community.report.manage' }, { key: 'official', label: '官方账号', permission: 'community.official.publish' }, { key: 'policy', label: '推荐策略', permission: 'community.feed.manage' }]
 const tab = ref('posts'), keyword = ref(''), page = ref(1), loading = ref(false), error = ref(''), selected = ref<CommunityAdminInspectionDto | null>(null)
@@ -110,7 +112,7 @@ onMounted(async () => {
             <template v-for="(block, index) in selected.post.contentBlocks" :key="index">
               <pre v-if="block.type === 'code'"><code>{{ block.code }}</code></pre>
               <figure v-else-if="block.type === 'image'"><img v-if="images[block.fileId]" :src="images[block.fileId]" :alt="block.alt || '学习图片'" /><figcaption v-else>图片不可用或正在读取</figcaption></figure>
-              <blockquote v-else-if="block.type === 'quote'">{{ block.text }}</blockquote><p v-else>{{ block.text }}</p>
+              <blockquote v-else-if="block.type === 'quote'">{{ block.text }}</blockquote><div v-else-if="block.type === 'html'" class="community-admin-html" v-html="safeHtml(block)"></div><p v-else>{{ block.text }}</p>
             </template>
             <h3>关联学习内容</h3><p v-for="binding in selected.post.bindings" :key="binding.id">{{ binding.title }}</p>
             <h3>话题与图片关联</h3><p>{{ selected.post.topics.map(t => `#${t.name}`).join('、') || '未关联话题' }}</p><p v-for="file in selected.files || []" :key="file.id">{{ file.originalName }} · {{ file.mimeType }} · {{ file.exists ? '文件有效' : '文件缺失' }}</p>

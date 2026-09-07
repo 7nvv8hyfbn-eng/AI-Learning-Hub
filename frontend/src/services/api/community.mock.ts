@@ -1,10 +1,11 @@
 import { createCommunityFixtures, demoArticles, demoChallenges, demoCourses, demoLabs, demoResourceHubCategories, demoResourceHubContributions, demoResources, demoStudents, demoThemes, lczCuratedPosts } from '@ai-learning-hub/demo-fixtures'
 import type { AuthUser, CommunityAuthorDto, CommunityCommentDto, CommunityContentBlock, CommunityContextDto, CommunityNotificationDto, CommunityPostDetailDto, CommunityPostInput, CommunityProfileDto, CommunityTopicDto } from '@ai-learning-hub/contracts'
+import { communityHtmlToText } from '@ai-learning-hub/contracts'
 import { randomId } from './random-id'
 import { mockFixtureCover } from '../../media/catalog'
 const fixtures = createCommunityFixtures({ courses: demoCourses, labs: demoLabs, articles: demoArticles, themes: demoThemes, students: demoStudents })
 const authors: CommunityAuthorDto[] = fixtures.users.map((user) => ({ id: user.username, username: user.username, displayName: user.displayName, verifiedType: user.verifiedType, avatar: null, major: user.major, school: 'AI 创客学院' }))
-const text = (blocks: CommunityContentBlock[]) => blocks.map((block) => block.type === 'image' ? block.alt : block.type === 'code' ? block.code : block.text).join('\n')
+const text = (blocks: CommunityContentBlock[]) => blocks.map((block) => block.type === 'image' ? block.alt : block.type === 'code' ? block.code : block.type === 'html' ? communityHtmlToText(block.html) : block.text).join('\n')
 const topics: CommunityTopicDto[] = fixtures.topics.map((topic) => ({
   ...topic,
   themeId: topic.theme,

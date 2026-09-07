@@ -6,9 +6,10 @@ import type { CommunityProfileInput, CommunityProfileTab, OnboardingInput, Usern
 const communityPostTypes = Object.values(DatabasePostType)
 
 export class BlockDto {
-  @IsIn(['paragraph', 'code', 'image', 'quote']) type!: CommunityContentBlock['type']
+  @IsIn(['paragraph', 'code', 'image', 'quote', 'html']) type!: CommunityContentBlock['type']
   @IsOptional() @IsString() @MaxLength(10000) text?: string
   @IsOptional() @IsString() @MaxLength(12000) code?: string
+  @IsOptional() @IsString() @MaxLength(20000) html?: string
   @IsOptional() @Matches(/^[a-z0-9+#.-]{0,30}$/i) language?: string
   @IsOptional() @IsString() @Length(1, 100) fileId?: string
   @IsOptional() @IsString() @MaxLength(200) alt?: string

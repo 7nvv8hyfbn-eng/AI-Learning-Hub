@@ -13,6 +13,8 @@ export type CommunityContentBlock =
   | { type: 'code'; language: string; code: string }
   | { type: 'image'; fileId: string; alt?: string }
   | { type: 'quote'; text: string }
+  | { type: 'html'; html: string }
+export { sanitizeCommunityHtml, communityHtmlToText } from './sanitize'
 export interface LearningContentReferenceDto {
   type: LearningContentType; id: string; slug?: string; title: string; summary?: string
   cover?: string; category?: string; route: string; status: string
