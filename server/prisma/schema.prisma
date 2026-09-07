@@ -152,6 +152,7 @@ model User {
 }
 
 model School {
+  location    String?      @map("location")
   id          String       @id @default(cuid())
   code        String       @unique
   name        String
