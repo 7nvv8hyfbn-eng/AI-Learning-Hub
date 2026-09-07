@@ -93,6 +93,14 @@ textarea { resize: vertical; }
 .dialog-card label { display: grid; gap: 7px; color: var(--secondary); font-size: .8rem; font-weight: 700; }
 .dialog-title { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .toast { position: fixed; right: 24px; bottom: 24px; z-index: 100; max-width: 410px; padding: 15px 18px; color: white; border-radius: 11px; background: #17222c; box-shadow: 0 18px 40px rgba(0,0,0,.22); font-size: .82rem; line-height: 1.55; }
+.content-export { position: relative; display: inline-block; }
+.content-export.full-width { width: 100%; }
+.content-export > summary { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 30px; padding: 4px 10px; border: 1px solid var(--amc-border); border-radius: var(--amc-radius-control); background: var(--amc-surface); color: var(--amc-text-secondary); font-size: 12px; font-weight: 500; white-space: nowrap; cursor: pointer; list-style: none; transition: color var(--amc-duration-control) var(--amc-ease), background var(--amc-duration-control) var(--amc-ease), border-color var(--amc-duration-control) var(--amc-ease); }
+.content-export > summary::-webkit-details-marker { display: none; }
+.content-export > summary:hover { border-color: var(--amc-orange-border); background: var(--amc-orange-soft); color: var(--amc-orange); }
+.content-export-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; display: grid; min-width: 150px; padding: 6px; border: 1px solid var(--amc-border); border-radius: var(--amc-radius-control); background: var(--amc-surface); box-shadow: var(--amc-shadow-float); }
+.content-export-menu > button { display: block; width: 100%; min-height: 30px; padding: 5px 10px; border: 0; border-radius: var(--amc-radius-xs); background: none; color: var(--amc-text-body); font-size: 12px; text-align: left; white-space: nowrap; cursor: pointer; }
+.content-export-menu > button:hover { background: var(--amc-orange-soft); color: var(--amc-orange); }
 .app-dialog {
   width: 100%;
   max-width: none;

@@ -36,8 +36,20 @@
 .community-post-body { cursor: pointer; }
 .community-post-body pre, .community-post-body code { cursor: text; }
 .community-post-time { color: inherit; }
-.community-code { border: 1px solid var(--amc-border); border-radius: var(--amc-radius-control); background: var(--amc-bg-soft); margin: 12px 0; overflow: hidden; }
-.community-code small { display: block; padding: 8px 12px; border-bottom: 1px solid var(--amc-border); color: var(--amc-text-secondary); font-size: 12px; }
+.community-code { position: relative; border: 1px solid var(--amc-border); border-radius: var(--amc-radius-control); background: var(--amc-bg-soft); margin: 12px 0; overflow: visible; }
+.community-code-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 8px 5px 12px; border-bottom: 1px solid var(--amc-border); }
+.community-code-head small { color: var(--amc-text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.community-code-actions { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.community-code-copy, .community-code-download summary { display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 4px 10px; border: 1px solid var(--amc-border); border-radius: var(--amc-radius-control); background: var(--amc-surface); color: var(--amc-text-secondary); font-size: 12px; white-space: nowrap; cursor: pointer; transition: color var(--amc-duration-control) var(--amc-ease), background var(--amc-duration-control) var(--amc-ease), border-color var(--amc-duration-control) var(--amc-ease); }
+.community-code-copy:hover, .community-code-download summary:hover { border-color: var(--amc-orange-border); background: var(--amc-orange-soft); color: var(--amc-orange); }
+.community-code-copy.is-copied { color: var(--amc-success); }
+.community-code-copy.is-failed { color: var(--amc-error); }
+.community-code-download { position: relative; }
+.community-code-download summary { list-style: none; }
+.community-code-download summary::-webkit-details-marker { display: none; }
+.community-code-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 20; display: grid; min-width: 150px; padding: 6px; border: 1px solid var(--amc-border); border-radius: var(--amc-radius-control); background: var(--amc-surface); box-shadow: var(--amc-shadow-float); }
+.community-code-menu > button { display: block; width: 100%; min-height: 30px; padding: 5px 10px; border: 0; border-radius: var(--amc-radius-xs); background: none; color: var(--amc-text-body); font-size: 12px; text-align: left; white-space: nowrap; cursor: pointer; }
+.community-code-menu > button:hover { background: var(--amc-orange-soft); color: var(--amc-orange); }
 .community-code pre { overflow-x: auto; margin: 0; padding: 14px; font-size: 12px; line-height: 1.75; }
 .community-content.compact .community-code pre { max-height: 160px; }
 .community-bindings { display: grid; gap: 8px; margin: 14px 0; }
