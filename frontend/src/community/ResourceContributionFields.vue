@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ResourceContributionInput, ResourceHubCategoryDto } from '@ai-learning-hub/contracts'
+import type { ResourceContributionInput } from '@ai-learning-hub/contracts'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useCommunityDraft } from './composables/useCommunityDraft'
@@ -7,8 +7,6 @@ import { resourceHubApi } from '../services/api/resourceHub'
 
 const editor = useCommunityDraft()
 const { form, saving, error } = storeToRefs(editor)
-const categories = ref<ResourceHubCategoryDto[]>([])
-const tags = ref(form.value.contribution?.tags.join('、') || '')
 const uploadProgress = ref(0)
 const uploadStatus = ref('')
 const cancelUpload = ref<(() => void) | null>(null)
@@ -45,7 +43,6 @@ const monitorVideo = (id: string) => {
   const version = operationVersion
   void readVideoStatus(id, version)
 }
-watch(tags, (value) => patch({ tags: [...new Set(value.split(/[、,，]/).map((item) => item.trim()).filter(Boolean))].slice(0, 8) }))
 watch(() => contribution.value.kind, (kind) => {
   stopVideoStatus()
   if (cancelUpload.value) {
@@ -109,30 +106,10 @@ onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', warnBeforeUnload)
   cancelUpload.value?.()
 })
-onMounted(async () => {
-  if (contribution.value.videoAssetId) monitorVideo(contribution.value.videoAssetId)
-  try {
-    categories.value = await resourceHubApi.categories()
-    if (!contribution.value.categoryId) patch({ categoryId: categories.value.find((item) => item.code === 'uncategorized')?.id })
-  } catch (cause) { error.value = cause instanceof Error ? cause.message : '资源分类读取失败' }
-})
+onMounted(() => { if (contribution.value.videoAssetId) monitorVideo(contribution.value.videoAssetId) })
 </script>
 
 <template>
-  <section class="resource-contribution-fields">
-    <h3>资源共创信息</h3>
-    <div class="composer-row">
-      <label>作品形态<select v-model="contribution.kind"><option value="video">视频演示</option><option value="article">图文分享</option><option value="document">配套资料</option></select></label>
-      <label>资源分类<select v-model="contribution.categoryId"><option v-for="item in categories" :key="item.id" :value="item.id">{{ item.name }}</option></select></label>
-    </div>
-    <label>教学标签（最多 8 个）<input v-model="tags" maxlength="160" placeholder="例如：RAG、模型部署、课堂实训" /></label>
-    <label v-if="contribution.kind !== 'article'">{{ contribution.kind === 'video' ? '视频文件（MP4、MOV、WebM，最大 1GB）' : '资料文件（PDF、DOCX、PPTX、ZIP、TXT，最大 100MB）' }}<input type="file" :accept="contribution.kind === 'video' ? 'video/mp4,video/quicktime,video/webm' : '.pdf,.docx,.pptx,.zip,.txt'" :disabled="saving || !!cancelUpload" @change="choose" /></label>
-    <div v-if="uploadStatus" class="resource-upload-state" role="status"><progress :value="uploadProgress" max="100" /><span>{{ uploadStatus }}</span><button v-if="cancelUpload" type="button" class="text-link" @click="cancelUpload()">取消上传</button></div>
-    <template v-if="contribution.kind === 'article'">
-      <label>参考来源名称（选填）<input v-model="contribution.sourceName" maxlength="120" placeholder="原创内容可留空" /></label>
-      <label>参考来源链接（选填）<input v-model="contribution.sourceUrl" type="url" maxlength="500" placeholder="https://…" /></label>
-    </template>
-    <label class="community-checkbox"><input v-model="contribution.teachingReuseConsent" type="checkbox" />允许平台在保留作者署名和原帖链接的前提下，将本作品引用到站内课程草稿</label>
-    <p class="composer-privacy">请确认你有权分享所上传的内容；此授权仅用于站内署名教学引用，不等同于公共开源许可。</p>
-  </section>
+  <label>{{ contribution.kind === 'video' ? '视频文件（MP4、MOV、WebM，最大 1GB）' : '资料文件（PDF、DOCX、PPTX、ZIP、TXT，最大 100MB）' }}<input type="file" :accept="contribution.kind === 'video' ? 'video/mp4,video/quicktime,video/webm' : '.pdf,.docx,.pptx,.zip,.txt'" :disabled="saving || !!cancelUpload" @change="choose" /></label>
+  <div v-if="uploadStatus" class="resource-upload-state" role="status"><progress :value="uploadProgress" max="100" /><span>{{ uploadStatus }}</span><button v-if="cancelUpload" type="button" class="text-link" @click="cancelUpload()">取消上传</button></div>
 </template>
