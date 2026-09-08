@@ -147,6 +147,8 @@ export const useCommunityDraft = defineStore('community-draft', () => {
         if (asDraft) { draftId.value = post.id; hydrating = true; form.value.expectedRevision = post.revision; queueMicrotask(() => { hydrating = false }); requestKey = ''; requestBody = ''; localSave(); savedAt.value = changed ? '尚未同步到服务器' : auth.dataMode === 'api' ? '草稿已同步到服务器' : '本地演示草稿已保存'; dirty.value = changed }
         else {
           clearTimeout(timer); clearTimeout(remoteTimer); requestKey = ''; requestBody = ''; draftId.value = undefined; store.published(post, changed)
+          if (auth.dataMode === 'api' && post.pointsAwarded) window.dispatchEvent(new CustomEvent('api-error', { detail: { message: `+${post.pointsAwarded} 积分` } }))
+          window.dispatchEvent(new CustomEvent('growth-celebration-check'))
           if (changed) {
             hydrating = true; store.editingId = post.id; form.value.expectedRevision = post.revision; dirty.value = true
             localSave(); savedAt.value = post.status === 'pending_review' ? '提交版本已保存待复核，后续输入尚未同步' : '已发布提交版本，后续输入尚未同步'; queueMicrotask(() => { hydrating = false })

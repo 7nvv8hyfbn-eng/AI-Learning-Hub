@@ -40,7 +40,7 @@ export class CommunityNotificationService {
       const item: CommunityNotificationDto = {
       id: row.id, type: row.notificationType as CommunityNotificationDto['type'], actor: row.actorId ? authorMap.get(row.actorId) || null : null,
       entityType: review?.targetType || row.entityType, entityId: review?.targetId || row.entityId,
-      text: review ? `你的${targetLabels[review.targetType] || '内容'}第 ${review.contentRevision} 次修订${review.status === 'approved' ? '已通过复核' : '复核未通过，尚未公开'}。${review.reason}` : `${row.actorIds.filter((id) => authorMap.has(id)).length > 1 ? `${row.actorIds.filter((id) => authorMap.has(id)).length} 位同学` : ''}${labels[row.notificationType] || '有新的社区互动'}`,
+      text: review ? `你的${targetLabels[review.targetType] || '内容'}第 ${review.contentRevision} 次修订${review.status === 'approved' ? '已通过复核' : '复核未通过，尚未公开'}。${review.reason}` : row.entityType === 'achievement' ? `恭喜解锁成就「${(row.payload as { name?: string }).name || '新成就'}」` : `${row.actorIds.filter((id) => authorMap.has(id)).length > 1 ? `${row.actorIds.filter((id) => authorMap.has(id)).length} 位同学` : ''}${labels[row.notificationType] || '有新的社区互动'}`,
       count: row.actorIds.filter((id) => authorMap.has(id)).length, readAt: row.readAt?.toISOString() || null, createdAt: row.createdAt.toISOString(), source: 'community',
     }
       if (governanceMessage) { item.text = governanceMessage; item.actor = null; item.count = 1 }

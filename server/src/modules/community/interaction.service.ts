@@ -5,11 +5,12 @@ import { PrismaService } from '../../prisma/prisma.service'
 import { CommunityVisibilityPolicyService } from './visibility.service'
 import { CommunityNotificationService } from './notification.service'
 import { SignalsService } from '../signals/signals.service'
+import { GrowthService } from '../growth/growth.service'
 import { actionEvent } from '../../common/persistence'
 
 @Injectable()
 export class CommunityInteractionService {
-  constructor(private readonly prisma: PrismaService, private readonly visibility: CommunityVisibilityPolicyService, private readonly notifications: CommunityNotificationService, private readonly signals: SignalsService) {}
+  constructor(private readonly prisma: PrismaService, private readonly visibility: CommunityVisibilityPolicyService, private readonly notifications: CommunityNotificationService, private readonly signals: SignalsService, private readonly growth: GrowthService) {}
   async react(userId: string, postId: string, type: CommunityReactionType | 'bookmark', active: boolean, ip?: string) {
     if (active) await this.visibility.assertOperation(userId, 'interaction')
     else await this.visibility.viewer(userId)
@@ -28,8 +29,10 @@ export class CommunityInteractionService {
         const bindings = await tx.communityPostBinding.findMany({ where: { postId } })
         await this.signals.record(userId, `community_${type}_add`, 'post', postId, { authorId: post.authorId, postType: post.postType, topicIds: topics.map((row) => row.topicId), bindingKeys: bindings.map((row) => `${row.targetType}:${row.targetId}`) }, tx)
         if (type !== 'bookmark') await this.notifications.send(post.authorId, userId, type, 'post', postId, tx)
+        if (type === 'useful' && post.authorId !== userId) await this.growth.award(tx, post.authorId, 'community_useful_add', `post:${postId}:useful:${userId}`)
       }
     })
+    if (type === 'useful' && active) void this.growth.checkAchievements(post.authorId).catch(() => undefined)
     const [row, exists] = await Promise.all([
       this.prisma.communityPost.findUniqueOrThrow({ where: { id: postId }, select: { likeCount: true, usefulCount: true, bookmarkCount: true, commentCount: true } }),
       type === 'bookmark' ? this.prisma.communityBookmark.count({ where: { userId, postId } }) : this.prisma.communityPostReaction.count({ where: { userId, postId, reactionType: type } }),

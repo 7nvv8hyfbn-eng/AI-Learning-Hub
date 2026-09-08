@@ -28,7 +28,6 @@
   .guidance-panel > template { display: grid; }
   .challenge-hero { grid-template-columns: 1fr 300px; }
   .challenge-target { grid-column: 1 / -1; }
-  .badge-wall { grid-template-columns: repeat(4, 1fr); }
   .ability-profile-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 991px) {
@@ -128,7 +127,7 @@
   .home-hero h1 { font-size: clamp(28px, 8.2vw, 40px); line-height: 1.12; letter-spacing: -.03em; text-wrap: nowrap; }
   .home-hero h1 > span { white-space: nowrap; }
   .floating-label { display: none; }
-  .direction-grid, .featured-grid, .three-grid, .four-grid, .card-grid.three, .resource-strip, .stat-row, .state-panel, .key-grid, .badge-wall, .ability-profile-grid { grid-template-columns: 1fr; }
+  .direction-grid, .featured-grid, .three-grid, .four-grid, .card-grid.three, .resource-strip, .stat-row, .state-panel, .key-grid, .ability-profile-grid { grid-template-columns: 1fr; }
   .homepage-skeleton-grid, .homepage-skeleton-grid.large { grid-template-columns: 1fr; }
   .homepage-skeleton-hero { min-height: 0; }
   .student-activity-grid, .recommendation-row, .hot-lab-ranking, .five-resource-grid, .featured-resource-row, .assessment-achievements { grid-template-columns: 1fr; }

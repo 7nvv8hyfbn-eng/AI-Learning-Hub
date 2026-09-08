@@ -11,6 +11,7 @@ import { communityApi } from '../services/api/community'
 import { communityNavigation, communityNavActive } from '../community/labels'
 import CommunityRightRail from '../community/CommunityRightRail.vue'
 import CommunityPostMenu from '../community/CommunityPostMenu.vue'
+import GrowthCelebration from '../community/GrowthCelebration.vue'
 import { provideCommunityScrollRoot } from '../community/composables/useCommunityScrollRoot'
 import { useCommunityAccess } from '../community/composables/useCommunityAccess'
 const auth = useAuthStore(), store = useCommunityStore(), router = useRouter(), route = useRoute()
@@ -61,5 +62,6 @@ onBeforeUnmount(() => { window.clearInterval(polling) })
     <nav class="community-bottom-nav" aria-label="移动主导航"><RouterLink v-for="item in communityNavigation.filter((item) => item.mobile).sort((a, b) => a.mobileOrder - b.mobileOrder)" :key="item.path" :to="item.path" :class="{ active: communityNavActive(route.path, item.path) }" :style="{ order: item.mobileOrder }"><AppIcon :name="item.icon" :size="21" /><span>{{ item.label.replace('首页', '').replace('主题', '').replace('项目', '').replace('消息', '').replace('成长', '') }}</span></RouterLink><button class="mobile-publish-button" @click="publish"><AppIcon name="plus" :size="24" /><span>发布</span></button></nav>
     <AppDialog v-model="menuOpen" title="学习社区"><nav class="community-more"><RouterLink v-for="item in communityNavigation" :key="item.path" :to="item.path" @click="menuOpen = false">{{ item.label }}</RouterLink><RouterLink to="/welcome" @click="menuOpen = false">品牌门户</RouterLink><button class="text-link" @click="logout">退出登录</button></nav></AppDialog>
     <button class="community-floating-publish" aria-label="快捷发布" @click="publish"><AppIcon name="plus" /></button>
+    <GrowthCelebration />
   </div>
 </template>

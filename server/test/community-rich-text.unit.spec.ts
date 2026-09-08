@@ -8,7 +8,7 @@ import { CommunityPostService } from '../src/modules/community/post.service'
 
 describe('社区图文发布内容边界', () => {
   const count = vi.fn()
-  const service = new CommunityPostService({ fileRecord: { count } } as never, {} as never, {} as never, {} as never, {} as never)
+  const service = new CommunityPostService({ fileRecord: { count } } as never, {} as never, {} as never, {} as never, {} as never, {} as never)
   it('DTO接受安全图文；入库保留格式，移除事件、样式、脚本和HTML媒体', async () => {
     const block = { type: 'rich_text' as const, text: '<h2>实践</h2><p style="position:fixed" onclick="alert(1)"><strong>学习</strong><a href="javascript:alert(1)">链接</a></p><script>alert(1)</script><img src="https://outside.example/a.png"><table><tr><td>结果</td></tr></table>' }
     expect(await validate(plainToInstance(BlockDto, block))).toHaveLength(0)

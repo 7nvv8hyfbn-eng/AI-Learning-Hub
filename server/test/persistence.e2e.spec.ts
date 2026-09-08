@@ -384,7 +384,7 @@ describe('PERSIST-001 真实 PostgreSQL 持久化与账号产品化', () => {
   })
   it('历史 JSON 引用保护文件，未引用对象可删除且非法 MIME 被拒绝', async () => {
     const storage = app.get<StorageService>(STORAGE_SERVICE)
-    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZQmcAAAAASUVORK5CYII=', 'base64')
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWNgYGD4DwABBAEAfbLI3wAAAABJRU5ErkJggg==', 'base64')
     const form = new FormData(); form.append('file', new Blob([png], { type: 'image/png' }), 'pixel.png')
     const upload = await request('/community/media', actor.accessToken, 'POST', form)
     expect(upload.status).toBe(201)

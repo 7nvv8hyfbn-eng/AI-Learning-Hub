@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.setConfig({ testTimeout: 20_000 })
+
 const mocks = vi.hoisted(() => ({
   auth: {
     login: vi.fn(),

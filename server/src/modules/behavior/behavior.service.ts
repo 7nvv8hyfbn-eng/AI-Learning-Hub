@@ -6,6 +6,7 @@ import { readChallengeSnapshot } from '../challenges/challenge-version'
 import type { LabActionDto, SubmitAssessmentDto } from './behavior.dto'
 import { evaluateAnswer } from './assessment-evaluator'
 import { SignalsService } from '../signals/signals.service'
+import { GrowthService } from '../growth/growth.service'
 
 type VersionedQuestion = Prisma.QuestionGetPayload<{ include: { publishedVersion: true } }>
 const publishedQuestion = (question: VersionedQuestion) => {
@@ -23,7 +24,7 @@ const publishedQuestion = (question: VersionedQuestion) => {
 
 @Injectable()
 export class BehaviorService {
-  constructor(private readonly prisma: PrismaService, private readonly signals: SignalsService) {}
+  constructor(private readonly prisma: PrismaService, private readonly signals: SignalsService, private readonly growth: GrowthService) {}
 
   async recordView(userId: string, targetType: 'resource' | 'article', targetSlug: string) {
     const target = targetType === 'resource'
@@ -106,6 +107,7 @@ export class BehaviorService {
         },
       }
     })
+    if (completed) void this.growth.checkAchievements(userId).catch(() => undefined)
   }
 
   async saveNote(userId: string, lessonId: string, content: string) {
@@ -224,7 +226,7 @@ export class BehaviorService {
     const run = await this.prisma.labRun.findFirst({ where: { id: runId, userId } })
     if (!run || (run.status !== LabRunStatus.success && run.status !== LabRunStatus.submitted)) throw new BadRequestException('实训完成后才能提交')
     if (run.status === LabRunStatus.submitted) return run
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.labRun.update({ where: { id: run.id }, data: { status: LabRunStatus.submitted, submittedAt: new Date() } })
       const eventCount = await tx.labRunEvent.count({ where: { runId } })
       await tx.labReport.upsert({
@@ -249,6 +251,8 @@ export class BehaviorService {
       }
       return updated
     })
+    void this.growth.checkAchievements(userId).catch(() => undefined)
+    return updated
   }
 
   async challengeQuestions(challengeSlug: string) {
@@ -376,5 +380,7 @@ export class BehaviorService {
       })
       return result
     })
+    if (result.passed) void this.growth.checkAchievements(userId).catch(() => undefined)
+    return result
   }
 }

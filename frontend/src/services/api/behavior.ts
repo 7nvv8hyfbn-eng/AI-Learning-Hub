@@ -10,6 +10,17 @@ export interface LabRunDto {
   events?: Array<{ type: string; message: string; sequence: number }>
 }
 
+export interface GrowthAchievementItem {
+  code: string
+  name: string
+  description: string
+  rule: { type: string; event?: string; threshold?: number; days?: number }
+  earnerCount: number
+  unlocked: boolean
+  unlockedAt: string | null
+  progress: { current: number; target: number }
+}
+
 export const behaviorApi = {
   enroll: (courseId: string) => request(`/courses/${encodeURIComponent(courseId)}/enroll`, { method: 'POST' }),
   favorites: () => request<Array<{ targetType: FavoriteType; targetId: string }>>('/me/favorites'),
@@ -42,6 +53,7 @@ export const behaviorApi = {
     body: JSON.stringify({ targetType, targetSlug }),
   }),
   growth: () => request<Record<string, unknown>>('/me/growth'),
+  achievements: () => request<{ items: GrowthAchievementItem[] }>('/me/achievements'),
   plans: () => request<Array<Record<string, unknown>>>('/me/learning-plans'),
   addPlan: (title: string, targetDate: string) => request('/me/learning-plans', { method: 'POST', body: JSON.stringify({ title, targetDate }) }),
   updatePlan: (id: string, value: Record<string, unknown>) => request(`/me/learning-plans/${id}`, { method: 'PATCH', body: JSON.stringify(value) }),
