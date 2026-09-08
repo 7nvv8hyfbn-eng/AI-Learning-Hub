@@ -33,7 +33,7 @@
 - [服务部署方案](docs/deployment/service-deployment.md)
 - [API 模块](docs/api/module-api.md)
 - [数据库模型](docs/database/schema.md)
-- [资源中心共创](docs/resource-co-creation.md)
+- [教程中心共创](docs/resource-co-creation.md)
 - [需求覆盖矩阵](docs/mapping/requirements-coverage.md)
 
 ## 作者

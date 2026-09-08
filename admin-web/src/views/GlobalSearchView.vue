@@ -15,7 +15,7 @@ const keyword = ref(String(route.query.q || ''))
 const loading = ref(false)
 const results = ref<Array<{ domain: string; path: string; item: AdminCatalogItemDto<object> }>>([])
 const domains = [
-  ['theme.read', '学习主题', 'themes'],
+  ['theme.read', '通识基础', 'themes'],
   ['course.read', '课程', 'courses'],
   ['lab.read', '实训', 'labs'],
   ['resource.read', '资源', 'resources'],

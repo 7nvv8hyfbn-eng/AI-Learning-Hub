@@ -16,9 +16,9 @@ const navOpen = ref(false)
 const query = ref('')
 const navigation = [
   ['探索首页', '/welcome'],
-  ['学习主题', '/topics'],
+  ['教程中心', '/resources'],
+  ['通识基础', '/topics'],
   ['实训项目', '/labs'],
-  ['资源中心', '/resources'],
   ['AI 前沿', '/frontier'],
   ['挑战与测评', '/assessments'],
 ]

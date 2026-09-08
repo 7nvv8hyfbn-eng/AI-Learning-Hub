@@ -1,11 +1,11 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Param, Patch, Post, Put, Query, UseGuards } from '@nestjs/common'
 import { AuthGuard } from '../auth/auth.guard'
 import { PermissionsGuard } from '../auth/permissions.guard'
 import { Permissions } from '../auth/permissions.decorator'
 import { CurrentUser } from '../auth/current-user.decorator'
 import type { AuthUser } from '../auth/auth.types'
 import { UsersService } from './users.service'
-import { UserQuery, UserReasonDto, UserStatusUpdateDto, UserUpdateDto } from './users.dto'
+import { CampusIdentityVerificationInputDto, IdentityReviewDto, UserQuery, UserReasonDto, UserStatusUpdateDto, UserUpdateDto } from './users.dto'
 import { PrismaService } from '../../prisma/prisma.service'
 
 @Controller('admin/users')
@@ -13,7 +13,8 @@ import { PrismaService } from '../../prisma/prisma.service'
 @Permissions('user.read')
 export class UsersController {
   constructor(private readonly users: UsersService, private readonly prisma: PrismaService) {}
-  @Get() list(@Query() query: UserQuery) { return this.users.list(query) }
+  @Get() list(@CurrentUser() actor: AuthUser, @Query() query: UserQuery) { return this.users.list(query, actor.permissions.includes('user.identity.read')) }
+  @Get('verifications') listVerifications(@CurrentUser() actor: AuthUser, @Query() query: UserQuery) { return this.users.list({ ...query, identityVerificationStatus: query.identityVerificationStatus || 'pending' }, actor.permissions.includes('user.identity.read')) }
   @Get('growth-list') @Permissions('growth.read') growthList(@Query() query: UserQuery) { return this.users.list({ ...query, role: 'student' }) }
   @Get('export') @Permissions('user.export')
   async export(@CurrentUser() actor: AuthUser, @Query() query: UserQuery) {
@@ -26,9 +27,17 @@ export class UsersController {
     this.prisma.school.findMany({ where: { status: 'active' }, select: { id: true, name: true, departments: { select: { id: true, name: true } } } }),
     this.prisma.role.findMany({ select: { code: true, name: true } }),
   ]).then(([schools, roles]) => ({ schools, roles })) }
-  @Get(':id') detail(@Param('id') id: string) { return this.users.detail(id) }
+  @Get(':id') detail(@CurrentUser() actor: AuthUser, @Param('id') id: string) { return this.users.detail(id, actor.permissions.includes('user.identity.read')) }
+  @Get(':id/verification') @Permissions('user.read', 'user.identity.read')
+  verification(@CurrentUser() actor: AuthUser, @Param('id') id: string) { return this.users.identityDetail(actor.id, id) }
+  @Post(':id/verification/approve') @Permissions('user.read', 'user.identity.review')
+  approve(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: IdentityReviewDto) { return this.users.reviewIdentity(actor, id, 'approve', input) }
+  @Post(':id/verification/reject') @Permissions('user.read', 'user.identity.review')
+  reject(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: IdentityReviewDto) { return this.users.reviewIdentity(actor, id, 'reject', input) }
+  @Post(':id/verification/revoke') @Permissions('user.read', 'user.identity.review')
+  revokeIdentity(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: IdentityReviewDto) { return this.users.reviewIdentity(actor, id, 'revoke', input) }
   @Patch(':id') @Permissions('user.write')
-  update(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: UserUpdateDto) { return this.users.update(actor, id, input) }
+  update(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: UserUpdateDto) { return this.users.update(actor, id, input, actor.permissions.includes('user.identity.read')) }
   @Patch(':id/status') @Permissions('user.write')
   status(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: UserStatusUpdateDto) { return this.users.status(actor, id, input) }
   @Post(':id/reset-onboarding') @Permissions('user.write')
@@ -37,4 +46,12 @@ export class UsersController {
   revoke(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: UserReasonDto) { return this.users.action(actor, id, 'revoke_sessions', input.reason) }
   @Post(':id/reset-password') @Permissions('user.write')
   resetPassword(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: UserReasonDto) { return this.users.resetPassword(actor, id, input.reason) }
+}
+
+@Controller('community/verification')
+@UseGuards(AuthGuard)
+export class CampusVerificationController {
+  constructor(private readonly users: UsersService) {}
+  @Get() get(@CurrentUser() user: AuthUser) { return this.users.verificationSummary(user.id) }
+  @Put() submit(@CurrentUser() user: AuthUser, @Body() input: CampusIdentityVerificationInputDto) { return this.users.submitVerification(user.id, input) }
 }

@@ -3,6 +3,7 @@ import type { CommunityBindingInput, HomepageResolvedItemDto, LandingPublicAutho
 import { PrismaService } from '../../prisma/prisma.service'
 import { authorDto, authorInclude } from '../../modules/community/community.mapper'
 import { MediaResolverService } from '../../modules/media/media-resolver.service'
+import { visibleComment, visibleProfile, visiblePublicPost } from '../../modules/community/governance-policy'
 
 const types: LearningContentType[] = ['theme', 'course', 'lesson', 'lab', 'resource', 'article', 'challenge', 'lab_run']
 const object = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
@@ -14,19 +15,20 @@ export class ContentReferenceService {
   /** 门户仅投影当前公开对象；不返回草稿、正文块、媒体令牌或账号内部字段。 */
   async resolvePublicCommunity(type: string, id: string): Promise<HomepageResolvedItemDto | null> {
     if (type === 'community_post') {
-      const row = await this.prisma.communityPost.findFirst({ where: { id, status: 'published', visibility: 'public', deletedAt: null, author: { status: 'active' } }, include: { author: { include: authorInclude } } })
+      const row = await this.prisma.communityPost.findFirst({ where: { id, ...visiblePublicPost() }, include: { author: { include: authorInclude } } })
       if (!row) return null
       const author = this.publicAuthor(row.author)
-      return { targetType: type, slug: row.id, title: row.title || row.plainText.slice(0, 60), summary: row.plainText.slice(0, 160), data: { route: `/community/post/${row.id}`, postType: row.postType, author, publishedAt: row.publishedAt?.toISOString(), commentCount: row.commentCount, likeCount: row.likeCount, bookmarkCount: row.bookmarkCount } }
+      const commentCount = await this.prisma.communityComment.count({ where: { postId: row.id, status: 'published', deletedAt: null, ...visibleComment() } })
+      return { targetType: type, slug: row.id, title: row.title || row.plainText.slice(0, 60), summary: row.plainText.slice(0, 160), data: { route: `/community/post/${row.id}`, postType: row.postType, author, publishedAt: row.publishedAt?.toISOString(), commentCount, likeCount: row.likeCount, bookmarkCount: row.bookmarkCount } }
     }
     if (type === 'community_topic') {
       const row = await this.prisma.communityTopic.findFirst({ where: { OR: [{ id }, { slug: id }], status: 'active' } })
       if (!row) return null
-      const postCount = await this.prisma.communityPostTopic.count({ where: { topicId: row.id, post: { status: 'published', visibility: 'public', deletedAt: null, author: { status: 'active' } } } })
+      const postCount = await this.prisma.communityPostTopic.count({ where: { topicId: row.id, post: visiblePublicPost() } })
       return { targetType: type, slug: row.slug, title: row.name, summary: row.description, data: { id: row.id, route: `/community/topic/${row.slug}`, postCount, followerCount: row.followerCount, recommended: row.recommended } }
     }
     if (type === 'community_user') {
-      const user = await this.prisma.user.findFirst({ where: { OR: [{ id }, { username: id }], status: 'active', communityProfile: { isNot: null }, communityPosts: { some: { status: 'published', visibility: 'public', deletedAt: null } } }, include: authorInclude })
+      const user = await this.prisma.user.findFirst({ where: { OR: [{ id }, { username: id }], ...visibleProfile(), communityProfile: { isNot: null }, communityPosts: { some: visiblePublicPost() } }, include: authorInclude })
       if (!user) return null
       const author = this.publicAuthor(user)
       // 公开创作者必须有公开作品；后台身份本身不构成允许展示。
@@ -38,7 +40,7 @@ export class ContentReferenceService {
 
   private publicAuthor(user: Parameters<typeof authorDto>[0]): LandingPublicAuthor {
     const author = authorDto(user)
-    return { id: author.id, username: author.username, displayName: author.displayName, verifiedType: author.verifiedType, headline: user.communityProfile?.headline.slice(0, 100) || user.communityProfile?.bio.slice(0, 100) || '', followerCount: user.communityProfile?.followerCount || 0 }
+    return { id: author.id, username: author.username, displayName: author.displayName, verifiedType: author.verifiedType, headline: author.username ? user.communityProfile?.headline.slice(0, 100) || user.communityProfile?.bio.slice(0, 100) || '' : '', followerCount: author.username ? user.communityProfile?.followerCount || 0 : 0 }
   }
 
   /** 每个类型一次查询；标题与摘要只来自已发布快照，绝不解析草稿 payload。 */
@@ -72,16 +74,17 @@ export class ContentReferenceService {
       const rows = type === 'theme' ? await this.prisma.theme.findMany({ where, include })
         : type === 'course' ? await this.prisma.course.findMany({ where, include })
           : type === 'lab' ? await this.prisma.lab.findMany({ where, include })
-            : type === 'resource' ? await this.prisma.resource.findMany({ where: { ...where, visibility: 'public' }, include })
+            : type === 'resource' ? await this.prisma.resource.findMany({ where: { ...where, publishedVersion: { is: { snapshot: { path: ['visibility'], equals: 'public' } } } }, include })
               : type === 'article' ? await this.prisma.article.findMany({ where, include })
                 : await this.prisma.challenge.findMany({ where, include })
       const covers = await this.media.prepare(rows, true)
       for (const row of rows) {
         if (!row.publishedVersion) continue
         const snapshot = object(row.publishedVersion.snapshot)
-        const data = await this.media.data(type, row, object(snapshot.data || snapshot.payload), true, covers)
+        const title = String(snapshot.title ?? (type === 'resource' ? '' : row.title)), summary = String(snapshot.summary ?? (type === 'resource' ? '' : row.summary))
+        const data = await this.media.data(type, { ...row, title, summary }, object(snapshot.data || snapshot.payload), true, covers)
         const routes = { theme: `/topics?theme=${row.slug}`, course: `/courses/${row.slug}`, lab: `/labs/${row.slug}`, resource: `/resources?resource=${row.slug}`, article: `/frontier?article=${row.slug}`, challenge: `/assessments?challenge=${row.slug}` }
-        const ref: LearningContentReferenceDto = { type, id: row.id, slug: row.slug, title: String(snapshot.title || row.title), summary: String(snapshot.summary || row.summary), route: routes[type], status: 'published', ...(typeof data.cover === 'string' ? { cover: data.cover } : {}), ...(typeof data.category === 'string' ? { category: data.category } : {}) }
+        const ref: LearningContentReferenceDto = { type, id: row.id, slug: row.slug, title, summary, route: routes[type], status: 'published', ...(typeof data.cover === 'string' ? { cover: data.cover } : {}), ...(typeof data.category === 'string' ? { category: data.category } : {}) }
         result.set(`${type}:${row.id}`, ref)
         result.set(`${type}:${row.slug}`, ref)
       }

@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia'
-import type { CommunityContextDto, CommunityFeedMode, CommunityPostDetailDto, CommunityPostInput, CommunityPostSummaryDto, CommunityPostType, FeedUnitDto } from '@ai-learning-hub/contracts'
+import type { CommunityContextDto, CommunityEligibilityDto, CommunityFeedMode, CommunityPostDetailDto, CommunityPostInput, CommunityPostSummaryDto, CommunityPostType, FeedUnitDto } from '@ai-learning-hub/contracts'
 import { communityApi } from '../services/api/community'
+import { contentDetectionNotice } from '../community/labels'
 export const MAX_FEED_ITEMS = 150, MAX_FEED_CACHES = 6
 interface FeedState {
   items: FeedUnitDto[]; publishedPosts: FeedUnitDto[]; cursor: string | null; loaded: boolean; scroll: number; requestId: string
   pageCursors: Record<string, string | undefined>; resumeCursor?: string; anchor?: { id: string; offset: number }; evicted?: boolean
 }
 export const useCommunityStore = defineStore('community', {
-  state: () => ({ feeds: {} as Record<string, FeedState>, feedOrder: [] as string[], operations: {} as Record<string, boolean>, authorFollowing: {} as Record<string, boolean>, context: null as CommunityContextDto | null, unread: 0, composerOpen: false, composerMode: 'quick' as 'quick' | 'advanced', composerInline: false, draft: null as CommunityPostInput | null, editingId: undefined as string | undefined, publishNotice: null as { id: string; text: string } | null, error: '', epoch: 0, lastFeedLocation: '/community' }),
+  state: () => ({ feeds: {} as Record<string, FeedState>, feedOrder: [] as string[], operations: {} as Record<string, boolean>, authorFollowing: {} as Record<string, boolean>, context: null as CommunityContextDto | null, eligibility: null as CommunityEligibilityDto | null, unread: 0, composerOpen: false, composerMode: 'quick' as 'quick' | 'advanced' | 'rich', composerInline: false, draft: null as CommunityPostInput | null, editingId: undefined as string | undefined, publishNotice: null as { id: string; text: string } | null, error: '', epoch: 0, lastFeedLocation: '/community' }),
   actions: {
     clear() { const epoch = this.epoch + 1; this.$reset(); this.epoch = epoch },
     openComposer(input?: Partial<CommunityPostInput>, id?: string) {
@@ -23,11 +24,12 @@ export const useCommunityStore = defineStore('community', {
     },
     async loadContext(userId?: string) {
       const epoch = this.epoch
-      const [context, following] = await Promise.all([communityApi.context(), userId ? communityApi.following(userId) : Promise.resolve([])])
+      const [context, following, eligibility] = await Promise.all([communityApi.context(), userId ? communityApi.following(userId) : Promise.resolve([]), communityApi.eligibility()])
       if (epoch !== this.epoch) return
       const followedIds = new Set(following.map((user) => user.id))
       for (const user of context.suggestedUsers) if (!(user.id in this.authorFollowing)) this.authorFollowing[user.id] = followedIds.has(user.id)
       this.context = context
+      this.eligibility = eligibility
     },
     touchFeed(key: string) {
       this.feedOrder = [...this.feedOrder.filter((value) => value !== key), key]
@@ -129,7 +131,8 @@ export const useCommunityStore = defineStore('community', {
         entry.publishedPosts = [item, ...entry.publishedPosts].slice(0, MAX_FEED_ITEMS)
         entry.items = [item, ...entry.items].slice(0, MAX_FEED_ITEMS)
       }
-      this.publishNotice = { id: post.id, text: `${this.editingId ? '更新' : '发布'}成功${entry ? matches ? '，已插入当前列表顶部' : '，当前筛选未展示此内容' : '，可查看动态'}` }
+      const notice = contentDetectionNotice(post.detection)
+      this.publishNotice = { id: post.id, text: post.status === 'pending_review' ? notice || '投稿已保存，正在等待人工复核，尚未公开。可查看并修改后重新提交。' : `${this.editingId ? '更新' : '发布'}成功${entry ? matches ? '，已插入当前列表顶部' : '，当前筛选未展示此内容' : '，可查看动态'}${notice ? `。${notice}` : ''}` }
       if (!keepComposer) this.composerOpen = false
       return post.id
     },

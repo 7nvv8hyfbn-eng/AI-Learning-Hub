@@ -52,6 +52,6 @@ export class SettingsOperationsController {
   operationLogs() { return this.prisma.operationLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }) }
   @Get('login-logs') @Permissions('settings.read')
   loginLogs() {
-    return this.prisma.loginLog.findMany({ select: { id: true, userId: true, email: true, result: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 100 })
+    return this.prisma.loginLog.findMany({ select: { id: true, userId: true, identifier: true, result: true, createdAt: true }, orderBy: { createdAt: 'desc' }, take: 100 })
   }
 }

@@ -27,12 +27,20 @@ export class CommunityPostService {
     const files: string[] = []
     const clean = blocks.map((block): CommunityContentBlock => {
       const keys = Object.keys(block).filter((key) => (block as unknown as Record<string, unknown>)[key] !== undefined)
-      const allowed = block.type === 'image' ? ['type', 'fileId', 'alt'] : block.type === 'code' ? ['type', 'code', 'language'] : ['type', 'text']
+      const allowed = block.type === 'image' ? ['type', 'fileId', 'alt'] : block.type === 'code' ? ['type', 'code', 'language'] : block.type === 'heading' ? ['type', 'text', 'level'] : block.type === 'list' ? ['type', 'ordered', 'items'] : ['type', 'text']
       if (keys.some((key) => !allowed.includes(key))) throw new BadRequestException('内容块字段与类型不匹配')
       if (block.type === 'image') {
         if (!block.fileId || ++imageCount > 4) throw new BadRequestException('最多上传 4 张图片')
         files.push(block.fileId)
         return { type: 'image', fileId: block.fileId, alt: block.alt || '' }
+      }
+      if (block.type === 'heading') {
+        if (typeof block.text !== 'string' || !block.text.trim()) throw new BadRequestException('标题块不能为空')
+        return { type: 'heading', text: block.text.trim(), level: Math.min(6, Math.max(1, Math.round(Number(block.level) || 1))) }
+      }
+      if (block.type === 'list') {
+        if (!Array.isArray(block.items) || !block.items.length || block.items.some((item) => typeof item !== 'string' || !item.trim())) throw new BadRequestException('列表块不能为空')
+        return { type: 'list', ordered: !!block.ordered, items: block.items.map((item) => item.trim()) }
       }
       if (block.type === 'code') {
         if (typeof block.code !== 'string' || !block.code.trim()) throw new BadRequestException('代码块不能为空')
@@ -45,7 +53,7 @@ export class CommunityPostService {
       const count = await this.prisma.fileRecord.count({ where: { id: { in: [...new Set(files)] }, uploadedBy: userId, mimeType: { in: ['image/png', 'image/jpeg', 'image/webp'] }, size: { lte: 5 * 1024 * 1024 }, extension: { in: ['.png', '.jpg', '.jpeg', '.webp'] } } })
       if (count !== new Set(files).size) throw new BadRequestException('图片必须由本人上传且为不超过 5MB 的 PNG、JPEG 或 WebP')
     }
-    const plainText = clean.map((block) => block.type === 'code' ? block.code : block.type === 'image' ? block.alt || '' : block.text).join('\n')
+    const plainText = clean.map((block) => block.type === 'code' ? block.code : block.type === 'image' ? block.alt || '' : block.type === 'heading' ? block.text : block.type === 'list' ? block.items.join(' ') : block.text).join('\n')
     if ((!draft && plainText.length < 1) || plainText.length > 20000) throw new BadRequestException('正文需要 1～20000 字')
     return { clean, plainText }
   }

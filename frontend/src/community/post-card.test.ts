@@ -14,15 +14,16 @@ interface CardState {
   unpublishOpen: boolean
 }
 
-vi.mock('../stores/auth', () => ({ useAuthStore: () => ({ user: { id: 'viewer' } }) }))
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
+const access = vi.hoisted(() => ({ write: true, push: vi.fn() }))
+vi.mock('../stores/auth', () => ({ useAuthStore: () => ({ user: { id: 'viewer', communityWriteEnabled: access.write } }) }))
+vi.mock('vue-router', () => ({ useRouter: () => ({ push: access.push }) }))
 vi.mock('../services/api/community', () => ({ communityApi: { post: vi.fn(), feedback: vi.fn(), remove: vi.fn(), unpublish: vi.fn(), reaction: vi.fn(), signals: vi.fn() } }))
 vi.mock('../components/base/AppIcon.vue', () => ({ default: { render: () => null } }))
 vi.mock('../components/base/AppDialog.vue', async () => {
   const { defineComponent, h } = await import('vue')
   return { default: defineComponent({ props: ['modelValue'], setup(props, { slots }) { return () => props.modelValue ? h('div', slots.default?.()) : null } }) }
 })
-beforeEach(() => { vi.resetAllMocks(); resetCommunityMock(); vi.mocked(communityApi.feedback).mockResolvedValue({}); vi.mocked(communityApi.remove).mockResolvedValue({}); vi.mocked(communityApi.unpublish).mockResolvedValue({ unpublished: true }); vi.mocked(communityApi.reaction).mockImplementation(async (_id, _kind, active) => ({ active })) })
+beforeEach(() => { vi.resetAllMocks(); access.write = true; resetCommunityMock(); vi.mocked(communityApi.feedback).mockResolvedValue({}); vi.mocked(communityApi.remove).mockResolvedValue({}); vi.mocked(communityApi.unpublish).mockResolvedValue({ unpublished: true }); vi.mocked(communityApi.reaction).mockImplementation(async (_id, _kind, active) => ({ active })) })
 describe('帖子移除事件不刷新不可见详情', () => {
   it('隐藏类操作只发hidden，点赞乐观更新且不拉取详情或重载列表', async () => {
     const post = await mockCommunity<CommunityPostDetailDto>('/posts/community-note-1', 'GET')
@@ -59,5 +60,18 @@ describe('帖子移除事件不刷新不可见详情', () => {
     expect(changed).not.toHaveBeenCalled(); expect(communityApi.post).not.toHaveBeenCalled()
     expect(view.state.unpublishOpen).toBe(false)
     view.unmount()
+  })
+  it('未认证互动不写数据并跳转实名认证', async () => {
+    access.write = false
+    const windowTarget = new EventTarget(), notified = vi.fn()
+    windowTarget.addEventListener('community-verification-required', notified)
+    vi.stubGlobal('window', windowTarget)
+    const post = await mockCommunity<CommunityPostDetailDto>('/posts/community-note-1', 'GET')
+    const view = setupComponent<CardState>(CommunityPostCard, { post })
+    try {
+      await view.state.reaction('like')
+      expect(communityApi.reaction).not.toHaveBeenCalled()
+      expect(notified).toHaveBeenCalledOnce()
+    } finally { view.unmount(); vi.unstubAllGlobals() }
   })
 })

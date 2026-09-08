@@ -9,8 +9,10 @@ import { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto, UpdateProfi
 import { RegistrationService } from './registration.service'
 import type { AuthUser } from './auth.types'
 import { durationMs } from './auth-ttl'
-import { actionEvent } from '../../common/persistence'
+import { actionEvent, lockFileReferences } from '../../common/persistence'
+import { ContentDetectionService } from '../community/content-detection.service'
 import { authUserDto, authUserInclude } from './auth.mapper'
+import { CommunityVisibilityPolicyService } from '../community/visibility.service'
 
 @Controller('auth')
 export class AuthController {
@@ -51,7 +53,7 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() input: LoginDto, @Ip() ip: string, @Res({ passthrough: true }) response: Response) {
-    const result = await this.auth.login(input.email, input.password, `${ip}:${input.email.toLowerCase()}`, ip)
+    const result = await this.auth.login(input.identifier, input.password, `${ip}:${input.identifier.toLowerCase()}`, ip)
     this.setRefreshCookie(response, result.refreshToken, input.remember)
     return { user: result.user, accessToken: result.accessToken, expiresIn: result.expiresIn }
   }
@@ -89,7 +91,7 @@ export class AuthController {
 @Controller()
 @UseGuards(AuthGuard)
 export class MeController {
-  constructor(private readonly prisma: PrismaService, private readonly auth: AuthService) {}
+  constructor(private readonly prisma: PrismaService, private readonly auth: AuthService, private readonly visibility: CommunityVisibilityPolicyService, private readonly detection: ContentDetectionService) {}
 
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
@@ -98,11 +100,14 @@ export class MeController {
 
   @Patch('me')
   async update(@CurrentUser() user: AuthUser, @Body() input: UpdateProfileDto) {
+    await this.visibility.assertOperation(user.id, 'profile')
     return this.prisma.$transaction(async (tx) => {
-      if (!(await tx.user.updateMany({ where: { id: user.id, revision: input.expectedRevision }, data: { displayName: input.displayName, revision: { increment: 1 } } })).count) throw new ConflictException('资料已变化，请重新读取')
+      await lockFileReferences(tx)
+      if (!(await tx.user.updateMany({ where: { id: user.id, revision: input.expectedRevision }, data: { revision: { increment: 1 } } })).count) throw new ConflictException('资料已变化，请重新读取')
+      const contentDetection = await this.detection.saveProfile(tx, user.id, { displayName: input.displayName })
       const row = await tx.user.findUniqueOrThrow({ where: { id: user.id }, include: authUserInclude })
       await actionEvent(tx, user.id, 'profile_updated', 'user', user.id)
-      return authUserDto(row)
+      return { ...authUserDto(row), contentDetection }
     })
   }
 

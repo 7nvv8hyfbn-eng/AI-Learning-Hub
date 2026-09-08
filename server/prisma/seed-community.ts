@@ -32,7 +32,7 @@ export async function seedCommunity(prisma: PrismaClient) {
   for (const topic of fixtures.topics) await prisma.communityTopic.upsert({ where: { id: topic.id }, update: {}, create: { id: topic.id, slug: topic.slug, name: topic.name, description: topic.description, themeId: themes.find((row) => row.slug === topic.theme)?.id, accent: topic.accent, sortOrder: topic.sortOrder, recommended: topic.recommended } })
   for (const fixture of fixtures.posts) {
     const userId = userIds.get(fixture.author)!
-    const body = fixture.blocks.map((block) => block.type === 'code' ? block.code : block.type === 'image' ? block.alt : block.text).join('\n')
+    const body = fixture.blocks.map((block) => block.type === 'code' ? block.code : block.type === 'image' ? block.alt : block.type === 'list' ? block.items.join('\n') : block.text).join('\n')
     await prisma.communityPost.upsert({ where: { id: fixture.id }, update: {}, create: { id: fixture.id, authorId: userId, postType: fixture.type, title: fixture.title, body, plainText: body, contentBlocks: fixture.blocks, contentHash: createHash('sha256').update(body.replace(/\s+/g, '').toLowerCase()).digest('hex'), status: 'published', visibility: fixture.visibility, schoolId: school.id, publishedAt: new Date(fixture.publishedAt) } })
     for (const [sortOrder, binding] of fixture.bindings.entries()) {
       const content = binding.type === 'course' ? courses.find((row) => row.slug === binding.id) : binding.type === 'lab' ? labs.find((row) => row.slug === binding.id) : articles.find((row) => row.slug === binding.id)

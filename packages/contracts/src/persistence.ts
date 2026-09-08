@@ -1,10 +1,11 @@
-import type { AdminUserDto } from './auth'
+import type { AdminUserDto, CampusIdentityVerificationDto, IdentityVerificationStatus } from './auth'
 import type { CommunityBindingInput, CommunityContentBlock, CommunityPostType, CommunityVisibility } from './community'
 
 export interface AdminUserQueryDto {
   page?: number; pageSize?: number; keyword?: string; status?: 'active' | 'disabled' | 'locked'
   userType?: string; role?: string; registrationSource?: string; schoolId?: string
   onboardingCompleted?: boolean; emailVerified?: boolean
+  identityVerificationStatus?: IdentityVerificationStatus
   createdFrom?: string; createdTo?: string; lastLoginFrom?: string; lastLoginTo?: string
   sortBy?: 'createdAt' | 'lastLoginAt' | 'displayName'; sortOrder?: 'asc' | 'desc'
 }
@@ -18,7 +19,7 @@ export interface UserActionEventDto {
 }
 export type AdminUserActivityDto = UserActionEventDto
 export interface AdminUserDetailDto {
-  user: AdminUserSummaryDto & { studentNo: string | null; teacherNo: string | null; updatedAt: string }
+  user: AdminUserSummaryDto & { studentNo?: string | null; teacherNo: string | null; updatedAt: string }
   security: {
     agreementVersion: string | null; agreementAcceptedAt: string | null; emailVerifiedAt: string | null
     passwordSet: boolean; activeSessions: number; lastLoginResult: string | null
@@ -28,6 +29,7 @@ export interface AdminUserDetailDto {
     revision: number; headline: string; bio: string; verifiedType: string; expertiseTopics: string[]
     postCount: number; commentCount: number; followerCount: number; followingCount: number; reportCount: number
   }
+  verification: CampusIdentityVerificationDto
   activities: AdminUserActivityDto[]
   audits: Array<{ id: string; action: string; reason: string; createdAt: string }>
 }

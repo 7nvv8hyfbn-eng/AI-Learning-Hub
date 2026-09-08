@@ -11,8 +11,6 @@ import { useCommunityStore } from '../stores/community'
 import { useAuthStore } from '../stores/auth'
 import { mapSelectedResource, useResourcesStore } from '../stores/content/resources'
 import { resourceHubApi } from '../services/api/resourceHub'
-import RichEditPanel from '../community/coop/RichEditPanel.vue'
-import type { RichEditResult } from '../community/coop/coop-types'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,6 +18,9 @@ const community = useCommunityStore()
 const auth = useAuthStore()
 const legacyResources = useResourcesStore()
 const home = ref<ResourceHubHomeDto | null>(null)
+const primaryCategoryCodes = ['ai-foundation', 'lab-demo', 'model-deployment', 'agent-practice']
+const primaryCategories = computed(() => primaryCategoryCodes.flatMap((code) => home.value?.categories.filter((entry) => entry.code === code) || []))
+const moreCategories = computed(() => home.value?.categories.filter((entry) => entry.code !== 'uncategorized' && !primaryCategoryCodes.includes(entry.code)) || [])
 const results = ref<ResourceHubItemDto[]>([])
 const queryKind = ['video', 'article', 'document'].includes(String(route.query.kind)) ? String(route.query.kind) as ResourceContributionKind : 'all'
 const keyword = ref(typeof route.query.q === 'string' ? route.query.q : '')
@@ -47,21 +48,8 @@ const legacyPreviewOpen = computed({
     void router.replace({ query })
   },
 })
-/**
- * 「写图文」→ 在当前页弹出悬浮窗式富文本编辑面板(不跳路由,数据不离开页面)。
- * 面板保存返回时通过 onRichSave 拿到 { title, html, images }。
- */
-const richOpen = ref(false)
-const openRichEditor = () => {
-  richOpen.value = true
-}
-const onRichSave = (result: RichEditResult) => {
-  richOpen.value = false
-  // 演示环境:内容带回后打印;接入真实发布时在这里调用资源/社区提交接口
-  console.log('[写图文] 保存返回:', { title: result.title, htmlLength: result.html.length, images: result.images.length })
-  window.alert(`已保存返回(演示):标题「${result.title || '未填写'}」,内容 ${result.html.length} 字符`)
-}
 const publish = (value: ResourceContributionKind) => {
+  if (community.composerOpen) { community.openComposer(); return }
   community.openComposer({
     type: value === 'video' ? 'lab_result' : value === 'article' ? 'frontier_discussion' : 'note',
     title: '',
@@ -72,13 +60,13 @@ const publish = (value: ResourceContributionKind) => {
     status: 'published',
     contribution: { kind: value, tags: [], teachingReuseConsent: false },
   })
-  community.composerMode = 'advanced'
+  if (value !== 'article' && community.composerMode !== 'rich') community.composerMode = 'advanced'
   community.composerInline = false
 }
 const load = async () => {
   loading.value = true; error.value = ''
   try { home.value = await resourceHubApi.home() }
-  catch (cause) { error.value = cause instanceof Error ? cause.message : '资源中心读取失败' }
+  catch (cause) { error.value = cause instanceof Error ? cause.message : '教程中心读取失败' }
   finally { loading.value = false }
 }
 const syncFilters = async () => {
@@ -142,7 +130,7 @@ watch(legacySlug, async (slug) => {
 <template>
   <div class="page-container resource-hub-page">
     <header class="resource-hub-heading">
-      <div><h1>资源中心</h1><p>分享实践过程，沉淀可复用的高校 AI 学习资源</p></div>
+      <div><h1>教程中心</h1><p>分享实践过程，沉淀可复用的高校 AI 学习资源</p></div>
       <form class="resource-hub-search" role="search" @submit.prevent="search()">
         <AppIcon name="search" :size="17" />
         <input v-model="keyword" aria-label="搜索资源" placeholder="搜索视频、图文或资料…" />
@@ -170,15 +158,21 @@ watch(legacySlug, async (slug) => {
 
       <nav class="resource-category-nav" aria-label="资源分类">
         <button :class="{ active: !category }" @click="selectCategory('')"><AppIcon name="resource" :size="25" /><span>全部资源</span></button>
-        <button v-for="entry in home.categories.filter((value) => value.code !== 'uncategorized')" :key="entry.id" :class="{ active: category === entry.code }" @click="selectCategory(entry.code)"><AppIcon :name="entry.icon" :size="25" /><span>{{ entry.name }}</span></button>
+        <button v-for="entry in primaryCategories" :key="entry.id" :class="{ active: category === entry.code }" @click="selectCategory(entry.code)"><AppIcon :name="entry.icon" :size="25" /><span>{{ entry.name }}</span></button>
       </nav>
+      <details v-if="moreCategories.length" class="resource-category-more">
+        <summary><span class="when-closed">展开</span><span class="when-open">收起</span>其他分类</summary>
+        <div class="resource-category-options" aria-label="其他资源分类">
+          <button v-for="entry in moreCategories" :key="entry.id" :class="{ active: category === entry.code }" @click="selectCategory(entry.code)"><AppIcon :name="entry.icon" :size="18" /><span>{{ entry.name }}</span></button>
+        </div>
+      </details>
       <div class="resource-hub-toolbar">
         <div class="resource-kind-tabs" role="tablist" aria-label="内容形态">
           <button v-for="entry in [{ key: 'all', label: '全部' }, { key: 'video', label: '视频' }, { key: 'article', label: '图文' }, { key: 'document', label: '资料' }]" :key="entry.key" :class="{ active: kind === entry.key }" @click="selectKind(entry.key as typeof kind)">{{ entry.label }}</button>
         </div>
         <div class="resource-hub-contribute-actions" aria-label="资源投稿">
           <button class="button primary" @click="publish('video')"><AppIcon name="upload" :size="16" />上传视频</button>
-          <button class="button secondary" @click="openRichEditor()"><AppIcon name="edit" :size="16" />写图文</button>
+          <button class="button secondary" @click="publish('article')"><AppIcon name="edit" :size="16" />写图文</button>
           <button class="button secondary" @click="publish('document')"><AppIcon name="file" :size="16" />分享资料</button>
         </div>
       </div>
@@ -217,5 +211,4 @@ watch(legacySlug, async (slug) => {
   </div>
   <ResourcePreviewDialog v-model="legacyPreviewOpen" :resource="legacyPreview" :detail="legacyResources.selected?.slug === legacyPreview?.id ? legacyResources.selected : null" />
   <!-- 「写图文」悬浮窗式富文本编辑面板 -->
-  <RichEditPanel v-model="richOpen" @save="onRichSave" />
 </template>

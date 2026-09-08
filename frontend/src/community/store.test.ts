@@ -1,15 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import type { CommunityFeedDto, CommunityPostDetailDto } from '@ai-learning-hub/contracts'
+import { communityOperations, type CommunityEligibilityDto, type CommunityFeedDto, type CommunityPostDetailDto } from '@ai-learning-hub/contracts'
 import { MAX_FEED_CACHES, MAX_FEED_ITEMS, useCommunityStore } from '../stores/community'
 import { communityApi } from '../services/api/community'
 import { mockCommunity, resetCommunityMock } from '../services/api/community.mock'
 
-vi.mock('../services/api/community', () => ({ communityApi: { feed: vi.fn(), context: vi.fn(), post: vi.fn(), follow: vi.fn(), following: vi.fn(), reaction: vi.fn() } }))
-beforeEach(() => { setActivePinia(createPinia()); vi.resetAllMocks(); resetCommunityMock() })
+vi.mock('../services/api/community', () => ({ communityApi: { feed: vi.fn(), context: vi.fn(), eligibility: vi.fn(), post: vi.fn(), follow: vi.fn(), following: vi.fn(), reaction: vi.fn() } }))
+beforeEach(() => {
+  setActivePinia(createPinia()); vi.resetAllMocks(); resetCommunityMock()
+  const allowed = { allowed: true, reasonCode: null, message: null, availableAt: null, nextAction: null }
+  vi.mocked(communityApi.eligibility).mockResolvedValue({ canRead: true, canPost: true, canComment: true, canUpload: true, operations: Object.fromEntries(communityOperations.map((operation) => [operation, allowed])), evaluatedAt: new Date(0).toISOString() } as CommunityEligibilityDto)
+})
 const postFixture = () => mockCommunity<CommunityPostDetailDto>('/posts/community-note-1', 'GET')
 const page = (posts: CommunityPostDetailDto[], cursor = 'stable-cursor'): CommunityFeedDto => ({ requestId: 'stable-session', policyVersion: 'v1', items: posts.map((post) => ({ type: 'post', id: post.id, post })), nextCursor: cursor, degraded: false })
 describe('社区账号状态隔离', () => {
+  it('待复核投稿不插入公开流，旧公开缓存撤出且不伪造发布成功', async () => {
+    const store = useCommunityStore(), post = await postFixture()
+    vi.mocked(communityApi.feed).mockResolvedValue(page([post]))
+    await store.loadFeed('latest', 'all'); await store.loadFeed('for_you', 'all')
+    store.openComposer()
+    store.published({ ...post, status: 'pending_review' })
+    expect(Object.values(store.feeds).every((feed) => !feed.items.some((item) => item.id === post.id) && !feed.publishedPosts.some((item) => item.id === post.id))).toBe(true)
+    expect(store.publishNotice?.text).toContain('尚未公开')
+    expect(store.publishNotice?.text).not.toContain('发布成功')
+  })
+  it('warn不改动正文，发布提示解释命中但不重复堆叠', async () => {
+    const store = useCommunityStore(), post = await postFixture()
+    store.published({ ...post, detection: { action: 'warn', ruleVersion: 1, mediaReview: 'not_performed', hits: [{ ruleId: 'synthetic', field: 'postBody', category: 'spam', action: 'warn', explanation: '请确认资源授权' }] } })
+    expect(store.publishNotice?.text).toContain('提醒：请确认资源授权')
+    expect(post.body).not.toContain('请确认资源授权')
+  })
   it('登出清空游标、滚动位置、草稿、未读与旧请求，迟到响应不恢复状态', async () => {
     const store = useCommunityStore()
     let resolve!: (value: CommunityFeedDto) => void

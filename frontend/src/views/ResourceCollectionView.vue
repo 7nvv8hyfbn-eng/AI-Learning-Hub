@@ -4,15 +4,20 @@ import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import AppIcon from '../components/base/AppIcon.vue'
 import ResourceHubCard from '../components/ResourceHubCard.vue'
+import CommunityReportDialog from '../community/CommunityReportDialog.vue'
 import { resourceHubApi } from '../services/api/resourceHub'
+import { useCommunityAccess } from '../community/composables/useCommunityAccess'
+import { contentDetectionNotice } from '../community/labels'
 
 const route = useRoute()
 const collection = ref<LearningCollectionDto | null>(null)
 const error = ref('')
-const notice = ref('')
+const notice = ref(''), reportOpen = ref(false)
+const { requireWrite } = useCommunityAccess()
 const load = async () => { try { collection.value = await resourceHubApi.collection(String(route.params.collectionId)); error.value = '' } catch (cause) { error.value = cause instanceof Error ? cause.message : '合集读取失败' } }
 const move = async (index: number, step: number) => {
   if (!collection.value) return
+  if (collection.value.visibility === 'community' && !requireWrite('collection')) return
   const next = [...collection.value.items], target = index + step
   if (target < 0 || target >= next.length) return
   ;[next[index], next[target]] = [next[target], next[index]]
@@ -21,10 +26,12 @@ const move = async (index: number, step: number) => {
 }
 const remove = async (itemId: string) => {
   if (!collection.value) return
+  if (collection.value.visibility === 'community' && !requireWrite('collection')) return
   try { collection.value = await resourceHubApi.removeFromCollection(collection.value.id, itemId); notice.value = '已移出合集'; error.value = '' }
   catch (cause) { error.value = cause instanceof Error ? cause.message : '移出合集失败' }
 }
 const share = async () => {
+  if (!collection.value || collection.value.visibility !== 'community' || collection.value.contentStatus === 'pending_review') return
   try {
     if (navigator.share) await navigator.share({ title: collection.value?.name || '学习合集', url: location.href })
     else { await navigator.clipboard.writeText(location.href); notice.value = '合集链接已复制' }
@@ -33,4 +40,4 @@ const share = async () => {
 onMounted(load)
 </script>
 
-<template><section class="page-container resource-collection-page"><div class="resource-collection-toolbar"><RouterLink class="resource-detail-back" to="/resources"><i class="resource-direction-arrow back" aria-hidden="true" />返回资源中心</RouterLink><button class="button secondary small" @click="share"><AppIcon name="lab-share" :size="15" />分享合集</button></div><p v-if="error" class="community-error">{{ error }}</p><p v-if="notice" class="community-notice">{{ notice }}</p><template v-if="collection"><header><span>{{ collection.visibility === 'private' ? '私有合集' : '社区学习合集' }}</span><h1>{{ collection.name }}</h1><p>{{ collection.description || collection.learningGoal || '按自己的顺序整理可复用的学习内容。' }}</p><small>{{ collection.itemCount }} 项<span v-if="collection.videoCount"> · {{ collection.videoCount }} 个视频 · {{ Math.ceil(collection.durationSeconds / 60) }} 分钟</span></small></header><div v-if="collection.items.length" class="resource-collection-list"><article v-for="(entry, index) in collection.items" :key="entry.id"><b>{{ index + 1 }}</b><ResourceHubCard :item="entry.contribution" variant="compact" /><div v-if="collection.isOwner" class="resource-collection-order"><button aria-label="上移" :disabled="index === 0" @click="move(index, -1)"><i class="resource-direction-arrow up" aria-hidden="true" /></button><button aria-label="下移" :disabled="index === collection.items.length - 1" @click="move(index, 1)"><i class="resource-direction-arrow down" aria-hidden="true" /></button><button aria-label="移出合集" @click="remove(entry.id)"><AppIcon name="close" /></button></div></article></div><div v-else class="inline-empty"><h2>这个合集还没有内容</h2><RouterLink class="button primary" to="/resources">去发现资源</RouterLink></div></template></section></template>
+<template><section class="page-container resource-collection-page"><div class="resource-collection-toolbar"><button v-if="collection?.visibility === 'community' && !collection.isOwner" class="button secondary small" @click="requireWrite('report') && (reportOpen = true)">举报合集</button><RouterLink class="resource-detail-back" to="/resources"><i class="resource-direction-arrow back" aria-hidden="true" />返回教程中心</RouterLink><button v-if="collection?.visibility === 'community' && collection.contentStatus !== 'pending_review'" class="button secondary small" @click="share"><AppIcon name="lab-share" :size="15" />分享合集</button></div><p v-if="error" class="community-error">{{ error }}</p><p v-if="notice" class="community-notice">{{ notice }}</p><template v-if="collection"><p v-if="contentDetectionNotice(collection.detection) || collection.contentStatus === 'pending_review'" class="community-notice" role="status">{{ contentDetectionNotice(collection.detection) || '合集已保存，等待人工复核，尚未公开。' }}</p><header><span>{{ collection.visibility === 'private' ? '私有合集' : '社区学习合集' }}</span><h1>{{ collection.name }}</h1><p>{{ collection.description || collection.learningGoal || '按自己的顺序整理可复用的学习内容。' }}</p><small>{{ collection.itemCount }} 项<span v-if="collection.videoCount"> · {{ collection.videoCount }} 个视频 · {{ Math.ceil(collection.durationSeconds / 60) }} 分钟</span></small></header><div v-if="collection.items.length" class="resource-collection-list"><article v-for="(entry, index) in collection.items" :key="entry.id"><b>{{ index + 1 }}</b><ResourceHubCard :item="entry.contribution" variant="compact" /><div v-if="collection.isOwner" class="resource-collection-order"><button aria-label="上移" :disabled="index === 0" @click="move(index, -1)"><i class="resource-direction-arrow up" aria-hidden="true" /></button><button aria-label="下移" :disabled="index === collection.items.length - 1" @click="move(index, 1)"><i class="resource-direction-arrow down" aria-hidden="true" /></button><button aria-label="移出合集" @click="remove(entry.id)"><AppIcon name="close" /></button></div></article></div><div v-else class="inline-empty"><h2>这个合集还没有内容</h2><RouterLink class="button primary" to="/resources">去发现资源</RouterLink></div></template><CommunityReportDialog v-if="collection" v-model="reportOpen" target-type="collection" :target-id="collection.id" @submitted="notice = '举报已提交。'" /></section></template>

@@ -55,6 +55,11 @@ services:
         condition: service_completed_successfully
 
   server:
+    init: true
+    cpus: 2.0
+    mem_limit: 2g
+    pids_limit: 128
+    stop_grace_period: 30s
     image: ai-learning-hub-server:local
     build: *server-build
     restart: unless-stopped

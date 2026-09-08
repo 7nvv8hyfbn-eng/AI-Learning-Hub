@@ -1,133 +1,106 @@
 <script setup lang="ts">
-/**
- * BaseRichEditor —— 公共富文本编辑器组件(wangEditor V5)
- *
- * 职责:
- * 1. 固定工具栏按钮顺序(与设计稿图2完全一致):
- *    加粗B、斜体I、标题H、有序列表、无序列表、撤销、重做、代码块、链接、图片、表格、分割线、表情
- * 2. 图片统一入口:点击上传 / 粘贴 / 拖拽 都走 customUpload 校验(最多 4 张、单张 ≤5MB);
- * 3. XSS 白名单过滤(DOMPurify):页面只能通过 getSanitizedHtml() 拿净化后的 HTML;
- * 4. 组件卸载时 editor.destroy() 防止内存泄漏。
- */
 import '@wangeditor/editor/dist/css/style.css'
 import { onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import type { IDomEditor, IEditorConfig, IToolbarConfig } from '@wangeditor/editor'
 import { sanitizeRichHtml } from './sanitize'
+import { richHtmlToBlocks, blocksToRichHtml } from './rich-blocks'
+import { communityApi } from '../../services/api/community'
+import { useCommunityDraft } from '../composables/useCommunityDraft'
+import { useCommunityAccess } from '../composables/useCommunityAccess'
+import { useAuthStore } from '../../stores/auth'
 
-const props = withDefaults(defineProps<{
-  /** 初始 HTML(用于回填) */
-  defaultHtml?: string
-  /** 编辑区占位文字 */
-  placeholder?: string
-  /** 图片数量上限 */
-  maxImages?: number
-}>(), {
-  defaultHtml: '',
-  placeholder: '在此处输入您的帖子内容，拖放图像',
-  maxImages: 4,
-})
-
-const emit = defineEmits<{ created: [editor: IDomEditor]; change: [editor: IDomEditor] }>()
-
-// 官方要求:编辑器实例用 shallowRef,避免 Vue 深层响应式代理导致性能问题
-const editorRef = shallowRef<IDomEditor | null>(null)
-const htmlValue = ref(props.defaultHtml)
-
-// 工具栏按钮顺序严格对齐设计稿图2
+const emit = defineEmits<{ change: [editor: IDomEditor] }>()
+const editorRef = shallowRef<IDomEditor | null>(null), htmlValue = ref('')
+const draft = useCommunityDraft(), auth = useAuthStore()
+const { requireWrite } = useCommunityAccess()
+const imageIds = new Map<string, string>()
+let disposed = false, hydrating = false, lastBlocks = ''
+const owner = auth.user?.id
+const current = () => !disposed && owner === auth.user?.id
 const toolbarConfig: Partial<IToolbarConfig> = {
-  toolbarKeys: [
-    'bold',          // 加粗 B
-    'italic',        // 斜体 I
-    'headerSelect',  // 标题 H
-    'numberedList',  // 有序列表
-    'bulletedList',  // 无序列表
-    'undo',          // 撤销
-    'redo',          // 重做
-    'codeBlock',     // 代码块
-    'insertLink',    // 链接
-    'uploadImage',   // 图片
-    'insertTable',   // 表格
-    'divider',       // 分割线
-    'emotion',       // 表情
-  ],
+  toolbarKeys: ['bold', 'italic', 'headerSelect', 'numberedList', 'bulletedList', 'undo', 'redo', 'codeBlock', 'insertLink', 'uploadImage', 'insertTable', 'divider', 'emotion'],
 }
-
-/** 取编辑器纯文本(字数统计等使用) */
-const getText = (): string => editorRef.value?.getText() ?? ''
-
-/** 统计编辑器当前图片数量(插入前校验用;删除后名额自动释放) */
-const countImages = (): number => {
-  const html = editorRef.value?.getHtml() ?? ''
-  return (html.match(/<img\s/g) || []).length
+const getSanitizedHtml = () => sanitizeRichHtml(editorRef.value?.getHtml() || '')
+const updateBlocks = () => {
+  if (hydrating || !current()) return
+  try {
+    const blocks = richHtmlToBlocks(getSanitizedHtml(), imageIds)
+    lastBlocks = JSON.stringify(blocks)
+    draft.richBlocks = blocks
+    draft.richError = ''
+  } catch (cause) { draft.richError = (cause as Error).message; draft.error = draft.richError }
 }
-
 const editorConfig: Partial<IEditorConfig> = {
-  placeholder: props.placeholder,
-  scroll: true,
-  // 注意:onChange/onCreated 等回调不能放在 config 里 —— @wangeditor/editor-for-vue 的封装
-  // 组件会用内部实现覆盖它们,并在检测到时直接抛错。内容变化监听改用 v-model(htmlValue)的 watch。
-  MENU_CONF: {
-    uploadImage: {
-      /**
-       * 自定义上传:点击「图片」按钮、粘贴、拖拽三种方式都会进入这里,校验只写这一处。
-       * 本地演示:生成 blob 预览地址(SPA 内路由跳转不销毁文档,地址始终有效)。
-       * 生产环境:改为调用后端上传接口(如 /api/v1/community/media),用返回的 URL 调 insertFn。
-       */
-      customUpload(file: File, insertFn: (url: string, alt?: string, href?: string) => void) {
-        if (!file.type.startsWith('image/')) { window.alert('只能上传图片文件'); return }
-        if (file.size > 5 * 1024 * 1024) { window.alert('单张图片不能超过 5MB'); return }
-        if (countImages() >= props.maxImages) { window.alert(`图片最多 ${props.maxImages} 张`); return }
-        insertFn(URL.createObjectURL(file), file.name)
-      },
+  placeholder: '在此处输入您的帖子内容，拖放图像', scroll: true,
+  hoverbarKeys: { image: { menuKeys: ['imageWidth30', 'imageWidth50', 'imageWidth100', 'deleteImage'] } },
+  MENU_CONF: { uploadImage: {
+    async customUpload(file: File, insertFn: (url: string, alt?: string) => void) {
+      if (draft.saving || !requireWrite('upload')) return
+      if ((editorRef.value?.getHtml().match(/<img\s/g) || []).length >= 4) { draft.error = '图片最多 4 张'; return }
+      draft.saving = true; draft.error = ''
+      try {
+        const row = await communityApi.upload(file)
+        if (!current()) return
+        const url = URL.createObjectURL(file)
+        imageIds.set(url, row.id)
+        // 禁用编辑器期间先恢复选择与插入，再由保存锁保护后续操作。
+        editorRef.value?.enable()
+        insertFn(url, file.name)
+        updateBlocks()
+      } catch (cause) { if (current()) draft.error = cause instanceof Error ? cause.message : '图片上传失败，请重试' }
+      finally { if (current()) draft.saving = false }
     },
-  },
+  } },
 }
-
-const handleCreated = (editor: IDomEditor) => {
-  editorRef.value = editor
-  emit('created', editor)
+const restoreBlocks = async () => {
+  if (!editorRef.value || JSON.stringify(draft.richBlocks || []) === lastBlocks) return
+  hydrating = true; draft.saving = true
+  const blocks = JSON.parse(JSON.stringify(draft.richBlocks || [])) as NonNullable<typeof draft.richBlocks>
+  try {
+    const urls = new Map(Array.from(imageIds, ([url, id]) => [id, url]))
+    for (const block of blocks) {
+      if (block.type !== 'image' || urls.has(block.fileId)) continue
+      const url = await communityApi.image(block.fileId)
+      if (!current()) { URL.revokeObjectURL(url); return }
+      urls.set(block.fileId, url); imageIds.set(url, block.fileId)
+    }
+    if (!current()) return
+    editorRef.value.enable()
+    editorRef.value.setHtml(blocksToRichHtml(blocks, urls))
+    lastBlocks = JSON.stringify(blocks)
+    draft.richError = ''
+  } catch (cause) { if (current()) { draft.richError = '图片或草稿读取失败，请关闭后重试，原稿已保留'; draft.error = cause instanceof Error ? cause.message : draft.richError } }
+  finally { hydrating = false; if (current()) draft.saving = false }
 }
-
-// 内容变化(v-model 同步)→ 通知父组件(字数统计等使用)。
-// 封装组件的 onChange 被内部占用,所以走 v-model 数据流,这是最可靠的变化信号。
-watch(htmlValue, () => {
-  const editor = editorRef.value
-  if (editor) emit('change', editor)
-})
-
-/**
- * 取当前编辑器的完整 HTML 并做前端 XSS 白名单过滤。
- * ⚠️ 安全要求:DOMPurify 只是前端第一道防线,后端入库前必须再做一层服务端 XSS 过滤(如 sanitize-html)!
- */
-const getSanitizedHtml = (): string => sanitizeRichHtml(editorRef.value?.getHtml() ?? '')
-
-/**
- * 用一段 HTML 替换编辑器全部内容(Markdown 导入等场景使用)。
- * 传入的 HTML 应已通过 getSanitizedHtml 同等规则过滤。
- */
+const handleCreated = (editor: IDomEditor) => { editorRef.value = editor; void restoreBlocks() }
+const customPaste = (_editor: IDomEditor, event: ClipboardEvent, callback: (allow: boolean) => void) => {
+  try { richHtmlToBlocks(event.clipboardData?.getData('text/html') || '', imageIds); callback(true) }
+  catch (cause) { draft.error = (cause as Error).message; callback(false) }
+}
+watch(() => draft.richBlocks, () => { void restoreBlocks() }, { deep: true })
+watch(() => draft.saving, (busy) => busy ? editorRef.value?.disable() : editorRef.value?.enable())
+watch(htmlValue, () => { if (editorRef.value) { updateBlocks(); emit('change', editorRef.value) } })
 const replaceWithHtml = (html: string) => {
-  const editor = editorRef.value
-  if (editor == null) return
-  editor.clear()
-  editor.dangerouslyInsertHtml(html)
+  const clean = sanitizeRichHtml(html)
+  richHtmlToBlocks(clean, imageIds)
+  editorRef.value?.setHtml(clean)
+  updateBlocks()
 }
-
-// 组件卸载时销毁编辑器,防止内存泄漏
 onBeforeUnmount(() => {
-  const editor = editorRef.value
-  if (editor == null) return
-  editor.destroy()
+  disposed = true
+  for (const url of imageIds.keys()) URL.revokeObjectURL(url)
+  imageIds.clear()
+  editorRef.value?.destroy()
   editorRef.value = null
 })
-
-defineExpose({ getSanitizedHtml, countImages, replaceWithHtml, getText, editorRef })
+defineExpose({ getSanitizedHtml, replaceWithHtml })
 </script>
 
 <template>
   <div class="base-rich-editor">
     <Toolbar class="rich-toolbar" :editor="editorRef" :defaultConfig="toolbarConfig" mode="default" />
-    <Editor class="rich-content" v-model="htmlValue" :defaultConfig="editorConfig" mode="default" @onCreated="handleCreated" />
+    <Editor class="rich-content" v-model="htmlValue" :defaultConfig="editorConfig" mode="default" @onCreated="handleCreated" @customPaste="customPaste" />
   </div>
 </template>
 

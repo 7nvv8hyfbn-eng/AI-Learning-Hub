@@ -9,6 +9,7 @@ import { usePagedList } from '../../composables/usePagedList'
 import { usePermissionAction } from '../../composables/usePermissionAction'
 import { usePublishAction } from '../../composables/usePublishAction'
 import { api } from '../../services/api'
+import type { MediaRuntimeDto } from '@ai-learning-hub/contracts'
 
 const list = usePagedList('resources')
 const { result, keyword, status, dataOrigin, loading, error, selected } = list
@@ -32,9 +33,11 @@ const hubExpanded = ref(false)
 const hubCategories = ref<HubCategory[]>([])
 const hubConfig = ref<ResourceHubAdminConfigDto>({ revision: 0, bannerPostIds: [], sectionCategoryCodes: [] })
 const hubFailures = ref<Array<{ id: string; originalName: string; attempts: number; lastError: string | null; contribution: { postId: string; post: { title: string | null } } | null }>>([])
+const mediaRuntime = ref<MediaRuntimeDto | null>(null)
+const sizeLabel = (bytes: number) => `${(bytes / 1024 ** 3).toFixed(2)} GB`
 const hubReports = ref<Array<{ id: string; postId: string | null; reason: string; description: string; status: string; createdAt: string }>>([])
 const hubCollections = ref<HubCollection[]>([])
-const hubReason = ref('资源中心后台整理')
+const hubReason = ref('教程中心后台整理')
 const newCategory = reactive({ code: '', name: '', description: '', icon: 'resource', sortOrder: 100, active: true })
 const courseDrafts = reactive<Record<string, { title: string; slug: string }>>({})
 const themeOptions = ref<Array<{ databaseId: string; title: string }>>([])
@@ -92,15 +95,17 @@ watch(hubTab, async (tab) => {
   await loadHubItems()
 })
 const loadHub = async () => {
-  const [items, categories, config, failures, reports, collections] = await Promise.all([
+  const [items, categories, config, failures, reports, collections, runtime] = await Promise.all([
     api<Omit<HubItem, 'categoryId'>[]>(hubItemsPath()),
     api<HubCategory[]>('/admin/resource-hub/categories'),
     api<ResourceHubAdminConfigDto>('/admin/resource-hub/config'),
     api<typeof hubFailures.value>('/admin/resource-hub/processing-failures'),
     api<typeof hubReports.value>('/admin/resource-hub/reports').catch(() => []),
     api<HubCollection[]>('/admin/resource-hub/collections'),
+    api<MediaRuntimeDto>('/admin/resource-hub/media-runtime'),
   ])
   hubItems.value = items.map((item) => ({ ...item, categoryId: item.category?.id || '' })); hubCategories.value = categories; hubConfig.value = config; hubFailures.value = failures; hubReports.value = reports; hubCollections.value = collections
+  mediaRuntime.value = runtime
   for (const collection of collections) courseDrafts[collection.id] ||= { title: collection.name, slug: `collection-${collection.id.slice(-8).toLowerCase()}` }
 }
 const updateHubItem = async (item: HubItem) => {
@@ -110,7 +115,7 @@ const updateHubItem = async (item: HubItem) => {
 }
 const saveHubConfig = async () => {
   hubConfig.value = await api<ResourceHubAdminConfigDto>('/admin/resource-hub/config', { method: 'PATCH', body: JSON.stringify(hubConfig.value) })
-  ElMessage.success('资源中心首页配置已保存')
+  ElMessage.success('教程中心首页配置已保存')
 }
 const createHubCategory = async () => {
   await api('/admin/resource-hub/categories', { method: 'POST', body: JSON.stringify(newCategory) })
@@ -161,13 +166,22 @@ const restoreVersion = async (versionId: string) => {
   await list.load(list.result.value.page)
   ElMessage.success('已从历史版本生成新的资源草稿版本')
 }
-const publish = async () => { if (list.selected.value) { await publishing.publish(list.selected.value); await list.load(); ElMessage.success('资源已发布') } }
+const publish = async () => {
+  if (!list.selected.value) return
+  const result = await publishing.publish(list.selected.value)
+  await list.load()
+  if (result.status === 'reviewing') ElMessage.warning('资源已保存，等待人工复核，尚未公开；请到社区运营的内容复核中查看。')
+  else if (result.status === 'published') {
+    ElMessage.success('资源已发布')
+    if (result.detection?.action === 'warn') ElMessage.warning([...new Set(result.detection.hits.map(hit => hit.explanation))].join('；'))
+  } else ElMessage.warning('尚未确认资源发布状态，请刷新核对。')
+}
 const archive = async () => { if (list.selected.value) { await publishing.archive(list.selected.value); await list.load(); ElMessage.success('资源已下架') } }
 </script>
 
 <template><div class="resource-admin-page">
-  <nav class="resource-admin-tabs" aria-label="资源中心管理工作区"><button v-for="item in ([['legacy','旧资源'],['content','共创内容'],['home','首页配置'],['categories','分类'],['collections','合集与课程'],['processing','处理异常'],['reports','举报']] as const)" :key="item[0]" :class="{ active: hubTab === item[0] }" @click="hubTab = item[0]">{{ item[1] }}</button></nav>
-  <DomainPageShell v-if="hubTab === 'legacy'" content-type="resource" :category-key="fields.category" :data-origin="dataOrigin" @update:data-origin="list.dataOrigin.value = $event" @remove="drafts.removeDraft(selected, () => list.load())" v-model:dialog="dialog" title="资源中心管理" description="维护旧版资源文件、元数据、可见范围与关联内容" noun="资源" icon="resource" :result="result" :selected="selected" :keyword="keyword" :status="status" :loading="loading" :error="error" :can-write="canWrite" :can-publish="canPublish" @update:keyword="list.keyword.value = $event" @update:status="list.status.value = $event" @select="list.select" @page="list.load" @retry="list.load()" @create="create" @save="save" @publish="publish" @archive="archive">
+  <nav class="resource-admin-tabs" aria-label="教程中心管理工作区"><button v-for="item in ([['legacy','旧资源'],['content','共创内容'],['home','首页配置'],['categories','分类'],['collections','合集与课程'],['processing','处理异常'],['reports','举报']] as const)" :key="item[0]" :class="{ active: hubTab === item[0] }" @click="hubTab = item[0]">{{ item[1] }}</button></nav>
+  <DomainPageShell v-if="hubTab === 'legacy'" content-type="resource" :category-key="fields.category" :data-origin="dataOrigin" @update:data-origin="list.dataOrigin.value = $event" @remove="drafts.removeDraft(selected, () => list.load())" v-model:dialog="dialog" title="教程中心管理" description="维护旧版资源文件、元数据、可见范围与关联内容" noun="资源" icon="resource" :result="result" :selected="selected" :keyword="keyword" :status="status" :loading="loading" :error="error" :can-write="canWrite" :can-publish="canPublish" @update:keyword="list.keyword.value = $event" @update:status="list.status.value = $event" @select="list.select" @page="list.load" @retry="list.load()" @create="create" @save="save" @publish="publish" @archive="archive">
     <template #kpis><div class="kpi-grid"><AdminKpiCard icon="resource" label="资源总数" :value="result.total" color="#ff4d1f" /><AdminKpiCard icon="check" label="已发布" :value="result.items.filter((item) => item.status === 'published').length" color="#22b66c" /><AdminKpiCard icon="download" label="当前下载" :value="detail?.downloads ?? '—'" color="#7c4dff" /><AdminKpiCard icon="chart" label="当前浏览" :value="detail?.views ?? '—'" color="#3478f6" /></div></template>
     <template #detail><p v-if="detail?.file">{{ detail.file.name }} · {{ (detail.file.size / 1024 / 1024).toFixed(2) }} MB · {{ detail.file.mimeType }} · 上传人 {{ detail.uploadedBy?.displayName || '—' }}</p><p v-else>尚未绑定文件。</p></template>
     <template #editor>
@@ -210,8 +224,15 @@ const archive = async () => { if (list.selected.value) { await publishing.archiv
     </template>
 
     <template v-else-if="hubTab === 'processing'">
+      <template v-if="mediaRuntime">
+        <p>存储已用 {{ sizeLabel(mediaRuntime.capacity.site.usedBytes) }} · 已预留 {{ sizeLabel(mediaRuntime.capacity.site.reservedBytes + mediaRuntime.capacity.site.temporaryReservedBytes) }} · 剩余可分配 {{ sizeLabel(mediaRuntime.capacity.site.availableBytes) }} · 安全余量 {{ sizeLabel(mediaRuntime.capacity.site.minimumFreeBytes) }}</p>
+        <p>正在上传 {{ mediaRuntime.capacity.site.activeUploads }} 项；视频排队及处理中 {{ mediaRuntime.capacity.site.queuedTasks }} 项。{{ mediaRuntime.capacity.unavailableReason }}</p>
+        <p>恶意文件扫描：{{ mediaRuntime.scan.configured ? '已配置' : '不可用，未执行扫描' }}；未扫描 {{ mediaRuntime.scan.unavailableFiles }} 个，隔离 {{ mediaRuntime.scan.quarantinedFiles }} 个；安全清理待重试 {{ mediaRuntime.cleanup.pending }} 项。</p>
+        <div class="resource-admin-list"><article v-for="item in mediaRuntime.queue" :key="item.id"><div><strong>{{ item.originalName }}</strong><small>{{ { uploaded: '排队中', processing: '处理中', failed: '失败' }[item.status] || item.status }} · 已尝试 {{ item.attempts }} 次 · {{ item.lastError }}<span v-if="item.leaseExpiresAt"> · 租约至 {{ new Date(item.leaseExpiresAt).toLocaleTimeString('zh-CN') }}</span></small></div><button v-if="item.retryable" class="admin-primary" :disabled="!canWrite" @click="retryHubVideo(item.id)">重试处理</button></article></div>
+        <p v-for="job in mediaRuntime.cleanup.failures" :key="job.id">清理尝试 {{ job.attempts }} 次：{{ job.lastError }}</p>
+      </template>
       <div><button class="admin-secondary" :disabled="!canWrite" @click="cleanupHubVideos">清理超过保留期的孤立上传</button></div>
-      <div class="resource-admin-list"><article v-for="item in hubFailures" :key="item.id"><div><strong>{{ item.contribution?.post.title || item.originalName }}</strong><small>已尝试 {{ item.attempts }} 次 · {{ item.lastError }}</small></div><button class="admin-primary" :disabled="!canWrite" @click="retryHubVideo(item.id)">重试处理</button></article></div><p v-if="!hubFailures.length">当前没有处理失败的视频。</p>
+      <p v-if="!mediaRuntime?.queue.length">当前没有待处理或失败的视频。</p>
     </template>
 
     <template v-else>

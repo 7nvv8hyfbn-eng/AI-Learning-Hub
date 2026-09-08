@@ -1,4 +1,14 @@
-import type { CommunityPostType } from '@ai-learning-hub/contracts'
+import type { CommunityPostType, ContentDetectionResult } from '@ai-learning-hub/contracts'
+export function contentDetectionNotice(result?: ContentDetectionResult) {
+  if (!result) return ''
+  if (result.review?.status === 'approved') return '本修订已通过复核；再次编辑后仍需重新检测。'
+  if (result.review?.status === 'rejected') return `复核未通过，内容尚未公开。${result.review.reason} 请修改后重新提交。`
+  if (result.review?.status === 'superseded') return '此检测记录已被新修订替代，请读取最新内容。'
+  const explanation = [...new Set(result.hits.map((hit) => hit.explanation))].join('；')
+  if (result.action === 'review') return `内容已保存，等待人工复核，尚未公开。${explanation}`
+  if (result.action === 'reject') return `内容未发布，请保留并修改当前输入。${explanation}`
+  return result.action === 'warn' ? `提醒：${explanation}` : ''
+}
 export const postLabels: Record<CommunityPostType, string> = { question: '学习问答', note: '学习笔记', lab_result: '实训成果', project: '创客项目', frontier_discussion: '前沿讨论', achievement: '学习成就', general: '学习交流' }
 export const badgeLabels = { none: '', teacher: '认证教师', official: '官方', mentor: '学习导师' }
 export const communityNavActive = (path: string, target: string) => {
@@ -17,9 +27,9 @@ export const relativeTime = (value: string, now = Date.now()) => {
 }
 export const communityNavigation = [
   { label: '社区首页', path: '/community', icon: 'message', desktop: true, mobile: true, mobileOrder: 1, requiresAuth: true },
-  { label: '学习主题', path: '/topics', icon: 'layers', desktop: true, mobile: true, mobileOrder: 2, requiresAuth: true },
+  { label: '教程中心', path: '/resources', icon: 'folder', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
+  { label: '通识基础', path: '/topics', icon: 'layers', desktop: true, mobile: true, mobileOrder: 2, requiresAuth: true },
   { label: '实训项目', path: '/labs', icon: 'terminal', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
-  { label: '资源中心', path: '/resources', icon: 'folder', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
   { label: 'AI 前沿', path: '/frontier', icon: 'sparkles', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
   { label: '挑战与测评', path: '/assessments', icon: 'trophy', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
   { label: '我的成长', path: '/profile', icon: 'chart', desktop: true, mobile: true, mobileOrder: 5, requiresAuth: true },

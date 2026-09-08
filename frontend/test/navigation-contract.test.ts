@@ -17,6 +17,28 @@ describe('声明式导航契约', () => {
     expect(layout).toContain('to="/welcome">查看品牌门户')
     expect(communityNavigation.find((item) => item.label === '社区首页')?.path).toBe('/community')
   })
+  it('只读提示直接使用顶层 computed，避免嵌套 ref 被当作真值', () => {
+    const layout = source('layouts/CommunityLayout.vue')
+    expect(layout).toContain('const { canPost, decision, message, nextAction } = useCommunityAccess()')
+    expect(layout).toContain('v-if="!canPost && route.path !== \'/community/verification\'"')
+    expect(layout).not.toContain('access.canWrite')
+  })
+  it('受限的发布器和上传入口保留草稿并展示解除时间与解决入口', () => {
+    for (const name of ['community/CommunityQuickComposer.vue', 'community/CommunityAdvancedComposer.vue']) {
+      const composer = source(name)
+      expect(composer).toContain('availability()')
+      expect(composer).toContain('nextAction.route')
+      expect(composer).toMatch(/草稿仍(?:会自动|可)保存/)
+    }
+    for (const name of ['community/CommunityComposerTools.vue', 'community/ResourceContributionFields.vue']) {
+      const upload = source(name)
+      expect(upload).toContain("availability('upload')")
+      expect(upload).toContain('uploadDecision.nextAction.route')
+      expect(upload).toContain('!uploadDecision.allowed')
+    }
+    const admin = readFileSync(new URL('../../admin-web/src/views/CommunityView.vue', import.meta.url), 'utf8')
+    expect(admin).toContain('开始时间<input v-model="restrictionForm.startsAt"')
+  })
   it('每条路由声明Meta，守卫不写Meta，移动导航不用数组下标', () => {
     const router = source('router.ts')
     for (const line of router.split('\n').filter((value) => value.trim().startsWith('{ path:'))) expect(line).toMatch(/meta: \{.*title:.*layout:.*requiresAuth:|meta: \{.*title:.*requiresAuth:.*layout:/)

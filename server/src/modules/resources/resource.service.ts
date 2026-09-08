@@ -5,12 +5,13 @@ import { PrismaService } from '../../prisma/prisma.service'
 import type { PageQueryDto } from '../../common/content/page-query.dto'
 import type { CreateResourceDto, UpdateResourceDto } from './resource.dto'
 import { lockFileReferences } from '../../common/persistence'
+import { ContentDetectionService } from '../community/content-detection.service'
 
 const dataFields = ['downloadPermission', 'difficulty', 'tags', 'coverAssetId', 'themeId', 'courseId', 'labId']
 
 @Injectable()
 export class ResourceService {
-  constructor(private readonly prisma: PrismaService, private readonly support: ContentSupportService) {}
+  constructor(private readonly prisma: PrismaService, private readonly support: ContentSupportService, private readonly detection: ContentDetectionService) {}
   remove(id: string, actorId: string) { return this.support.remove('resource', id, actorId) }
 
   private snapshot(snapshot: Prisma.JsonValue | null | undefined) {
@@ -27,7 +28,11 @@ export class ResourceService {
   }
 
   async list(query: PageQueryDto, publicOnly = false) {
-    const where = this.support.where(query, publicOnly)
+    const where: Prisma.ResourceWhereInput = this.support.where(publicOnly ? { ...query, keyword: '' } : query, publicOnly)
+    if (publicOnly) where.publishedVersion = { is: query.keyword ? { OR: [
+      { snapshot: { path: ['title'], string_contains: query.keyword, mode: 'insensitive' } },
+      { snapshot: { path: ['summary'], string_contains: query.keyword, mode: 'insensitive' } },
+    ] } : {} }
     const [items, total] = await this.prisma.$transaction([
       this.prisma.resource.findMany({ ...this.support.page(query), where, include: { publishedVersion: true } }),
       this.prisma.resource.count({ where }),
@@ -39,8 +44,8 @@ export class ResourceService {
         return {
           ...await this.support.render('resource', {
             ...item,
-            title: published?.title || item.title,
-            summary: published?.summary || item.summary,
+            title: publicOnly ? published?.title ?? '' : item.title,
+            summary: publicOnly ? published?.summary ?? '' : item.summary,
           }, !publicOnly, published?.data || this.support.data(item.payload), covers),
           category: published?.category || item.category,
           format: published?.format || item.format,
@@ -66,6 +71,7 @@ export class ResourceService {
       },
     })
     if (!item) throw new NotFoundException('资源不存在')
+    if (publicOnly && !item.publishedVersion) throw new NotFoundException('资源尚无有效发布版本')
     const published = publicOnly ? this.snapshot(item.publishedVersion?.snapshot) : null
     const publishedFile = publicOnly && published?.fileId
       ? await this.prisma.fileRecord.findUnique({ where: { id: published.fileId }, include: { uploader: { select: { id: true, displayName: true } } } })
@@ -74,8 +80,8 @@ export class ResourceService {
     return {
       ...await this.support.render('resource', {
         ...item,
-        title: published?.title || item.title,
-        summary: published?.summary || item.summary,
+        title: publicOnly ? published?.title ?? '' : item.title,
+        summary: publicOnly ? published?.summary ?? '' : item.summary,
       }, !publicOnly, published?.data || this.support.data(item.payload)),
       category: published?.category || item.category,
       format: published?.format || item.format,
@@ -101,7 +107,7 @@ export class ResourceService {
     const data = { coverAssetId: null, ...this.support.pick(input, dataFields) }
     const item = await this.prisma.$transaction(async (tx) => {
       await this.support.binding(tx, input.coverAssetId)
-      if (input.fileId && !await tx.fileRecord.count({ where: { id: input.fileId, OR: [{ uploadedBy: actorId }, { resources: { some: {} } }] } })) throw new BadRequestException('资源文件不存在或无权使用')
+      if (input.fileId && !await tx.fileRecord.count({ where: { id: input.fileId, quarantinedAt: null, OR: [{ uploadedBy: actorId }, { resources: { some: {} } }] } })) throw new BadRequestException('资源文件不存在、已隔离或无权使用')
       const resource = await tx.resource.create({
         data: {
           coverAssetId: input.coverAssetId || null,
@@ -132,7 +138,7 @@ export class ResourceService {
       const current = await tx.resource.findUnique({ where: { id, deletedAt: null } })
       if (!current) throw new NotFoundException('资源不存在')
       const data = { ...this.support.data(current.payload), ...this.support.pick(input, dataFields) }
-      if (input.fileId && !await tx.fileRecord.count({ where: { id: input.fileId, OR: [{ uploadedBy: actorId }, { resources: { some: {} } }] } })) throw new BadRequestException('资源文件不存在或无权使用')
+      if (input.fileId && !await tx.fileRecord.count({ where: { id: input.fileId, quarantinedAt: null, OR: [{ uploadedBy: actorId }, { resources: { some: {} } }] } })) throw new BadRequestException('资源文件不存在、已隔离或无权使用')
       const resource = await tx.resource.update({
         where: { id },
         data: {
@@ -168,12 +174,19 @@ export class ResourceService {
     const item = await this.prisma.$transaction(async (tx) => {
       await this.support.binding(tx, undefined)
       const draftId = published ? await this.ensureDraft(id, tx) : null
-      return tx.resource.update({ where: { id }, data: published
-        ? { status: PublishStatus.published, publishedAt: new Date(), publishedVersionId: draftId, version: { increment: 1 } }
+      const draft = draftId ? await tx.resourceVersion.findUniqueOrThrow({ where: { id: draftId } }) : null
+      const snapshot = this.snapshot(draft?.snapshot)
+      const detection = published ? await this.detection.check(tx, { resourceTitle: snapshot.title || '', resourceDescription: snapshot.summary || '', resourceTags: Array.isArray(snapshot.data.tags) ? snapshot.data.tags.filter((tag): tag is string => typeof tag === 'string').join('\n') : '' }) : null
+      const held = detection?.action === 'review'
+      const saved = await tx.resource.update({ where: { id }, data: published
+        ? held ? { status: PublishStatus.reviewing, publishedAt: null, version: { increment: 1 } } : { status: PublishStatus.published, publishedAt: new Date(), publishedVersionId: draftId, version: { increment: 1 } }
         : { status: PublishStatus.archived, version: { increment: 1 } } })
+      if (detection) await this.detection.record(tx, { type: 'resource', id, revision: saved.version, authorId: actorId, submittedById: actorId }, detection, { draftVersionId: draftId!, snapshot: draft!.snapshot as Prisma.InputJsonValue })
+      else await tx.contentReview.updateMany({ where: { targetType: 'resource', targetId: id, status: 'pending' }, data: { status: 'superseded' } })
+      return saved
     })
     await this.support.audit(actorId, published ? 'publish' : 'archive', 'resources', id)
-    return this.support.render('resource', item, true)
+    return { ...await this.support.render('resource', item, true), detection: await this.detection.result('resource', id, item.version) }
   }
 
   async restoreVersion(id: string, versionId: string, actorId: string) {

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { Prisma, PrismaClient } from '@prisma/client'
 import { lczCuratedPosts, type LczCuratedPost } from '@ai-learning-hub/demo-fixtures'
 
-const plainText = (post: LczCuratedPost) => post.adaptedBlocks.map((block) => block.type === 'code' ? block.code : block.type === 'image' ? block.alt || '' : block.text).join('\n')
+const plainText = (post: LczCuratedPost) => post.adaptedBlocks.map((block) => block.type === 'code' ? block.code : block.type === 'image' ? block.alt || '' : block.type === 'list' ? block.items.join('\n') : block.text).join('\n')
 
 export function validateLczCuratedPosts(posts: LczCuratedPost[] = lczCuratedPosts) {
   const expected: Record<LczCuratedPost['category'], number> = { llm: 5, agent: 5, media: 5, hardware: 5 }

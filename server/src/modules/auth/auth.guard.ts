@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt'
 import type { AuthRequest, AuthUser } from './auth.types'
 import { PrismaService } from '../../prisma/prisma.service'
 import { authUserDto, authUserInclude } from './auth.mapper'
+import { availableAccount } from '../community/governance-policy'
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -20,7 +21,7 @@ export class AuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException('登录状态已失效')
     }
-    const user = await this.prisma.user.findUnique({ where: { id: payload.id }, include: authUserInclude })
+    const user = await this.prisma.user.findUnique({ where: { id: payload.id, AND: [availableAccount()] }, include: authUserInclude })
     if (!user) throw new UnauthorizedException('登录状态已失效')
     if (user.status !== 'active') throw new UnauthorizedException('账号已禁用，请联系管理员')
     if ((payload.sessionVersion || 0) !== user.sessionVersion) throw new UnauthorizedException('会话已撤销，请重新登录')

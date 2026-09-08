@@ -1,25 +1,16 @@
 import { BadRequestException, Body, Controller, Delete, Get, Head, Headers, Param, Patch, Post, Put, Query, Res, StreamableFile, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
-import { FileInterceptor } from '@nestjs/platform-express'
-import { diskStorage } from 'multer'
-import { randomUUID } from 'node:crypto'
+import { ReservedUpload } from '../storage/reserved-upload.interceptor'
 import { rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import type { Response } from 'express'
 import { RawResponse } from '../../common/raw-response.decorator'
 import { AuthGuard } from '../auth/auth.guard'
 import { CurrentUser } from '../auth/current-user.decorator'
 import type { AuthUser } from '../auth/auth.types'
+import { CommunityUploadGuard } from '../community/visibility.service'
 import { Permissions } from '../auth/permissions.decorator'
 import { PermissionsGuard } from '../auth/permissions.guard'
 import { CollectionCourseDto, CollectionInputDto, CollectionItemDto, CollectionReorderDto, ContributionAdminDto, ResourceCategoryInputDto, ResourceHubConfigDto, ResourceHubQueryDto, WatchProgressDto } from './resource-hub.dto'
 import { parseSingleRange, ResourceHubService } from './resource-hub.service'
-
-const diskUpload = (maxMb: number) => FileInterceptor('file', {
-  storage: diskStorage({ destination: tmpdir(), filename: (_request, _file, done) => done(null, `aihub-upload-${randomUUID()}`) }),
-  limits: { fileSize: maxMb * 1024 * 1024, files: 1 },
-})
-const videoUpload = diskUpload(Math.max(1, Math.min(1024, Number(process.env.VIDEO_UPLOAD_MAX_MB || 1024))))
-const documentUpload = diskUpload(Math.max(1, Math.min(500, Number(process.env.RESOURCE_ATTACHMENT_MAX_MB || 100))))
 
 @Controller('resource-hub')
 @UseGuards(AuthGuard)
@@ -30,22 +21,25 @@ export class ResourceHubController {
   @Get('categories') categories() { return this.hub.categories() }
   @Get('items') list(@CurrentUser() user: AuthUser, @Query() query: ResourceHubQueryDto) { return this.hub.list(user.id, query) }
   @Get('studio') studio(@CurrentUser() user: AuthUser) { return this.hub.studio(user.id) }
+  @Get('capacity') capacity(@CurrentUser() user: AuthUser) { return this.hub.capacity(user.id) }
   @Get('creators/:userId') creator(@CurrentUser() user: AuthUser, @Param('userId') userId: string) { return this.hub.creator(user.id, userId) }
   @Get('contributions/:postId') detail(@CurrentUser() user: AuthUser, @Param('postId') postId: string) { return this.hub.detail(user.id, postId) }
 
   @Post('uploads/video')
-  @UseInterceptors(videoUpload)
-  async video(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File) {
+  @UseGuards(CommunityUploadGuard)
+  @UseInterceptors(ReservedUpload('video'))
+  async video(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File, @Headers('idempotency-key') key?: string) {
     if (!file?.path) throw new BadRequestException('请选择视频文件')
-    try { return await this.hub.uploadVideo(user.id, file) }
+    try { return await this.hub.uploadVideo(user.id, file, key) }
     finally { await rm(file.path, { force: true }) }
   }
 
   @Post('uploads/document')
-  @UseInterceptors(documentUpload)
-  async document(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File) {
+  @UseGuards(CommunityUploadGuard)
+  @UseInterceptors(ReservedUpload('document'))
+  async document(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File, @Headers('idempotency-key') key?: string) {
     if (!file?.path) throw new BadRequestException('请选择资料文件')
-    try { return await this.hub.uploadDocument(user.id, file) }
+    try { return await this.hub.uploadDocument(user.id, file, key) }
     finally { await rm(file.path, { force: true }) }
   }
 
@@ -55,7 +49,7 @@ export class ResourceHubController {
   @Put('videos/:id/progress') progress(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: WatchProgressDto) { return this.hub.progress(user.id, id, input) }
 
   @Get('collections') collections(@CurrentUser() user: AuthUser) { return this.hub.collections(user.id) }
-  @Post('collections') createCollection(@CurrentUser() user: AuthUser, @Body() input: CollectionInputDto) { return this.hub.createCollection(user.id, input) }
+  @Post('collections') createCollection(@CurrentUser() user: AuthUser, @Body() input: CollectionInputDto, @Headers('idempotency-key') key?: string) { return this.hub.createCollection(user.id, input, key) }
   @Get('collections/:id') collection(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.hub.collection(user.id, id) }
   @Patch('collections/:id') updateCollection(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: CollectionInputDto) { return this.hub.updateCollection(user.id, id, input) }
   @Post('collections/:id/items') add(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: CollectionItemDto) { return this.hub.addToCollection(user.id, id, input.postId) }
@@ -84,6 +78,7 @@ export class ResourceHubAdminController {
   updateCategory(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: ResourceCategoryInputDto) { return this.hub.updateCategory(user.id, id, input) }
 
   @Get('processing-failures') failures() { return this.hub.processingFailures() }
+  @Get('media-runtime') runtime() { return this.hub.mediaRuntime() }
   @Post('processing-failures/:id/retry') @Permissions('resource.write')
   retry(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.hub.retryVideo(user.id, id, true) }
   @Post('processing-orphans/cleanup') @Permissions('resource.write')
@@ -139,7 +134,7 @@ export class ResourceHubMediaController {
       'Content-Type': file.mimeType,
       'Content-Length': String(file.size),
       'Content-Disposition': 'inline',
-      'Cache-Control': 'private, max-age=300',
+      'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff',
     })
     response.once('close', () => file.stream.destroy())

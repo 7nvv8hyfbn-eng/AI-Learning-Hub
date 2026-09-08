@@ -1,5 +1,6 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, Inject, Param, Patch, Post, Put, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
-import { FileInterceptor } from '@nestjs/platform-express'
+import { CommunityGovernanceService } from './governance.service'
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Inject, Ip, Param, Patch, Post, Put, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
+import { ReservedUpload } from '../storage/reserved-upload.interceptor'
 import { PrismaService } from '../../prisma/prisma.service'
 import { AuthGuard } from '../auth/auth.guard'
 import { CurrentUser } from '../auth/current-user.decorator'
@@ -10,7 +11,7 @@ import { CommunityCommentService } from './comment.service'
 import { CommunityInteractionService } from './interaction.service'
 import { CommunityNotificationService } from './notification.service'
 import { CommunityContextService } from './context.service'
-import { CommunityVisibilityPolicyService } from './visibility.service'
+import { CommunityUploadGuard, CommunityVisibilityPolicyService } from './visibility.service'
 import { LearningFeedPipeline } from '../feed/feed.service'
 import { SignalsService } from '../signals/signals.service'
 import { STORAGE_SERVICE, StorageService } from '../storage/storage.types'
@@ -19,11 +20,13 @@ import { BindingDto, CommentDto, CommunityQueryDto, FeedbackDto, FeedUpdatesDto,
 import { OnboardingDto, SearchDto, UsernameDto } from './community.dto'
 import { CommunitySearchService } from './search.service'
 import type { CommunityDraftDto, CommunityPostInput } from '@ai-learning-hub/contracts'
+import { createHash } from 'node:crypto'
+import { reserveIdempotency } from '../../common/persistence'
 
 @Controller('community')
 @UseGuards(AuthGuard)
 export class CommunityController {
-  constructor(private readonly posts: CommunityPostService, private readonly comments: CommunityCommentService, private readonly interactions: CommunityInteractionService, private readonly notifications: CommunityNotificationService, private readonly context: CommunityContextService, private readonly feed: LearningFeedPipeline, private readonly visibility: CommunityVisibilityPolicyService, private readonly signals: SignalsService, private readonly prisma: PrismaService, @Inject(STORAGE_SERVICE) private readonly storage: StorageService, private readonly files: FileAccessService, private readonly searchService: CommunitySearchService) {}
+  constructor(private readonly governance: CommunityGovernanceService, private readonly posts: CommunityPostService, private readonly comments: CommunityCommentService, private readonly interactions: CommunityInteractionService, private readonly notifications: CommunityNotificationService, private readonly context: CommunityContextService, private readonly feed: LearningFeedPipeline, private readonly visibility: CommunityVisibilityPolicyService, private readonly signals: SignalsService, private readonly prisma: PrismaService, @Inject(STORAGE_SERVICE) private readonly storage: StorageService, private readonly files: FileAccessService, private readonly searchService: CommunitySearchService) {}
   @Get('search') search(@CurrentUser() user: AuthUser, @Query() input: SearchDto) { return this.searchService.search(user.id, input) }
   @Get('onboarding/schools') schools() { return this.prisma.school.findMany({ where: { status: 'active' }, select: { id: true, name: true, departments: { select: { id: true, name: true } } }, orderBy: { name: 'asc' } }) }
   @Post('onboarding') onboarding(@CurrentUser() user: AuthUser, @Body() input: OnboardingDto) { return this.context.onboarding(user.id, input) }
@@ -33,7 +36,7 @@ export class CommunityController {
   async drafts(@CurrentUser() user: AuthUser): Promise<CommunityDraftDto[]> {
     await this.visibility.viewer(user.id)
     const rows = await this.prisma.communityPost.findMany({ where: { authorId: user.id, status: 'draft', deletedAt: null }, include: { bindings: true, topics: true, contribution: true }, orderBy: { updatedAt: 'desc' }, take: 100 })
-    return rows.map((row) => ({ id: row.id, revision: row.revision, updatedAt: row.updatedAt.toISOString(), input: { expectedRevision: row.revision, type: row.postType, title: row.title || '', contentBlocks: row.contentBlocks as CommunityPostInput['contentBlocks'], bindings: row.bindings.map((ref) => ({ type: ref.targetType as CommunityPostInput['bindings'][number]['type'], id: ref.targetId })), topicIds: row.topics.map((ref) => ref.topicId), visibility: row.visibility, status: 'draft', ...(row.sourceType ? { sourceType: row.sourceType as CommunityPostInput['sourceType'], sourceId: row.sourceId! } : {}), ...(row.contribution ? { contribution: { kind: row.contribution.kind, categoryId: row.contribution.categoryId || undefined, tags: row.contribution.tags, teachingReuseConsent: row.contribution.teachingReuseConsent, sourceName: row.contribution.sourceName || undefined, sourceUrl: row.contribution.sourceUrl || undefined, videoAssetId: row.contribution.videoAssetId || undefined, attachmentFileId: row.contribution.attachmentFileId || undefined, coverFileId: row.contribution.coverFileId || undefined } } : {}) } }))
+    return rows.map((row) => ({ id: row.id, revision: row.revision, updatedAt: row.updatedAt.toISOString(), input: { expectedRevision: row.revision, type: row.postType, title: row.title || '', coverFileId: row.coverFileId, contentBlocks: row.contentBlocks as CommunityPostInput['contentBlocks'], bindings: row.bindings.map((ref) => ({ type: ref.targetType as CommunityPostInput['bindings'][number]['type'], id: ref.targetId })), topicIds: row.topics.map((ref) => ref.topicId), visibility: row.visibility, status: 'draft', ...(row.sourceType ? { sourceType: row.sourceType as CommunityPostInput['sourceType'], sourceId: row.sourceId! } : {}), ...(row.contribution ? { contribution: { kind: row.contribution.kind, categoryId: row.contribution.categoryId || undefined, tags: row.contribution.tags, teachingReuseConsent: row.contribution.teachingReuseConsent, sourceName: row.contribution.sourceName || undefined, sourceUrl: row.contribution.sourceUrl || undefined, videoAssetId: row.contribution.videoAssetId || undefined, attachmentFileId: row.contribution.attachmentFileId || undefined, coverFileId: row.contribution.coverFileId || undefined } } : {}) } }))
   }
   @Post('drafts') createDraft(@CurrentUser() user: AuthUser, @Body() input: PostDto, @Headers('idempotency-key') key?: string) { return this.posts.save(user.id, { ...input, status: 'draft' }, undefined, undefined, key) }
   private async ownDraft(userId: string, id: string) {
@@ -47,6 +50,7 @@ export class CommunityController {
     return { count: await this.prisma.communityPost.count({ where: { AND: [await this.visibility.where(user.id), { publishedAt: { gt: new Date(input.since) }, ...(input.type === 'all' ? {} : { postType: input.type }) }, ...(input.mode === 'following' ? [{ OR: [{ authorId: { in: following.map((row) => row.followeeId) } }, { topics: { some: { topic: { follows: { some: { userId: user.id } } } } } }] }] : [])] } }) }
   }
   @Get('context') getContext(@CurrentUser() user: AuthUser) { return this.context.context(user.id) }
+  @Get('eligibility') eligibility(@CurrentUser() user: AuthUser) { return this.visibility.eligibility(user.id) }
   @Get('bindings/context') bindingContext(@CurrentUser() user: AuthUser, @Query() input: BindingDto) { return this.context.bindingContext(user.id, input) }
   @Post('feed/impressions') impressions(@CurrentUser() user: AuthUser, @Body() input: ImpressionsDto) { return this.feed.impressions(user.id, input) }
   @Post('feed/dwell') dwell(@CurrentUser() user: AuthUser, @Body() input: ImpressionsDto) { return this.feed.impressions(user.id, input, true) }
@@ -81,25 +85,25 @@ export class CommunityController {
     return { recorded: true }
   }
   @Get('posts') list(@CurrentUser() user: AuthUser, @Query() query: CommunityQueryDto) { return this.posts.list(user.id, query) }
-  @Post('posts') create(@CurrentUser() user: AuthUser, @Body() input: PostDto, @Headers('idempotency-key') key?: string) { return this.posts.save(user.id, input, undefined, undefined, key) }
+  @Post('posts') create(@CurrentUser() user: AuthUser, @Body() input: PostDto, @Headers('idempotency-key') key: string | undefined, @Ip() ip: string) { return this.posts.save(user.id, input, undefined, undefined, key, ip) }
   @Get('posts/:id') detail(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.posts.detail(user.id, id) }
-  @Patch('posts/:id') edit(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: PostDto, @Headers('idempotency-key') key?: string) { return this.posts.save(user.id, input, id, undefined, key) }
+  @Patch('posts/:id') edit(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: PostDto, @Headers('idempotency-key') key: string | undefined, @Ip() ip: string) { return this.posts.save(user.id, input, id, undefined, key, ip) }
   @Post('posts/:id/unpublish') unpublish(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.posts.unpublish(user.id, id) }
   @Delete('posts/:id') remove(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.posts.remove(user.id, id) }
   @Get('posts/:id/comments') commentList(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.comments.list(user.id, id) }
-  @Post('posts/:id/comments') commentCreate(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: CommentDto, @Headers('idempotency-key') key?: string) { return this.comments.save(user.id, id, input, undefined, key) }
-  @Patch('comments/:id') async commentEdit(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: CommentDto, @Headers('idempotency-key') key?: string) {
+  @Post('posts/:id/comments') commentCreate(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: CommentDto, @Headers('idempotency-key') key: string | undefined, @Ip() ip: string) { return this.comments.save(user.id, id, input, undefined, key, ip) }
+  @Patch('comments/:id') async commentEdit(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: CommentDto, @Headers('idempotency-key') key: string | undefined, @Ip() ip: string) {
     const comment = await this.prisma.communityComment.findUnique({ where: { id } })
     if (!comment) throw new BadRequestException('评论不存在')
-    return this.comments.save(user.id, comment.postId, input, id, key)
+    return this.comments.save(user.id, comment.postId, input, id, key, ip)
   }
   @Delete('comments/:id') commentRemove(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.comments.remove(user.id, id) }
   @Post('questions/:postId/accept/:commentId') accept(@CurrentUser() user: AuthUser, @Param('postId') id: string, @Param('commentId') commentId: string) { return this.comments.accept(user.id, id, commentId) }
-  @Put('posts/:id/reactions/:type') react(@CurrentUser() user: AuthUser, @Param('id') id: string, @Param('type') type: CommunityReactionType) { return this.interactions.react(user.id, id, type, true) }
+  @Put('posts/:id/reactions/:type') react(@CurrentUser() user: AuthUser, @Param('id') id: string, @Param('type') type: CommunityReactionType, @Ip() ip: string) { return this.interactions.react(user.id, id, type, true, ip) }
   @Delete('posts/:id/reactions/:type') unreact(@CurrentUser() user: AuthUser, @Param('id') id: string, @Param('type') type: CommunityReactionType) { return this.interactions.react(user.id, id, type, false) }
-  @Put('comments/:id/like') likeComment(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.commentLike(user.id, id, true) }
+  @Put('comments/:id/like') likeComment(@CurrentUser() user: AuthUser, @Param('id') id: string, @Ip() ip: string) { return this.interactions.commentLike(user.id, id, true, ip) }
   @Delete('comments/:id/like') unlikeComment(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.commentLike(user.id, id, false) }
-  @Put('posts/:id/bookmark') bookmark(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.react(user.id, id, 'bookmark', true) }
+  @Put('posts/:id/bookmark') bookmark(@CurrentUser() user: AuthUser, @Param('id') id: string, @Ip() ip: string) { return this.interactions.react(user.id, id, 'bookmark', true, ip) }
   @Delete('posts/:id/bookmark') unbookmark(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.react(user.id, id, 'bookmark', false) }
   @Get('bookmarks') bookmarks(@CurrentUser() user: AuthUser, @Query() query: CommunityQueryDto) { return this.posts.list(user.id, query, { bookmarks: { some: { userId: user.id } } }) }
   @Get('users/:id') profile(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.context.profile(user.id, id) }
@@ -108,26 +112,28 @@ export class CommunityController {
   @Get('users/:id/following') following(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() query: ProfileRelationQueryDto) { return this.context.relations(user.id, id, 'following', query) }
   @Get('users/:id/posts') async userPosts(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() query: CommunityQueryDto) { const profile = await this.context.profile(user.id, id); return this.posts.list(user.id, query, { authorId: profile.id }, profile.id === user.id) }
   @Get('users/:id/answers') async answers(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() query: CommunityQueryDto) { const profile = await this.context.profile(user.id, id); return this.posts.list(user.id, query, { comments: { some: { authorId: profile.id, deletedAt: null, status: 'published' } } }) }
-  @Put('users/:id/follow') followUser(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.follow(user.id, id, false, true) }
+  @Put('users/:id/follow') followUser(@CurrentUser() user: AuthUser, @Param('id') id: string, @Ip() ip: string) { return this.interactions.follow(user.id, id, false, true, ip) }
   @Delete('users/:id/follow') unfollowUser(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.follow(user.id, id, false, false) }
   @Patch('profile') profileEdit(@CurrentUser() user: AuthUser, @Body() input: ProfileDto) { return this.context.updateProfile(user.id, input) }
   @Post('profile/avatar')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
-  avatar(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File, @Body() input: ProfileMediaDto) { return this.context.uploadProfileImage(user.id, 'avatar', file, input) }
+  @UseGuards(CommunityUploadGuard)
+  @UseInterceptors(ReservedUpload('image', 5 * 1024 * 1024))
+  avatar(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File, @Body() input: ProfileMediaDto, @Headers('idempotency-key') key?: string) { return this.context.uploadProfileImage(user.id, 'avatar', file, input, key) }
   @Delete('profile/avatar') removeAvatar(@CurrentUser() user: AuthUser, @Body() input: ProfileMediaDto) { return this.context.removeProfileImage(user.id, 'avatar', input) }
   @Post('profile/banner')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024, files: 1 } }))
-  banner(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File, @Body() input: ProfileMediaDto) { return this.context.uploadProfileImage(user.id, 'banner', file, input) }
+  @UseGuards(CommunityUploadGuard)
+  @UseInterceptors(ReservedUpload('image', 8 * 1024 * 1024))
+  banner(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File, @Body() input: ProfileMediaDto, @Headers('idempotency-key') key?: string) { return this.context.uploadProfileImage(user.id, 'banner', file, input, key) }
   @Delete('profile/banner') removeBanner(@CurrentUser() user: AuthUser, @Body() input: ProfileMediaDto) { return this.context.removeProfileImage(user.id, 'banner', input) }
   @Put('posts/:id/pin') pin(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: ProfilePinDto) { return this.context.pinPost(user.id, id, input.expectedProfileRevision) }
   @Delete('profile/pinned-post') unpin(@CurrentUser() user: AuthUser, @Body() input: ProfilePinDto) { return this.context.pinPost(user.id, null, input.expectedProfileRevision) }
   @Post('interests') interests(@CurrentUser() user: AuthUser, @Body() input: InterestsDto) { return this.context.interests(user.id, input.themeIds) }
   @Get('topics') topics(@CurrentUser() user: AuthUser) { return this.context.topics(user.id) }
   @Get('topics/:slug/posts') topicPosts(@CurrentUser() user: AuthUser, @Param('slug') slug: string, @Query() query: CommunityQueryDto) { return this.posts.list(user.id, query, { topics: { some: { topic: { slug, status: 'active' } } } }) }
-  @Put('topics/:id/follow') followTopic(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.follow(user.id, id, true, true) }
+  @Put('topics/:id/follow') followTopic(@CurrentUser() user: AuthUser, @Param('id') id: string, @Ip() ip: string) { return this.interactions.follow(user.id, id, true, true, ip) }
   @Delete('topics/:id/follow') unfollowTopic(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.follow(user.id, id, true, false) }
-  @Post('posts/:id/report') report(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: ReportDto) { return this.interactions.report(user.id, id, input) }
-  @Post('comments/:id/report') reportComment(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: ReportDto) { return this.interactions.report(user.id, id, input, true) }
+  @Post('posts/:id/report') report(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: ReportDto, @Ip() ip: string) { return this.governance.report(user.id, 'post', id, input, ip) }
+  @Post('comments/:id/report') reportComment(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: ReportDto, @Ip() ip: string) { return this.governance.report(user.id, 'comment', id, input, ip) }
   @Post('posts/:id/hide') hide(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.feedback(user.id, id, 'hide') }
   @Post('posts/:id/not-interested') notInterested(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.feedback(user.id, id, 'not_interested') }
   @Post('users/:id/mute') mute(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.feedback(user.id, id, 'mute_author') }
@@ -139,18 +145,34 @@ export class CommunityController {
   @Post('notifications/read-all') readAll(@CurrentUser() user: AuthUser) { return this.notifications.read(user.id) }
   @Post('notifications/:id/read') read(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.notifications.read(user.id, id) }
   @Post('media')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024, files: 1 } }))
-  async upload(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File) {
-    await this.visibility.viewer(user.id)
+  @UseGuards(CommunityUploadGuard)
+  @UseInterceptors(ReservedUpload('image', 5 * 1024 * 1024))
+  async upload(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File, @Headers('idempotency-key') key?: string) {
     if (!file || !['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype)) throw new BadRequestException('仅支持 PNG、JPEG、WebP 图片')
     const bytes = file.buffer
     const valid = file.mimetype === 'image/png' ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) : file.mimetype === 'image/jpeg' ? bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 : bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP'
     if (!valid) throw new BadRequestException('图片内容与 MIME 不匹配')
-    return this.storage.upload(file, { uploadedBy: user.id, visibility: 'private' })
+    const request = await reserveIdempotency(this.prisma, user.id, 'community-media-upload', key, { name: file.originalname, mimeType: file.mimetype, size: file.size, checksum: createHash('sha256').update(file.buffer).digest('hex') })
+    if (request.resourceId) {
+      const existing = await this.prisma.fileRecord.findFirst({ where: { id: request.resourceId, uploadedBy: user.id } })
+      if (!existing) throw new BadRequestException('原上传结果已失效，请重新选择文件')
+      return { id: existing.id, originalName: existing.originalName, mimeType: existing.mimeType, size: existing.size, checksum: existing.checksum }
+    }
+    let stored: Awaited<ReturnType<StorageService['upload']>> | null = null
+    try {
+      stored = await this.storage.upload(file, { uploadedBy: user.id, visibility: 'private' })
+      if (stored.securityScan?.quarantined) throw new BadRequestException(stored.securityScan.message || '图片已隔离')
+      await this.prisma.$transaction((tx) => request.complete(tx, stored!.id))
+      return stored
+    } catch (error) {
+      if (stored && !stored.securityScan?.quarantined) await this.storage.delete(stored.id).catch(() => undefined)
+      await request.cancel()
+      throw error
+    }
   }
   @Get('media/:id/url') async media(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const file = await this.files.assert(user.id, id)
     if (!file.mimeType.startsWith('image/')) throw new BadRequestException('不是图片')
-    return { url: file.storageDriver === 'local' ? `/api/v1/files/${id}/download` : await this.storage.getSignedUrl(id) }
+    return { url: `/api/v1/files/${encodeURIComponent(id)}/download` }
   }
 }

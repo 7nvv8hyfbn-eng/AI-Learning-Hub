@@ -5,6 +5,10 @@ body.community-layout-active { background: radial-gradient(circle at 92% 4%, rgb
 .community-shell.community-wide { grid-template-columns: var(--amc-sidebar-width) minmax(0, 1fr); }
 .community-shell.community-wide.sidebar-collapsed { max-width: var(--amc-shell-max); }
 .community-main { height: 100%; min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain; scrollbar-width: thin; scrollbar-gutter: stable; scroll-padding-top: 126px; overflow-anchor: none; }
+.community-verification-banner { display: flex; align-items: center; justify-content: space-between; gap: 14px; width: min(calc(100% - 32px), 828px); margin: 16px auto 0; padding: 10px 14px; border: 1px solid var(--amc-border); border-radius: 12px; background: var(--amc-primary-soft); color: var(--amc-text-primary); }
+.community-verification-banner span { min-width: 0; }
+.community-verification-banner small { display: block; margin-top: 3px; color: var(--amc-text-secondary); }
+.community-verification-banner .button { flex: 0 0 auto; min-height: 34px; padding-block: 6px; }
 .community-wide .community-main { background: var(--amc-bg-page); }
 .community-wide .page-container, .community-wide .community-main > section:not(.page-container) { width: min(calc(100% - 48px), 1180px); margin-inline: auto; padding-block: 28px 56px; }
 .community-wide .community-main { container-type: inline-size; }

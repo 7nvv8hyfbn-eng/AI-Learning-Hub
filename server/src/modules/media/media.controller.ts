@@ -1,9 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, Inject, NotFoundException, Param, Patch, Post, Put, Query, Res, StreamableFile, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
-import { FileInterceptor } from '@nestjs/platform-express'
-import { createReadStream } from 'node:fs'
-import { access } from 'node:fs/promises'
-import path from 'node:path'
+import { ReservedUpload } from '../storage/reserved-upload.interceptor'
+import { CommunityVisibilityPolicyService } from '../community/visibility.service'
 import type { Response } from 'express'
 import type { MediaContentType } from '@ai-learning-hub/contracts'
 import { RawResponse } from '../../common/raw-response.decorator'
@@ -19,23 +16,23 @@ import { MediaDefaultDto, MediaQueryDto, MediaResolveDto, MediaUpdateDto, MediaU
 
 @Controller()
 export class MediaFileController {
-  constructor(private readonly media: MediaService, private readonly config: ConfigService, @Inject(STORAGE_SERVICE) private readonly storage: StorageService) {}
-  private async send(id: string, publicOnly: boolean, response: Response) {
+  constructor(private readonly media: MediaService, private readonly visibility: CommunityVisibilityPolicyService, @Inject(STORAGE_SERVICE) private readonly storage: StorageService) {}
+  private async send(id: string, publicOnly: boolean, response: Response, actorId?: string) {
     const asset = await this.media.record(id)
     if (publicOnly && (asset.status !== 'active' || asset.deletedAt || asset.file.visibility !== 'public')) throw new NotFoundException('素材不存在')
     const file = asset.file
-    response.set({ 'Content-Type': file.mimeType, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': publicOnly ? 'public, max-age=60, must-revalidate' : 'private, no-store', 'Content-Security-Policy': "default-src 'none'; sandbox", 'Cross-Origin-Resource-Policy': 'same-origin' })
-    if (file.storageDriver !== 'local') { response.redirect(await this.storage.getSignedUrl(file.id)); return }
-    const root = path.resolve(this.config.get('STORAGE_LOCAL_PATH') || './var/uploads'), target = path.resolve(root, file.objectKey)
-    if (!target.startsWith(`${root}${path.sep}`)) throw new NotFoundException('素材不存在')
-    try { await access(target) } catch { throw new NotFoundException('素材文件不可用') }
+    await this.visibility.assertMediaEligibility(file.uploadedBy)
+    if (actorId) { await this.visibility.assertMediaEligibility(actorId); await this.visibility.auditAdminRead(actorId, 'media_asset', id) }
+    response.set({ 'Content-Type': file.mimeType, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "default-src 'none'; sandbox", 'Cross-Origin-Resource-Policy': 'same-origin' })
+    const opened = await this.storage.open(file.id)
     response.set('Content-Length', String(file.size))
-    return new StreamableFile(createReadStream(target))
+    response.once('close', () => opened.stream.destroy())
+    return new StreamableFile(opened.stream)
   }
   @Get('public/media/:id') @RawResponse()
   publicFile(@Param('id') id: string, @Res({ passthrough: true }) response: Response) { return this.send(id, true, response) }
   @Get('admin/media-assets/:id/preview') @UseGuards(AuthGuard, PermissionsGuard) @Permissions('media.read') @RawResponse()
-  preview(@Param('id') id: string, @Res({ passthrough: true }) response: Response) { return this.send(id, false, response) }
+  preview(@Param('id') id: string, @Res({ passthrough: true }) response: Response, @CurrentUser() user: AuthUser) { return this.send(id, false, response, user.id) }
 }
 
 @Controller('admin')
@@ -46,7 +43,7 @@ export class AdminMediaController {
   @Get('media-assets/resolve') @Permissions('media.read')
   resolve(@Query() query: MediaResolveDto) { return this.resolver.resolve({ ...query, contentType: query.contentType as MediaContentType }) }
   @Post('media-assets/upload') @Permissions('media.write')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 5 } }))
+  @UseInterceptors(ReservedUpload('image', 5 * 1024 * 1024))
   upload(@UploadedFile() file: Express.Multer.File, @Body() input: MediaUploadDto, @CurrentUser() user: AuthUser) {
     if (!file) throw new BadRequestException('请选择图片')
     return this.media.upload(file, input, user)

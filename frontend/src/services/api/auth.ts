@@ -3,8 +3,8 @@ import type { AuthSessionDto, AuthUser, RegisterInput, RegistrationConfigDto } f
 export type StudentUser = AuthUser
 
 export const authApi = {
-  async login(email: string, password: string, remember = true) {
-    const result = await request<{ user: StudentUser; accessToken: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password, remember }) }, false)
+  async login(identifier: string, password: string, remember = true) {
+    const result = await request<{ user: StudentUser; accessToken: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ identifier, password, remember }) }, false)
     sessionStorage.setItem('student-access-token', result.accessToken)
     return result.user
   },

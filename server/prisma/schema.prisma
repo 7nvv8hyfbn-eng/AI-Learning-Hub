@@ -20,6 +20,13 @@ enum UserStatus {
   locked
 }
 
+enum CampusIdentityVerificationStatus {
+  pending
+  approved
+  rejected
+  revoked
+}
+
 enum LabType {
   agent
   deployment
@@ -110,6 +117,9 @@ model User {
   department                Department?                 @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   communityProfile          CommunityProfile?
   communityPosts            CommunityPost[]
+  authoredContentReviews    ContentReview[]             @relation("ContentReviewAuthor")
+  submittedContentReviews   ContentReview[]             @relation("ContentReviewSubmitter")
+  reviewedContentReviews    ContentReview[]             @relation("ContentReviewReviewer")
   communityComments         CommunityComment[]
   communityReactions        CommunityPostReaction[]
   communityCommentReactions CommunityCommentReaction[]
@@ -119,15 +129,24 @@ model User {
   communityTopicFollows     CommunityTopicFollow[]
   communityFeedback         CommunityFeedback[]
   videoAssets               VideoAsset[]
+  storageReservations       StorageReservation[]
   learningCollections       LearningCollection[]        @relation("LearningCollectionOwner")
   collectionCourseLinks     CollectionCourseReference[] @relation("CollectionCourseCreator")
+  communityRestrictions     CommunityOperationRestriction[] @relation("CommunityRestrictionUser")
+  restrictionsCreated       CommunityOperationRestriction[] @relation("CommunityRestrictionCreator")
+  restrictionsRevoked       CommunityOperationRestriction[] @relation("CommunityRestrictionRevoker")
   resourceWatchProgress     ResourceWatchProgress[]
   communityReports          CommunityReport[]
+  profileReports            CommunityReport[] @relation("ReportedProfile")
+  receivedModeration        CommunityModerationAction[] @relation("ModerationSubject")
+  communityAppeals          CommunityAppeal[]
   communityModeration       CommunityModerationAction[]
   communityImpressions      CommunityFeedImpression[]
   communityNotifications    UserNotification[]
   communitySignalSnapshot   UserFeedSignalSnapshot?
   communityFeedSessions     CommunityFeedSession[]
+  identityVerification      CampusIdentityVerification?  @relation("CampusIdentityOwner")
+  identityReviews           CampusIdentityVerification[]  @relation("CampusIdentityReviewer")
 
   @@index([status, createdAt])
   @@index([schoolId, status])
@@ -181,6 +200,33 @@ model RegistrationThrottle {
   @@map("registration_throttles")
 }
 
+model CampusIdentityVerification {
+  id                    String                           @id @default(cuid())
+  userId                String                           @unique @map("user_id")
+  realNameEncrypted     String                           @map("real_name_encrypted")
+  idNumberEncrypted     String                           @map("id_number_encrypted")
+  idNumberFingerprint   String                           @map("id_number_fingerprint")
+  idNumberLast4         String                           @map("id_number_last4")
+  className             String                           @map("class_name")
+  studentNo             String                           @map("student_no")
+  status                CampusIdentityVerificationStatus @default(pending)
+  submittedAt           DateTime                         @default(now()) @map("submitted_at")
+  reviewedAt            DateTime?                        @map("reviewed_at")
+  reviewedById          String?                          @map("reviewed_by_id")
+  reviewReason          String?                          @map("review_reason")
+  revision              Int                              @default(1)
+  createdAt             DateTime                         @default(now()) @map("created_at")
+  updatedAt             DateTime                         @updatedAt @map("updated_at")
+  user                   User                             @relation("CampusIdentityOwner", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy             User?                            @relation("CampusIdentityReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, submittedAt])
+  @@index([idNumberFingerprint])
+  @@index([studentNo, status])
+  @@index([reviewedAt])
+  @@map("campus_identity_verifications")
+}
+
 model Department {
   id       String @id @default(cuid())
   schoolId String @map("school_id")
@@ -210,13 +256,13 @@ model AuthIdentity {
 model LoginLog {
   id        String   @id @default(cuid())
   userId    String?  @map("user_id")
-  email     String
+  identifier String
   ipHash    String   @map("ip_hash")
   result    String
   createdAt DateTime @default(now()) @map("created_at")
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([email, createdAt])
+  @@index([identifier, createdAt])
   @@map("login_logs")
 }
 
@@ -814,6 +860,9 @@ model MediaGcJob {
   id        String   @id @default(cuid())
   fileId    String   @unique @map("file_id")
   createdAt DateTime @default(now()) @map("created_at")
+  attempts  Int      @default(0)
+  lastError String?  @map("last_error")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("media_gc_jobs")
 }
@@ -830,19 +879,52 @@ model FileRecord {
   visibility              String                 @default("private")
   uploadedBy              String                 @map("uploaded_by")
   createdAt               DateTime               @default(now()) @map("created_at")
+  reservationId           String?                @map("reservation_id")
+  scanStatus              String                 @default("not_scanned") @map("scan_status")
+  scanMessage             String?                @map("scan_message")
+  scannedAt               DateTime?              @map("scanned_at")
+  quarantinedAt           DateTime?              @map("quarantined_at")
+  reservation             StorageReservation?    @relation(fields: [reservationId], references: [id], onDelete: SetNull)
   uploader                User                   @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
   resources               Resource[]
   mediaAsset              MediaAsset?
   profileAvatars          CommunityProfile[]     @relation("CommunityProfileAvatar")
   profileBanners          CommunityProfile[]     @relation("CommunityProfileBanner")
   contributionCovers      ResourceContribution[] @relation("ResourceContributionCover")
+  communityPostCovers     CommunityPost[]        @relation("CommunityPostCover")
   contributionAttachments ResourceContribution[] @relation("ResourceContributionAttachment")
   videoSources            VideoAsset[]           @relation("VideoAssetSource")
   videoPlayableFiles      VideoAsset[]           @relation("VideoAssetPlayable")
   videoPosters            VideoAsset[]           @relation("VideoAssetPoster")
 
   @@index([checksum])
+  @@index([uploadedBy, storageDriver])
+  @@index([reservationId])
+  @@index([quarantinedAt])
   @@map("files")
+}
+
+model StorageReservation {
+  id               String      @id @default(cuid())
+  userId           String      @map("user_id")
+  storageDriver    String      @map("storage_driver")
+  kind             String
+  state            String      @default("uploading")
+  sourceLimit      BigInt      @map("source_limit")
+  playableLimit    BigInt      @default(0) @map("playable_limit")
+  remainingBytes   BigInt      @map("remaining_bytes")
+  temporaryBytes   BigInt      @map("temporary_bytes")
+  claimToken       String      @map("claim_token")
+  expiresAt        DateTime    @map("expires_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  user             User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  files            FileRecord[]
+  videoAsset       VideoAsset?
+
+  @@index([storageDriver, state, expiresAt])
+  @@index([userId, state])
+  @@map("storage_reservations")
 }
 
 model Resource {
@@ -1629,6 +1711,7 @@ enum CommunityPostType {
 
 enum CommunityPostStatus {
   draft
+  pending_review
   published
   limited
   hidden
@@ -1693,6 +1776,9 @@ model CommunityProfile {
 }
 
 model CommunityPost {
+  coverFileId     String?                 @map("cover_file_id")
+  coverFile       FileRecord?             @relation("CommunityPostCover", fields: [coverFileId], references: [id], onDelete: Restrict)
+  moderationActions CommunityModerationAction[]
   id              String                  @id @default(cuid())
   revision        Int                     @default(1)
   authorId        String                  @map("author_id")
@@ -1761,6 +1847,9 @@ model VideoAsset {
   audioCodec       String?                 @map("audio_codec")
   attempts         Int                     @default(0)
   claimedAt        DateTime?               @map("claimed_at")
+  claimToken       String?                 @map("claim_token")
+  leaseExpiresAt   DateTime?               @map("lease_expires_at")
+  reservationId    String?                 @unique @map("reservation_id")
   startedAt        DateTime?               @map("started_at")
   finishedAt       DateTime?               @map("finished_at")
   lastError        String?                 @map("last_error")
@@ -1768,6 +1857,7 @@ model VideoAsset {
   createdAt        DateTime                @default(now()) @map("created_at")
   updatedAt        DateTime                @updatedAt @map("updated_at")
   uploader         User                    @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+  reservation      StorageReservation?     @relation(fields: [reservationId], references: [id], onDelete: SetNull)
   sourceFile       FileRecord              @relation("VideoAssetSource", fields: [sourceFileId], references: [id], onDelete: Restrict)
   playableFile     FileRecord?             @relation("VideoAssetPlayable", fields: [playableFileId], references: [id], onDelete: Restrict)
   posterFile       FileRecord?             @relation("VideoAssetPoster", fields: [posterFileId], references: [id], onDelete: Restrict)
@@ -1775,6 +1865,7 @@ model VideoAsset {
   progress         ResourceWatchProgress[]
 
   @@index([status, claimedAt, createdAt])
+  @@index([status, leaseExpiresAt])
   @@index([uploaderId, createdAt])
   @@map("video_assets")
 }
@@ -1808,12 +1899,15 @@ model ResourceContribution {
 }
 
 model LearningCollection {
+  reports      CommunityReport[]
+  moderationActions CommunityModerationAction[]
   id           String                       @id @default(cuid())
   ownerId      String                       @map("owner_id")
   name         String
   description  String                       @default("")
   learningGoal String                       @default("") @map("learning_goal")
   visibility   LearningCollectionVisibility @default(private)
+  contentStatus String                      @default("published") @map("content_status")
   systemKind   String?                      @map("system_kind")
   revision     Int                          @default(1)
   createdAt    DateTime                     @default(now()) @map("created_at")
@@ -1901,6 +1995,7 @@ model CommunityQuestionState {
 }
 
 model CommunityComment {
+  moderationActions CommunityModerationAction[]
   id            String                     @id @default(cuid())
   revision      Int                        @default(1)
   postId        String                     @map("post_id")
@@ -2035,6 +2130,17 @@ model CommunityReport {
   reporterId  String            @map("reporter_id")
   postId      String?           @map("post_id")
   commentId   String?           @map("comment_id")
+  profileId   String?           @map("profile_id")
+  collectionId String?          @map("collection_id")
+  category    String            @default("other")
+  evidence    String[]          @default([])
+  contentRevision Int?          @map("content_revision")
+  revision    Int               @default(1)
+  assignedToId String?          @map("assigned_to_id")
+  claimedAt   DateTime?         @map("claimed_at")
+  dueAt       DateTime          @default(dbgenerated("(now() + '2 days'::interval)")) @map("due_at")
+  resultReason String           @default("") @map("result_reason")
+  actionId    String?           @map("action_id")
   targetKey   String            @map("target_key")
   reason      String
   description String            @default("")
@@ -2045,11 +2151,44 @@ model CommunityReport {
   post        CommunityPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
   comment     CommunityComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
   reporter    User              @relation(fields: [reporterId], references: [id], onDelete: Restrict)
+  profile     User?             @relation("ReportedProfile", fields: [profileId], references: [id], onDelete: Restrict)
+  collection  LearningCollection? @relation(fields: [collectionId], references: [id], onDelete: Restrict)
+  moderationAction CommunityModerationAction? @relation(fields: [actionId], references: [id], onDelete: Restrict)
 
   @@unique([reporterId, targetKey])
   @@index([status, createdAt])
   @@index([reporterId, createdAt])
   @@map("community_reports")
+}
+
+model ContentReview {
+  assignedToId String? @map("assigned_to_id")
+  claimedAt DateTime? @map("claimed_at")
+  dueAt DateTime @default(dbgenerated("(now() + '2 days'::interval)")) @map("due_at")
+  appeals CommunityAppeal[]
+  id              String   @id @default(cuid())
+  targetType      String   @map("target_type")
+  targetId        String   @map("target_id")
+  contentRevision Int      @map("content_revision")
+  ruleVersion     Int      @map("rule_version")
+  authorId        String   @map("author_id")
+  submittedById   String   @map("submitted_by_id")
+  action          String
+  status          String
+  findings        Json
+  payload         Json     @default("{}")
+  reviewedById    String?  @map("reviewed_by_id")
+  reason          String   @default("")
+  createdAt       DateTime @default(now()) @map("created_at")
+  reviewedAt      DateTime? @map("reviewed_at")
+  author          User     @relation("ContentReviewAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  submittedBy     User     @relation("ContentReviewSubmitter", fields: [submittedById], references: [id], onDelete: Restrict)
+  reviewedBy      User?    @relation("ContentReviewReviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  @@unique([targetType, targetId, contentRevision])
+  @@index([status, createdAt, id])
+  @@index([authorId, createdAt])
+  @@map("content_reviews")
 }
 
 model CommunityModerationAction {
@@ -2061,10 +2200,83 @@ model CommunityModerationAction {
   reason     String
   metadata   Json     @default("{}")
   createdAt  DateTime @default(now()) @map("created_at")
+  subjectId  String?  @map("subject_id")
+  postId     String?  @map("post_id")
+  commentId  String?  @map("comment_id")
+  collectionId String? @map("collection_id")
+  contentRevision Int? @map("content_revision")
+  ruleCode   String   @default("") @map("rule_code")
+  expiresAt  DateTime? @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  revokedById String? @map("revoked_by_id")
+  revokeReason String @default("") @map("revoke_reason")
+  revision   Int @default(1)
   actor      User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  subject    User? @relation("ModerationSubject", fields: [subjectId], references: [id], onDelete: Restrict)
+  post       CommunityPost? @relation(fields: [postId], references: [id], onDelete: Restrict)
+  comment    CommunityComment? @relation(fields: [commentId], references: [id], onDelete: Restrict)
+  collection LearningCollection? @relation(fields: [collectionId], references: [id], onDelete: Restrict)
+  reports CommunityReport[]
+  appeals CommunityAppeal[]
+  restriction CommunityOperationRestriction?
 
   @@index([targetType, targetId, createdAt])
+  @@index([subjectId, action, revokedAt, expiresAt])
+  @@index([postId, action, revokedAt, expiresAt])
+  @@index([commentId, action, revokedAt, expiresAt])
+  @@index([collectionId, action, revokedAt, expiresAt])
   @@map("community_moderation_actions")
+}
+
+model CommunityOperationRestriction {
+  moderationActionId String? @unique @map("moderation_action_id")
+  moderationAction CommunityModerationAction? @relation(fields: [moderationActionId], references: [id], onDelete: Restrict)
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  operations  String[]
+  reason      String
+  startsAt    DateTime  @default(now()) @map("starts_at")
+  endsAt      DateTime  @map("ends_at")
+  createdById String    @map("created_by_id")
+  revokedAt   DateTime? @map("revoked_at")
+  revokedById String?   @map("revoked_by_id")
+  revision    Int       @default(1)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  user        User      @relation("CommunityRestrictionUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation("CommunityRestrictionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  revokedBy   User?     @relation("CommunityRestrictionRevoker", fields: [revokedById], references: [id], onDelete: Restrict)
+
+  @@index([userId, revokedAt, endsAt])
+  @@index([endsAt])
+  @@map("community_operation_restrictions")
+}
+
+model CommunityAppeal {
+  id String @id @default(cuid())
+  authorId String @map("author_id")
+  actionId String? @map("action_id")
+  reviewId String? @map("review_id")
+  requestHash String @map("request_hash")
+  reason String
+  evidence String[] @default([])
+  status String @default("pending")
+  revision Int @default(1)
+  assignedToId String? @map("assigned_to_id")
+  claimedAt DateTime? @map("claimed_at")
+  dueAt DateTime @default(dbgenerated("(now() + '2 days'::interval)")) @map("due_at")
+  resultReason String @default("") @map("result_reason")
+  handledById String? @map("handled_by_id")
+  handledAt DateTime? @map("handled_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  moderationAction CommunityModerationAction? @relation(fields: [actionId], references: [id], onDelete: Restrict)
+  review ContentReview? @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+
+  @@unique([authorId, requestHash])
+  @@index([status, dueAt, createdAt])
+  @@index([authorId, createdAt])
+  @@map("community_appeals")
 }
 
 model CommunityFeedImpression {
@@ -2107,6 +2319,7 @@ model UserNotification {
 }
 
 model CommunityPostRevision {
+  coverFileIdSnapshot    String?       @map("cover_file_id_snapshot")
   id                    String        @id @default(cuid())
   postId                String        @map("post_id")
   revisionNo            Int           @map("revision_no")

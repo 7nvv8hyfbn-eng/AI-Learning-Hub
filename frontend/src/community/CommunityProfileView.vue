@@ -12,12 +12,15 @@ import { communityApi } from '../services/api/community'
 import CommunityEmptyState from './CommunityEmptyState.vue'
 import CommunityPostCard from './CommunityPostCard.vue'
 import CommunityPostMenu from './CommunityPostMenu.vue'
+import CommunityReportDialog from './CommunityReportDialog.vue'
 import CommunitySkeleton from './CommunitySkeleton.vue'
-import { badgeLabels } from './labels'
+import { badgeLabels, contentDetectionNotice } from './labels'
 import { resourceHubApi } from '../services/api/resourceHub'
 import ResourceHubCard from '../components/ResourceHubCard.vue'
+import { useCommunityAccess } from './composables/useCommunityAccess'
 
 const route = useRoute(), router = useRouter(), auth = useAuthStore(), store = useCommunityStore()
+const { requireWrite } = useCommunityAccess()
 const profile = ref<CommunityProfileDto | null>(null)
 const posts = ref<NonNullable<CommunityProfileDto['pinnedPost']>[]>([])
 const replies = ref<CommunityReplySummaryDto[]>([])
@@ -33,7 +36,7 @@ const relationOpen = ref<'followers' | 'following' | null>(null), relationPeople
 const avatarCanvas = ref<HTMLCanvasElement>(), bannerCanvas = ref<HTMLCanvasElement>()
 const avatarFile = ref<File | null>(null), bannerFile = ref<File | null>(null), username = ref('')
 const form = ref<CommunityProfileInput>({ expectedUserRevision: 1, expectedProfileRevision: 1, displayName: '', bio: '', headline: '', location: '', websiteUrl: '', expertiseTopics: [], allowAchievementDrafts: false })
-const topicsText = ref('')
+const topicsText = ref(''), reportOpen = ref(false)
 let loadEpoch = 0
 
 const requestedTab = () => {
@@ -96,7 +99,7 @@ const follow = async () => {
   catch (cause) { error.value = cause instanceof Error ? cause.message : '关注失败' }
 }
 const relationship = async (kind: 'mute' | 'block') => {
-  if (!profile.value) return
+  if (!profile.value || !requireWrite('read')) return
   const active = kind === 'mute' ? profile.value.muted : profile.value.blocked
   try { await communityApi.feedback(profile.value.id, kind, !active); await load() }
   catch (cause) { error.value = cause instanceof Error ? cause.message : '操作失败' }
@@ -125,20 +128,21 @@ const moreRelations = async () => {
   relationPeople.value.push(...result.items); relationCursor.value = result.nextCursor
 }
 const openEditor = () => {
-  if (!profile.value?.isSelf) return
+  if (!profile.value?.isSelf || !requireWrite('profile')) return
+  const text = { ...profile.value, ...profile.value.pendingChanges }
   form.value = {
     expectedUserRevision: profile.value.userRevision,
     expectedProfileRevision: profile.value.revision,
-    displayName: profile.value.displayName,
-    bio: profile.value.bio,
-    headline: profile.value.headline,
-    location: profile.value.location || '',
-    websiteUrl: profile.value.websiteUrl || '',
-    expertiseTopics: [...profile.value.expertiseTopics],
+    displayName: text.displayName,
+    bio: text.bio,
+    headline: text.headline,
+    location: text.location || '',
+    websiteUrl: text.websiteUrl || '',
+    expertiseTopics: [...text.expertiseTopics],
     allowAchievementDrafts: !!profile.value.allowAchievementDrafts,
   }
-  topicsText.value = profile.value.expertiseTopics.join('、')
-  username.value = profile.value.username
+  topicsText.value = text.expertiseTopics.join('、')
+  username.value = text.username
   avatarFile.value = null; bannerFile.value = null; editOpen.value = true
 }
 const crop = (file: File, canvas: HTMLCanvasElement | undefined, kind: 'avatar' | 'banner') => new Promise<File>((resolve, reject) => {
@@ -171,7 +175,8 @@ const chooseImage = async (event: Event, kind: 'avatar' | 'banner') => {
   } catch (cause) { error.value = cause instanceof Error ? cause.message : '图片处理失败' }
 }
 const save = async () => {
-  if (!profile.value || saving.value) return
+  if (!profile.value || saving.value || !requireWrite('profile')) return
+  if ((avatarFile.value || bannerFile.value) && !requireWrite('upload')) return
   saving.value = true; error.value = ''
   try {
     form.value.expertiseTopics = [...new Set(topicsText.value.split(/[、,，]/).map((item) => item.trim()).filter(Boolean))]
@@ -185,7 +190,7 @@ const save = async () => {
   finally { saving.value = false }
 }
 const removeImage = async (kind: 'avatar' | 'banner') => {
-  if (!profile.value || saving.value) return
+  if (!profile.value || saving.value || !requireWrite('read')) return
   saving.value = true
   try {
     const result = await communityApi.removeProfileImage(kind, profile.value.userRevision, profile.value.revision)
@@ -194,6 +199,7 @@ const removeImage = async (kind: 'avatar' | 'banner') => {
   finally { saving.value = false }
 }
 const changeUsername = async () => {
+  if (!requireWrite('profile')) return
   try {
     auth.user = await communityApi.username(username.value)
     sessionStorage.setItem('student-user', JSON.stringify(auth.user))
@@ -201,7 +207,7 @@ const changeUsername = async () => {
   } catch (cause) { error.value = cause instanceof Error ? cause.message : '用户名修改失败' }
 }
 const pin = async (id: string | null) => {
-  if (!profile.value) return
+  if (!profile.value || !requireWrite(id ? 'profile' : 'read')) return
   try { profile.value = await communityApi.pin(id, profile.value.revision); await loadTimeline() }
   catch (cause) { error.value = cause instanceof Error ? cause.message : '置顶设置失败' }
 }
@@ -218,15 +224,16 @@ onBeforeUnmount(() => { loadEpoch++ })
     <p v-if="error" class="community-error" role="alert">{{ error }}</p>
     <p v-if="notice" class="community-notice" role="status">{{ notice }}</p>
     <template v-if="profile">
+      <p v-if="profile.isSelf && contentDetectionNotice(profile.detection)" class="community-notice" role="status">{{ contentDetectionNotice(profile.detection) }}<template v-if="profile.pendingChanges"> 当前对外仍展示原公开资料；打开编辑可继续修改待审内容。</template></p>
       <article class="community-profile-header">
         <div class="community-profile-banner" :class="{ empty: !profile.bannerUrl }" :style="profile.bannerUrl ? { backgroundImage: `url(${profile.bannerUrl})` } : undefined" />
         <div class="community-profile-identity">
           <CommunityAvatar class="community-profile-avatar" :src="profile.avatar" :username="profile.username" :name="profile.displayName" size="lg" :verified="profile.verifiedType !== 'none'" />
           <div class="community-profile-actions">
-            <template v-if="profile.isSelf"><RouterLink class="button secondary small" to="/community/drafts">草稿箱</RouterLink><button class="button secondary small" type="button" @click="openEditor">编辑资料</button></template>
+            <template v-if="profile.isSelf"><RouterLink class="button secondary small" to="/community/governance">处理与申诉</RouterLink><RouterLink class="button secondary small" to="/community/drafts">草稿箱</RouterLink><button class="button secondary small" type="button" @click="openEditor">编辑资料</button></template>
             <template v-else>
               <FollowButton v-if="!profile.blocked" :active="profile.following" :pending="store.operations[`follow:user:${profile.id}`]" @click="follow" />
-              <CommunityPostMenu label="个人主页操作"><button type="button" role="menuitem" @click="relationship('mute')">{{ profile.muted ? '取消静音' : '静音该用户' }}</button><button type="button" role="menuitem" @click="relationship('block')">{{ profile.blocked ? '取消拉黑' : '拉黑该用户' }}</button></CommunityPostMenu>
+              <CommunityPostMenu label="个人主页操作"><button type="button" role="menuitem" @click="requireWrite('report') && (reportOpen = true)">举报账号资料</button><button type="button" role="menuitem" @click="relationship('mute')">{{ profile.muted ? '取消静音' : '静音该用户' }}</button><button type="button" role="menuitem" @click="relationship('block')">{{ profile.blocked ? '取消拉黑' : '拉黑该用户' }}</button></CommunityPostMenu>
             </template>
             <button class="button secondary small" type="button" @click="share">分享主页</button>
           </div>
@@ -304,7 +311,8 @@ onBeforeUnmount(() => { loadEpoch++ })
         <label class="community-checkbox"><input v-model="form.allowAchievementDrafts" type="checkbox" />允许生成学习成就草稿（不会自动发布）</label>
         <button class="button primary" :disabled="saving">{{ saving ? '保存中…' : '保存资料' }}</button>
       </form>
-      <form class="dialog-form community-profile-username-form" @submit.prevent="changeUsername"><label>公开用户名（只能修改一次）<input v-model="username" required pattern="[a-z][a-z0-9_]{3,29}" maxlength="30" /></label><button class="button secondary" type="submit">单独修改用户名</button></form>
+      <form class="dialog-form community-profile-username-form" @submit.prevent="changeUsername"><label>公开用户名（只能修改一次）<input v-model="username" required pattern="(?!_)(?!.*__)[A-Za-z0-9_]{4,24}(?<!_)" minlength="4" maxlength="24" /></label><button class="button secondary" type="submit">单独修改用户名</button></form>
     </AppDialog>
   </section>
+<CommunityReportDialog v-if="profile" v-model="reportOpen" target-type="profile" :target-id="profile.id" @submitted="notice = '举报已提交。'" />
 </template>

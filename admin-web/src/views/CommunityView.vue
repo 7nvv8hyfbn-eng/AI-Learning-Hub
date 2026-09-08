@@ -110,7 +110,7 @@ onMounted(async () => {
             <template v-for="(block, index) in selected.post.contentBlocks" :key="index">
               <pre v-if="block.type === 'code'"><code>{{ block.code }}</code></pre>
               <figure v-else-if="block.type === 'image'"><img v-if="images[block.fileId]" :src="images[block.fileId]" :alt="block.alt || '学习图片'" /><figcaption v-else>图片不可用或正在读取</figcaption></figure>
-              <blockquote v-else-if="block.type === 'quote'">{{ block.text }}</blockquote><p v-else>{{ block.text }}</p>
+              <blockquote v-else-if="block.type === 'quote'">{{ block.text }}</blockquote><component :is="`h${Math.min(6, Math.max(1, block.level))}`" v-else-if="block.type === 'heading'" class="admin-heading-block">{{ block.text }}</component><ul v-else-if="block.type === 'list' && !block.ordered"><li v-for="(item, index) in block.items" :key="index">{{ item }}</li></ul><ol v-else-if="block.type === 'list'"><li v-for="(item, index) in block.items" :key="index">{{ item }}</li></ol><p v-else>{{ block.text }}</p>
             </template>
             <h3>关联学习内容</h3><p v-for="binding in selected.post.bindings" :key="binding.id">{{ binding.title }}</p>
             <h3>话题与图片关联</h3><p>{{ selected.post.topics.map(t => `#${t.name}`).join('、') || '未关联话题' }}</p><p v-for="file in selected.files || []" :key="file.id">{{ file.originalName }} · {{ file.mimeType }} · {{ file.exists ? '文件有效' : '文件缺失' }}</p>

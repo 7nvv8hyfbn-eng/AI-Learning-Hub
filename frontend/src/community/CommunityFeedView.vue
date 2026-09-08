@@ -14,7 +14,10 @@ import AppIcon from '../components/base/AppIcon.vue'
 import CommunityEmptyState from './CommunityEmptyState.vue'
 import { postLabels } from './labels'
 import { useCommunityScrollRoot } from './composables/useCommunityScrollRoot'
+import { useCommunityAccess } from './composables/useCommunityAccess'
 const store = useCommunityStore(), route = useRoute(), router = useRouter()
+const { decision, requireWrite } = useCommunityAccess()
+const canEditProfile = computed(() => decision('profile').allowed)
 const themes = useThemesStore(), demoThemes = computed(() => themes.items)
 const mode = computed<CommunityFeedMode>(() => ['for_you', 'following', 'latest'].includes(String(route.query.mode)) ? route.query.mode as CommunityFeedMode : 'for_you')
 const type = computed<CommunityPostType | 'all'>(() => Object.keys(postLabels).includes(String(route.query.type)) ? route.query.type as CommunityPostType : 'all')
@@ -81,8 +84,10 @@ watch(key, async (_next, previous) => {
   restore(feed.value?.anchor); reportVisible()
 })
 watch(() => store.publishNotice?.id, async (id) => { if (id) { const anchor = visibleAnchor(); await nextTick(); if (anchor) restore(anchor); reportVisible() } }, { flush: 'pre' })
-watch(() => store.context?.needsInterests, async (needs) => { if (needs) { try { await themes.load(); interestsOpen.value = true } catch (cause) { error.value = cause instanceof Error ? cause.message : '学习方向读取失败' } } }, { immediate: true })
-const saveInterests = async () => { const epoch = store.epoch; try { const context = await communityApi.interests(interests.value); if (epoch !== store.epoch) return; store.context = context; store.invalidateFollowing(); interestsOpen.value = false; await load(true) } catch (cause) { error.value = cause instanceof Error ? cause.message : '兴趣保存失败' } }
+watch(() => store.context?.needsInterests, async (needs) => { if (needs && canEditProfile.value) { try { await themes.load(); interestsOpen.value = true } catch (cause) { error.value = cause instanceof Error ? cause.message : '学习方向读取失败' } } }, { immediate: true })
+watch(canEditProfile, (allowed) => { if (!allowed) interestsOpen.value = false })
+const saveInterests = async () => { if (!requireWrite('profile')) return; const epoch = store.epoch; try { const context = await communityApi.interests(interests.value); if (epoch !== store.epoch) return; store.context = context; store.invalidateFollowing(); interestsOpen.value = false; await load(true) } catch (cause) { error.value = cause instanceof Error ? cause.message : '兴趣保存失败' } }
+const askQuestion = () => store.openComposer({ type: 'question' })
 const hidden = async () => { await nextTick(); reportVisible() }
 onMounted(async () => {
   impressionObserver = new IntersectionObserver((entries) => {
@@ -116,7 +121,7 @@ onBeforeUnmount(() => { alive = false; remember(); flushDwell(); impressed.clear
   <p v-if="store.error" class="community-notice">{{ store.error }}</p>
   <p v-if="error" class="community-error" role="alert">{{ error }} <button class="text-link" @click="load(true)">重试</button></p>
   <div v-for="item in feed?.items || []" :key="item.id" :data-feed-id="item.id"><CommunityPostCard v-if="item.type === 'post'" :post="item.post" :request-id="feed?.requestId" @changed="store.refreshPost(item.id)" @hidden="hidden" /><section v-else-if="item.type === 'topic_suggestion'" class="community-learning-unit"><span class="eyebrow">发现新方向</span><h2>让兴趣多走一步</h2><div class="community-topic-list"><RouterLink v-for="topic in item.topics" :key="topic.id" :to="`/community/topic/${topic.slug}`"># {{ topic.name }}</RouterLink></div></section><section v-else class="community-learning-unit"><span class="eyebrow">{{ item.type === 'challenge' ? '用实践验证理解' : '回到你的学习节奏' }}</span><h2>{{ item.content.title }}</h2><p>{{ item.content.summary }}</p><RouterLink class="button primary small" :to="item.content.route">{{ item.type === 'challenge' ? '参加挑战' : '继续学习' }} <AppIcon name="arrow-up-right" :size="14" /></RouterLink></section></div>
-  <CommunityEmptyState v-if="feed?.loaded && !feed.items.length && !loading" :title="mode === 'following' ? '关注老师、同学或学习话题' : '还没有可见的内容'" description="从一个问题开始，把学习过程分享给同伴。"><button class="button primary" @click="store.openComposer({ type: 'question' })">提出问题</button></CommunityEmptyState>
+  <CommunityEmptyState v-if="feed?.loaded && !feed.items.length && !loading" :title="mode === 'following' ? '关注老师、同学或学习话题' : '还没有可见的内容'" description="从一个问题开始，把学习过程分享给同伴。"><button class="button primary" @click="askQuestion">提出问题</button></CommunityEmptyState>
   <div ref="sentinel" class="community-load-more"><span v-if="loading" role="status">正在加载学习内容…</span><button v-else-if="feed?.cursor" class="button secondary" @click="load()">加载更多</button><small v-else-if="feed?.items.length">已读完这一组内容，随时手动刷新。</small></div>
   <AppDialog v-model="interestsOpen" title="选择 3 个感兴趣的学习方向"><p>用于关注相关话题；你随时可以调整。</p><div class="community-interest-options"><label v-for="theme in demoThemes" :key="theme.slug"><input v-model="interests" type="checkbox" :value="theme.slug" :disabled="interests.length >= 3 && !interests.includes(theme.slug)" /><strong>{{ theme.title }}</strong></label></div><button class="button primary" :disabled="interests.length !== 3" @click="saveInterests">开始发现学习内容</button></AppDialog>
 </section></template>

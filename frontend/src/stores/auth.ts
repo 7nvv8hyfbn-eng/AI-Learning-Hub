@@ -6,7 +6,12 @@ import { useLearningStore } from './learning'
 import { useCommunityStore } from './community'
 import { useAuthUiStore } from './authUi'
 export type AuthState = 'idle' | 'restoring' | 'authenticated' | 'anonymous' | 'error'
-const demoUser = (): AuthUser => ({ id: 'student', username: 'student', email: '', displayName: '造梦少年', roles: ['student'], permissions: [], avatarUrl: null, school: null, major: null, onboardingCompleted: true, emailVerificationRequired: false })
+const demoUser = (): AuthUser => ({ id: 'student', username: 'student', email: '', displayName: '造梦少年', roles: ['student'], permissions: [], avatarUrl: null, school: null, major: null, onboardingCompleted: true, emailVerificationRequired: false, identityVerificationStatus: 'approved', communityWriteEnabled: true })
+const demoUsername = (value: string) => {
+  const username = value.trim().toLowerCase()
+  if (!/^(?!_)(?!.*__)[a-z0-9_]{4,24}(?<!_)$/.test(username) || ['admin', 'administrator', 'root', 'system', 'official', 'moderator', 'support', 'api', 'www'].includes(username)) throw new Error('账号不可用，请使用4～24位字母、数字或下划线')
+  return username
+}
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -19,7 +24,6 @@ export const useAuthStore = defineStore('auth', {
     restorePromise: null as Promise<void> | null,
     registrationConfig: null as RegistrationConfigDto | null,
   }),
-  getters: { onboardingRequired: (state) => !!state.user && !state.user.onboardingCompleted },
   actions: {
     clearSession() {
       sessionStorage.removeItem('student-access-token')
@@ -54,14 +58,14 @@ export const useAuthStore = defineStore('auth', {
       return this.restorePromise
     },
     async loadRegistrationConfig() {
-      this.registrationConfig = dataMode === 'mock' ? { mode: 'open', emailVerification: false, agreementVersion: '2026-08-30', passwordMinLength: 8, schoolRequired: false, mailAvailable: false, inviteAvailable: false } : await authApi.registrationConfig()
+      this.registrationConfig = dataMode === 'mock' ? { mode: 'open', emailVerification: false, agreementVersion: '2026-08-30', passwordMinLength: 8, schoolRequired: false, registrationRateWindowMinutes: 15, registrationMaxAttemptsPerIp: 120, registrationMaxAttemptsPerIdentifier: 8, registrationMaxSuccessPerIp: 30, mailAvailable: false, inviteAvailable: false } : await authApi.registrationConfig()
       return this.registrationConfig
     },
     async register(input: RegisterInput) {
       this.loading = true; this.error = ''
       try {
         if (dataMode === 'mock') {
-          this.user = { ...demoUser(), displayName: input.displayName, email: input.email.trim().toLowerCase(), onboardingCompleted: false }
+          this.user = { ...demoUser(), username: demoUsername(input.username), displayName: input.displayName, email: input.email.trim().toLowerCase(), onboardingCompleted: false, identityVerificationStatus: 'unsubmitted', communityWriteEnabled: false }
           localStorage.setItem('community-demo-user', JSON.stringify(this.user)); sessionStorage.setItem('community-demo-login', 'true')
         } else this.user = await authApi.register(input)
         this.authState = 'authenticated'; this.initialized = true
@@ -69,13 +73,13 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) { this.error = error instanceof Error ? error.message : '注册失败'; throw error }
       finally { this.loading = false }
     },
-    async login(email: string, password: string, remember = true) {
+    async login(identifier: string, password: string, remember = true) {
       this.loading = true
       this.error = ''
       if (dataMode === 'api') this.clearSession()
       try {
         if (dataMode === 'mock') { this.user = JSON.parse(localStorage.getItem('community-demo-user') || 'null') || demoUser(); this.authState = 'authenticated'; this.initialized = true; sessionStorage.setItem('community-demo-login', 'true'); return }
-        this.user = await authApi.login(email, password, remember)
+        this.user = await authApi.login(identifier, password, remember)
         if (!this.user.roles.includes('student')) {
           await authApi.logout()
           this.user = null

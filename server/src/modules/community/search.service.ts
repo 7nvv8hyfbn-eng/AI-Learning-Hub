@@ -1,3 +1,4 @@
+import { visibleProfile } from './governance-policy'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import type { CatalogContentType, CommunitySearchResultDto } from '@ai-learning-hub/contracts'
 import type { Prisma } from '@prisma/client'
@@ -33,7 +34,7 @@ export class CommunitySearchService {
     }
     if (selected('users')) {
       const excluded = await this.visibility.authorExclusions(userId)
-      result.users = page(await this.prisma.user.findMany({ where: { id: { ...id, notIn: excluded.authors }, status: 'active', OR: [{ username: text }, { displayName: text }] }, include: authorInclude, orderBy: { id: 'asc' }, take: take + 1 })).map(authorDto)
+      result.users = page(await this.prisma.user.findMany({ where: { id: { ...id, notIn: excluded.authors }, ...visibleProfile(), OR: [{ username: text }, { displayName: text }] }, include: authorInclude, orderBy: { id: 'asc' }, take: take + 1 })).map(authorDto)
     }
     if (selected('topics')) result.topics = page((await this.context.topics(userId)).filter((row) => row.id > after && `${row.name} ${row.description}`.toLowerCase().includes(q.toLowerCase())).sort((a, b) => a.id.localeCompare(b.id)))
     // 仅检索已发布快照，避免草稿标题进入公开搜索；映射复用内容公共基础契约。

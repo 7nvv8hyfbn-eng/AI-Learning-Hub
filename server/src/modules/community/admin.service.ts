@@ -26,14 +26,14 @@ export class CommunityAdminService {
   private paging(q: AdminCommunityQuery) { return { skip: (q.page - 1) * q.pageSize, take: q.pageSize } }
   private result<T>(q: AdminCommunityQuery, items: T[], total: number) { return { items, total, page: q.page, pageSize: q.pageSize } }
   async postWhere(q: AdminCommunityQuery): Promise<Prisma.CommunityPostWhereInput> {
-    if (q.status && !['draft', 'published', 'limited', 'hidden', 'removed'].includes(q.status)) throw new BadRequestException('动态状态无效')
+    if (q.status && !['draft', 'pending_review', 'published', 'limited', 'hidden', 'removed'].includes(q.status)) throw new BadRequestException('动态状态无效')
     const scope = q.status === 'draft'
       ? curatedDraftWhere
       : q.status
-        ? this.visibility.adminWhere()
-        : { OR: [this.visibility.adminWhere(), curatedDraftWhere] }
+        ? await this.visibility.adminWhere()
+        : { OR: [await this.visibility.adminWhere(), curatedDraftWhere] }
     return {
-      AND: [scope, ...(q.status && q.status !== 'draft' ? [{ status: q.status as 'published' | 'limited' | 'hidden' | 'removed' }] : []), ...(q.hasMedia === undefined ? [] : [q.hasMedia ? { contentBlocks: { array_contains: [{ type: 'image' }] } } : { NOT: { contentBlocks: { array_contains: [{ type: 'image' }] } } }])],
+      AND: [scope, ...(q.status && q.status !== 'draft' ? [{ status: q.status as 'pending_review' | 'published' | 'limited' | 'hidden' | 'removed' }] : []), ...(q.hasMedia === undefined ? [] : [q.hasMedia ? { contentBlocks: { array_contains: [{ type: 'image' }] } } : { NOT: { contentBlocks: { array_contains: [{ type: 'image' }] } } }])],
       ...((q.postType || q.type && q.type !== 'all') ? { postType: q.postType || q.type as 'question' } : {}),
       ...(q.keyword ? { OR: [{ title: { contains: q.keyword, mode: 'insensitive' } }, { plainText: { contains: q.keyword, mode: 'insensitive' } }] } : {}),
       ...(q.authorId ? { authorId: q.authorId } : {}), ...(q.schoolId ? { schoolId: q.schoolId } : {}),
@@ -71,9 +71,11 @@ export class CommunityAdminService {
     const [items, total] = await this.prisma.$transaction([this.prisma.communityTopic.findMany({ where, orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }], ...this.paging(q) }), this.prisma.communityTopic.count({ where })])
     return this.result(q, items.map((row) => ({ ...row, following: false })), total)
   }
-  async reports(q: AdminCommunityQuery) {
-    const where: Prisma.CommunityReportWhereInput = { ...(q.status ? { status: q.status } : {}), ...(q.keyword ? { reason: { contains: q.keyword, mode: 'insensitive' } } : {}), createdAt: dateRange(q.createdFrom, q.createdTo), OR: [{ post: this.visibility.adminWhere() }, { comment: { post: this.visibility.adminWhere() } }] }
-    const [items, total] = await this.prisma.$transaction([this.prisma.communityReport.findMany({ where, select: { id: true, postId: true, commentId: true, reason: true, description: true, status: true, createdAt: true }, orderBy: [{ createdAt: q.sortOrder }, { id: q.sortOrder }], ...this.paging(q) }), this.prisma.communityReport.count({ where })])
+  async reports(actorId: string, q: AdminCommunityQuery) {
+    if (q.status && !['pending', 'reviewing', 'resolved', 'rejected'].includes(q.status)) throw new BadRequestException('举报状态无效')
+    const where: Prisma.CommunityReportWhereInput = { ...(q.status ? { status: q.status } : {}), ...(q.keyword ? { reason: { contains: q.keyword, mode: 'insensitive' } } : {}), createdAt: dateRange(q.createdFrom, q.createdTo) }
+    const [items, total] = await this.prisma.$transaction([this.prisma.communityReport.findMany({ where, select: { id: true, postId: true, commentId: true, collectionId: true, profileId: true, category: true, revision: true, reason: true, description: true, status: true, createdAt: true }, orderBy: [{ createdAt: q.sortOrder }, { id: q.sortOrder }], ...this.paging(q) }), this.prisma.communityReport.count({ where })])
+    await this.visibility.auditAdminRead(actorId, 'report', 'page')
     return this.result(q, items, total)
   }
   async users(q: AdminCommunityQuery) {

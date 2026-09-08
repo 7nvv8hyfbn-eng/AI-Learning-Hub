@@ -19,7 +19,7 @@
     },
     {
       "path": "learning-cover.webp",
-      "usage": "学习主题、课程与用户推荐卡片",
+      "usage": "通识基础、课程与用户推荐卡片",
       "dimensions": "1672x941",
       "format": "WebP",
       "source": "复用学生端正式 Image2 生成资源 frontend/src/assets/learning-cover.webp",

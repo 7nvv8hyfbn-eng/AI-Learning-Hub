@@ -40,6 +40,9 @@ const follow = async () => {
   if (!target) return
   try { await store.follow(target.id, view.value === 'topic', !target.following, target) } catch (cause) { if (epoch === loadEpoch) error.value = cause instanceof Error ? cause.message : '关注失败' }
 }
+const publishNote = (key: string, note: string) => {
+  store.openComposer({ type: 'note', contentBlocks: [{ type: 'paragraph', text: note }], bindings: [{ type: 'course', id: key.split(':')[0] }] })
+}
 watch([() => route.path, () => route.query.tab], ([, value]) => { const allowed = view.value === 'bookmarks' ? ['posts', 'notes', 'learning'] : ['posts']; tab.value = allowed.includes(String(value)) ? String(value) : 'posts' }, { immediate: true })
 watch([() => route.fullPath, tab], load, { immediate: true })
 onBeforeUnmount(() => { loadEpoch++ })
@@ -47,7 +50,7 @@ onBeforeUnmount(() => { loadEpoch++ })
 <template><section><header class="community-page-heading"><div><RouterLink to="/community"><AppIcon name="arrow-left" :size="15" />社区发现</RouterLink><h1>{{ title }}</h1><p v-if="topic">{{ topic.description }}</p></div><FollowButton v-if="topic" :active="topic.following" :pending="store.operations[`follow:topic:${topic.id}`]" @click="follow" /></header>
   <div v-if="view === 'bookmarks'" class="community-feed-tabs"><button :aria-selected="tab === 'posts'" @click="tab = 'posts'">社区收藏</button><button :aria-selected="tab === 'notes'" @click="tab = 'notes'">私人笔记</button><button :aria-selected="tab === 'learning'" @click="tab = 'learning'">学习收藏</button></div>
   <p v-if="error" class="community-error" role="alert">{{ error }} <button @click="load">重试</button></p><CommunitySkeleton v-if="loading" />
-  <div v-if="view === 'bookmarks' && tab === 'notes'" class="community-collection"><article v-for="(note, key) in learning.notes" :key="key" class="community-note"><h2>{{ String(key).split(':')[0] }}</h2><p>{{ note }}</p><button class="button secondary small" @click="store.openComposer({ type: 'note', contentBlocks: [{ type: 'paragraph', text: note }], bindings: [{ type: 'course', id: String(key).split(':')[0] }] })">主动发布为学习笔记</button></article><p v-if="!Object.keys(learning.notes).length">你还没有私人课程笔记。笔记不会自动公开。</p></div>
+  <div v-if="view === 'bookmarks' && tab === 'notes'" class="community-collection"><article v-for="(note, key) in learning.notes" :key="key" class="community-note"><h2>{{ String(key).split(':')[0] }}</h2><p>{{ note }}</p><button class="button secondary small" @click="publishNote(String(key), note)">主动发布为学习笔记</button></article><p v-if="!Object.keys(learning.notes).length">你还没有私人课程笔记。笔记不会自动公开。</p></div>
   <div v-else-if="view === 'bookmarks' && tab === 'learning'" class="community-collection"><RouterLink v-for="favorite in learning.favorites" :key="`${favorite.type}:${favorite.id}`" class="community-binding" :to="favorite.type === 'course' ? `/courses/${favorite.id}` : favorite.type === 'lab' ? `/labs/${favorite.id}` : favorite.type === 'resource' ? `/resources?resource=${favorite.id}` : `/frontier?article=${favorite.id}`">{{ favorite.id }} <AppIcon name="arrow-up-right" :size="14" /></RouterLink><p v-if="!learning.favorites.length">还没有收藏学习内容。</p></div>
   <template v-else><CommunityPostCard v-for="post in posts" :key="post.id" :post="post" @changed="load" @hidden="load" /><CommunityEmptyState v-if="!posts.length && !error" title="这里还没有内容" description="分享一个发现，或从社区首页开始探索。"><RouterLink class="button secondary" to="/community">探索社区</RouterLink></CommunityEmptyState></template>
 </section></template>

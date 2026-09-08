@@ -4,5 +4,6 @@ import { StorageModule } from '../storage/storage.module'
 import { AdminMediaController, MediaFileController, PublicMediaController } from './media.controller'
 import { MediaService } from './media.service'
 import { MediaResolverService } from './media-resolver.service'
-@Module({ imports: [AuthModule, StorageModule], providers: [MediaService, MediaResolverService], controllers: [AdminMediaController, MediaFileController, PublicMediaController], exports: [MediaService, MediaResolverService] })
+import { CommunityVisibilityModule } from '../community/visibility.module'
+@Module({ imports: [AuthModule, StorageModule, CommunityVisibilityModule], providers: [MediaService, MediaResolverService], controllers: [AdminMediaController, MediaFileController, PublicMediaController], exports: [MediaService, MediaResolverService] })
 export class MediaModule {}

@@ -7,7 +7,7 @@ defineProps<{ module: PublicHomepageModuleDto }>()
 </script>
 <template>
   <section class="homepage-module resource-tools-module">
-    <div class="section-heading"><div><span class="eyebrow">{{ configText(module, 'eyebrow', '知识工具箱') }}</span><h2>{{ configText(module, 'title', module.name) }}</h2><p>{{ configText(module, 'subtitle') }}</p></div><RouterLink to="/resources">进入资源中心 <AppIcon name="arrow-right" :size="15" /></RouterLink></div>
+    <div class="section-heading"><div><span class="eyebrow">{{ configText(module, 'eyebrow', '知识工具箱') }}</span><h2>{{ configText(module, 'title', module.name) }}</h2><p>{{ configText(module, 'subtitle') }}</p></div><RouterLink to="/resources">进入教程中心 <AppIcon name="arrow-right" :size="15" /></RouterLink></div>
     <div class="resource-strip">
       <RouterLink v-for="item in module.items.slice(0, 6)" :key="item.slug" :to="itemPath(item)">
         <CategoryCover :title="item.title" :media="itemCover(item)" />

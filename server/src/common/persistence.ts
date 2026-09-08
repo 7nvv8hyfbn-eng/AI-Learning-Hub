@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, HttpException } from '@nestjs/common'
 import { createHash, randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
+import type { PrismaClient } from '@prisma/client'
 
 export const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 export async function lockUser(tx: Prisma.TransactionClient, id: string) {
@@ -20,7 +21,8 @@ export async function fileReferenced(tx: Prisma.TransactionClient, id: string) {
     if (!fields.length) continue
     const table = Prisma.raw(`"${model.dbName || model.name}"`)
     const conditions = fields.map((field) => Prisma.sql`${Prisma.raw(`"${field.dbName || field.name}"`)}::text LIKE ${`%${id.replace(/[%_\\]/g, '\\$&')}%`}`)
-    const rows = await tx.$queryRaw<Array<{ found: boolean }>>(Prisma.sql`SELECT EXISTS(SELECT 1 FROM ${table} WHERE ${Prisma.join(conditions, ' OR ')}) AS found`)
+    const active = model.name === 'RequestIdempotency' ? Prisma.sql`expires_at > NOW() AND` : Prisma.empty
+    const rows = await tx.$queryRaw<Array<{ found: boolean }>>(Prisma.sql`SELECT EXISTS(SELECT 1 FROM ${table} WHERE ${active} (${Prisma.join(conditions, ' OR ')})) AS found`)
     if (rows[0].found) return true
   }
   return false
@@ -45,6 +47,30 @@ export async function idempotency(tx: Prisma.TransactionClient, principal: strin
   }
 }
 
+/** 大文件不能占用长事务：先短事务占位，同键并发只允许一个执行，完成后再与业务写入一并落账。 */
+export async function reserveIdempotency(client: Pick<PrismaClient, '$transaction'>, principal: string, scope: string, key: string | undefined, input: unknown) {
+  if (!key) return { resourceId: null, complete: async (_tx: Prisma.TransactionClient, _id: string) => {}, cancel: async () => {} }
+  if (!/^[A-Za-z0-9:._-]{8,128}$/.test(key)) throw new BadRequestException('Idempotency-Key 必须为8～128位安全字符')
+  const principalKey = digest(principal), requestHash = digest(canonical(input)), expiresAt = new Date(Date.now() + 86400000)
+  const where = { principalKey_scope_idempotencyKey: { principalKey, scope, idempotencyKey: key } }
+  const resourceId = await client.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${principalKey}:${scope}:${key}`}, 0))::text`
+    const existing = await tx.requestIdempotency.findUnique({ where })
+    if (existing && existing.expiresAt > new Date() && existing.requestHash !== requestHash) throw new ConflictException('同一幂等键不能用于不同内容')
+    if (existing && existing.expiresAt > new Date() && existing.status === 'completed') return existing.resourceId
+    if (existing && existing.expiresAt > new Date()) throw new ConflictException({ message: '相同请求正在处理中，请稍后查询结果', errorCode: 'REQUEST_IN_PROGRESS' })
+    await tx.requestIdempotency.upsert({ where, create: { principalKey, scope, idempotencyKey: key, requestHash, resourceId: '', status: 'processing', expiresAt }, update: { requestHash, resourceId: '', status: 'processing', expiresAt } })
+    return null
+  })
+  return {
+    resourceId,
+    complete: async (tx: Prisma.TransactionClient, id: string) => {
+      if (!(await tx.requestIdempotency.updateMany({ where: { principalKey, scope, idempotencyKey: key, requestHash, status: 'processing' }, data: { resourceId: id, status: 'completed', expiresAt } })).count) throw new ConflictException('请求状态已变化，请查询结果')
+    },
+    cancel: async () => { await client.$transaction((tx) => tx.requestIdempotency.deleteMany({ where: { principalKey, scope, idempotencyKey: key, requestHash, status: 'processing' } })) },
+  }
+}
+
 /** 沿用既有事件名称供推荐兼容；actionType 是统一对外语义，同一事实只写一行。 */
 export const actionTypes: Record<string, string> = {
   student_register: 'user_registered', community_post_publish: 'post_published',
@@ -58,20 +84,24 @@ export const actionTypes: Record<string, string> = {
 export function actionEvent(tx: Prisma.TransactionClient, actorId: string, eventType: string, entityType: string, entityId: string, metadata: Prisma.InputJsonObject = {}, source = 'student-web') {
   return tx.activityEvent.create({ data: { userId: actorId, eventType, actionType: actionTypes[eventType] || eventType, eventKey: randomUUID(), entityType, entityId, targetType: entityType, targetId: entityId, payload: metadata, source } })
 }
-export async function rateLimit(tx: Prisma.TransactionClient, principal: string, scope: string, limit: number, windowMs = 60000) {
-  const key = digest(`${scope}:${principal}`), expiresAt = new Date(Date.now() + windowMs)
-  const rows = await tx.$queryRaw<Array<{ attempts: number }>>`
-    INSERT INTO registration_throttles(identity_key,attempts,expires_at) VALUES (${key},1,${expiresAt})
+export async function rateLimit(tx: Prisma.TransactionClient, principal: string, scope: string, limit: number, windowMs = 60000, message = '操作过于频繁，请稍后再试', errorCode = 'RATE_LIMITED') {
+  const key = digest(`${scope}:${principal}`)
+  const rows = await tx.$queryRaw<Array<{ attempts: number; expires_at: Date; retry_after: number }>>`
+    INSERT INTO registration_throttles(identity_key,attempts,expires_at) VALUES (${key},1,NOW()+(${windowMs}*INTERVAL '1 millisecond'))
     ON CONFLICT(identity_key) DO UPDATE SET
     attempts=CASE WHEN registration_throttles.expires_at<NOW() THEN 1 ELSE registration_throttles.attempts+1 END,
-    expires_at=CASE WHEN registration_throttles.expires_at<NOW() THEN ${expiresAt} ELSE registration_throttles.expires_at END RETURNING attempts`
-  if (rows[0].attempts > limit) throw new HttpException('操作过于频繁，请稍后再试', 429)
+    expires_at=CASE WHEN registration_throttles.expires_at<NOW() THEN NOW()+(${windowMs}*INTERVAL '1 millisecond') ELSE registration_throttles.expires_at END
+    RETURNING attempts,expires_at,GREATEST(1,CEIL(EXTRACT(EPOCH FROM (expires_at-NOW()))))::INTEGER AS retry_after`
+  if (rows[0].attempts > limit) {
+    const availableAt = new Date(rows[0].expires_at), retryAfter = rows[0].retry_after
+    throw new HttpException({ message, errorCode, retryAfter, availableAt: availableAt.toISOString(), nextAction: null }, 429)
+  }
 }
 export async function postRevision(tx: Prisma.TransactionClient, postId: string, editorId: string, editorType = 'user', reason = '') {
   const post = await tx.communityPost.findUniqueOrThrow({ where: { id: postId }, include: { bindings: true, topics: true } })
   await tx.communityPostRevision.createMany({ skipDuplicates: true, data: [{
     postId, revisionNo: post.revision, editorId, editorType, reason,
-    titleSnapshot: post.title, contentBlocksSnapshot: post.contentBlocks as Prisma.InputJsonValue,
+    titleSnapshot: post.title, contentBlocksSnapshot: post.contentBlocks as Prisma.InputJsonValue, coverFileIdSnapshot: post.coverFileId,
     bindingsSnapshot: post.bindings.map((ref) => ({ type: ref.targetType, id: ref.targetId })),
     topicIdsSnapshot: post.topics.map((ref) => ref.topicId), visibilitySnapshot: post.visibility, statusSnapshot: post.status,
   }] })

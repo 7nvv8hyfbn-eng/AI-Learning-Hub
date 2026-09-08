@@ -22,11 +22,11 @@ export const useSessionStore = defineStore('session', {
         this.initialized = true
       }
     },
-    async login(email: string, password: string) {
+    async login(identifier: string, password: string) {
       this.loading = true
       this.error = ''
       try {
-        const result = await api<{ user: AdminUser; accessToken: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }, false)
+        const result = await api<{ user: AdminUser; accessToken: string }>('/auth/login', { method: 'POST', body: JSON.stringify({ identifier, password }) }, false)
         if (!result.user.permissions.length) throw new Error('该账号没有管理后台权限')
         this.user = result.user
         sessionStorage.setItem('admin-user', JSON.stringify(result.user))

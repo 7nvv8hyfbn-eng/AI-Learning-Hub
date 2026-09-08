@@ -246,6 +246,7 @@ export class CourseService {
         },
       })
       if (!collection) throw new NotFoundException('合集不存在')
+      if (collection.visibility !== 'community' || collection.contentStatus !== 'published') throw new BadRequestException('只有已公开且通过内容检测的合集可以生成课程')
       if (!collection.items.length) throw new BadRequestException('空合集不能生成课程')
       const invalid = collection.items.find(({ contribution }) =>
         !contribution.teachingReuseConsent ||

@@ -10,29 +10,89 @@ import type { CommunityAuthorDto, CommunityPostDetailDto } from '@ai-learning-hu
 import CommunityQuickComposer from '../src/community/CommunityQuickComposer.vue'
 import CommunityComposer from '../src/community/CommunityComposer.vue'
 import CommunityDraftConflict from '../src/community/CommunityDraftConflict.vue'
+import CommunityDraftsView from '../src/community/CommunityDraftsView.vue'
 import { setupComponent } from '../src/community/test-renderer'
 import { communityScrollRoot } from '../src/community/composables/useCommunityScrollRoot'
 import { ApiError } from '../src/services/api/client'
 
-const account = reactive({ user: { id: 'owner-a' } as { id: string } | null, dataMode: 'mock' })
+const account = reactive({ user: { id: 'owner-a', communityWriteEnabled: true } as { id: string; communityWriteEnabled: boolean } | null, dataMode: 'mock' })
 vi.mock('../src/stores/auth', () => ({ useAuthStore: () => account }))
-vi.mock('../src/services/api/community', () => ({ communityApi: { topics: vi.fn(), save: vi.fn(), saveDraft: vi.fn(), upload: vi.fn(), bindingContext: vi.fn(), post: vi.fn() } }))
+vi.mock('../src/services/api/community', () => ({ communityApi: { topics: vi.fn(), drafts: vi.fn(), save: vi.fn(), saveDraft: vi.fn(), upload: vi.fn(), bindingContext: vi.fn(), post: vi.fn() } }))
 const storage = new Map<string, string>()
 const key = (id: string) => `community-draft:mock:${id}`
 const settle = async () => { await nextTick(); await Promise.resolve(); await nextTick() }
 const post = { id: 'saved-post', type: 'general', status: 'published', topics: [], viewerState: {} } as CommunityPostDetailDto
 beforeEach(() => {
   vi.useFakeTimers(); vi.resetAllMocks(); storage.clear(); setActivePinia(createPinia())
-  account.user = { id: 'owner-a' }
+  account.user = { id: 'owner-a', communityWriteEnabled: true }
   account.dataMode = 'mock'
   vi.stubGlobal('localStorage', { getItem: (name: string) => storage.get(name) || null, setItem: (name: string, value: string) => storage.set(name, value), removeItem: (name: string) => storage.delete(name) })
   vi.stubGlobal('window', new EventTarget())
   vi.mocked(communityApi.topics).mockResolvedValue([])
+  vi.mocked(communityApi.drafts).mockResolvedValue([])
   vi.mocked(communityApi.save).mockResolvedValue(post)
   vi.mocked(communityApi.saveDraft).mockResolvedValue({ id: 'server-draft' } as CommunityPostDetailDto)
 })
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.unstubAllGlobals() })
 describe('共享发布器与草稿账号隔离', () => {
+  it('关闭编辑器后草稿箱刷新，继续编辑使用最新封面及版本', async () => {
+    const view = setupComponent<{ drafts: unknown[] }>(CommunityDraftsView)
+    await settle()
+    const store = useCommunityStore()
+    store.openComposer({ title: '封面草稿', contentBlocks: [] })
+    await settle()
+    const updated = { id: 'draft', revision: 3, input: { coverFileId: 'new-cover', expectedRevision: 3 } }
+    vi.mocked(communityApi.drafts).mockResolvedValueOnce([updated] as never)
+    store.composerOpen = false
+    await settle()
+    expect(view.state.drafts).toEqual([updated])
+    view.unmount()
+  })
+  it('普通图文草稿保留独立封面与原帖子类型，清除封面显式发送 null', async () => {
+    const editor = useCommunityDraft(), store = useCommunityStore()
+    store.openComposer({ type: 'general', status: 'draft', title: '普通图文', contentBlocks: [{ type: 'paragraph', text: '正文保持独立' }], coverFileId: 'own-cover' })
+    await settle()
+    expect(store.composerMode).toBe('rich')
+    expect(await editor.save(true)).toBe(true)
+    expect(communityApi.saveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'general', coverFileId: 'own-cover' }), undefined, expect.any(String))
+    expect(vi.mocked(communityApi.saveDraft).mock.calls[0][0].contribution).toBeUndefined()
+    editor.form.coverFileId = null
+    await editor.save(true)
+    expect(communityApi.saveDraft).toHaveBeenLastCalledWith(expect.objectContaining({ coverFileId: null }), expect.any(String), expect.any(String))
+  })
+  it('图文复用真实发布：失败保稿、同键重试、待复核不声称公开', async () => {
+    const editor = useCommunityDraft(), store = useCommunityStore()
+    const blocks = [{ type: 'rich_text' as const, text: '<h2>实践记录</h2><p><strong>核心结论</strong></p>' }, { type: 'image' as const, fileId: 'owned-file', alt: '实验截图' }]
+    store.openComposer({ title: '课程实践', contentBlocks: blocks, visibility: 'school', contribution: { kind: 'article', tags: [], teachingReuseConsent: false } })
+    await settle()
+    expect(store.composerMode).toBe('rich')
+    expect(editor.blocks).toEqual(blocks)
+    vi.mocked(communityApi.save).mockRejectedValueOnce(new ApiError('网络断开', 0)).mockResolvedValueOnce({ ...post, status: 'pending_review' })
+    expect(await editor.save()).toBe(false)
+    expect(store.composerOpen).toBe(true)
+    expect(editor.blocks).toEqual(blocks)
+    expect(JSON.parse(storage.get(key('owner-a'))!).input.contentBlocks).toEqual(blocks)
+    expect(await editor.save()).toBe(true)
+    const calls = vi.mocked(communityApi.save).mock.calls
+    expect(calls[0][2]).toBe(calls[1][2])
+    expect(calls[1][0]).toMatchObject({ visibility: 'school', contentBlocks: blocks, contribution: { kind: 'article' } })
+    expect(storage.has(key('owner-a'))).toBe(false)
+    expect(store.publishNotice?.text).toContain('尚未公开')
+    expect(store.publishNotice?.text).not.toContain('发布成功')
+  })
+  it('图文输入错误不发送；草稿恢复不丢失格式、文件ID或覆盖可见范围', async () => {
+    const editor = useCommunityDraft(), store = useCommunityStore()
+    const blocks = [{ type: 'rich_text' as const, text: '<p>保留正文</p>' }]
+    store.openComposer({ title: '图文草稿', status: 'draft', visibility: 'school', contentBlocks: blocks, expectedRevision: 2, contribution: { kind: 'article', tags: [], teachingReuseConsent: false } }, 'existing-draft')
+    await settle()
+    editor.richError = '图片未上传'
+    expect(await editor.save()).toBe(false)
+    expect(communityApi.save).not.toHaveBeenCalled()
+    expect(editor.blocks).toEqual(blocks)
+    editor.richError = ''
+    await editor.save(true)
+    expect(communityApi.saveDraft).toHaveBeenCalledWith(expect.objectContaining({ contentBlocks: blocks, visibility: 'school', expectedRevision: 2 }), 'existing-draft', expect.any(String))
+  })
   it.each(['inline', 'quick-dialog', 'advanced-dialog'])('%s 冲突恢复控件位于实际编辑表单内，不被原生模态弹窗隔离', async (mode) => {
     const pinia = createPinia()
     setActivePinia(pinia)
@@ -209,13 +269,19 @@ describe('共享发布器与草稿账号隔离', () => {
     expect(vi.mocked(communityApi.save).mock.calls[0][0].contentBlocks).toEqual([{ type: 'paragraph', text: '第二次填写的有效正文' }])
     expect(editor.body).toBe(''); expect(store.composerOpen).toBe(false)
   })
-  it('快捷切高级共用正文、图片、关联与保存请求', async () => {
+  it('快捷高级编辑打开写图文并保留正文、图片和发布参数', async () => {
+    const view = setupComponent<{ advanced: () => void }>(CommunityQuickComposer)
     const editor = useCommunityDraft(), store = useCommunityStore()
-    store.openComposer(); await settle()
+    store.openComposer({ type: 'note', title: '学习笔记', visibility: 'school' }); store.composerInline = true; await settle()
     editor.body = '切换编辑模式不丢内容'; editor.images = [{ fileId: 'image-a', alt: '学习图片' }]
-    store.composerMode = 'advanced'; expect(useCommunityDraft()).toBe(editor)
+    editor.form.bindings = [{ type: 'course', id: 'course-a' }]; editor.form.topicIds = ['topic-a']
+    view.state.advanced(); await settle()
+    expect(store.composerMode).toBe('rich'); expect(store.composerInline).toBe(false)
+    expect(useCommunityDraft()).toBe(editor)
+    expect(editor.richBlocks).toEqual([{ type: 'paragraph', text: '切换编辑模式不丢内容' }, { type: 'image', fileId: 'image-a', alt: '学习图片' }])
     await editor.save()
-    expect(communityApi.save).toHaveBeenCalledWith(expect.objectContaining({ contentBlocks: [{ type: 'paragraph', text: '切换编辑模式不丢内容' }, { type: 'image', fileId: 'image-a', alt: '学习图片' }] }), undefined, expect.any(String))
+    expect(communityApi.save).toHaveBeenCalledWith(expect.objectContaining({ type: 'note', title: '学习笔记', visibility: 'school', bindings: [{ type: 'course', id: 'course-a' }], topicIds: ['topic-a'], contentBlocks: [{ type: 'paragraph', text: '切换编辑模式不丢内容' }, { type: 'image', fileId: 'image-a', alt: '学习图片' }] }), undefined, expect.any(String))
+    view.unmount()
   })
   it('切号取消待保存定时器，保留前账号已保存稿且不写后账号', async () => {
     const editor = useCommunityDraft(), store = useCommunityStore()
@@ -325,13 +391,30 @@ describe('共享发布器与草稿账号隔离', () => {
     editor.discard(); store.openComposer(); await settle()
     expect(editor.form.visibility).toBe('public')
   })
-  it('发布成功胶囊展示三位真实社区用户并返回主滚动区顶部', async () => {
+  it('首屏直接展示投稿检测结果，不依赖滚动且不误报已发布', async () => {
+    const pinia = getActivePinia()!
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/community', component: { render: () => null } }] })
+    await router.push('/community')
+    const store = useCommunityStore()
+    const root = ref({ scrollTop: 0, scrollHeight: 1400, clientHeight: 400 } as HTMLElement)
+    for (const text of ['内容已保存，等待人工复核，尚未公开。', '发布成功。提醒：请确认资源授权']) {
+      store.publishNotice = { id: 'synthetic-result', text }
+      const app = createSSRApp(CommunityComposer)
+      app.use(pinia); app.use(router); app.provide(communityScrollRoot, root)
+      const html = await renderToString(app)
+      expect(html).toContain(`<span>${text}</span>`)
+      expect(html).toContain('role="status"')
+      expect(html).toContain('/community/post/synthetic-result')
+      expect(html).not.toContain('community-publish-feedback')
+      expect(html).not.toContain('<strong>已发布</strong>')
+    }
+  })
+  it('返回顶部胶囊展示三位真实社区用户并返回主滚动区顶部', async () => {
     const pinia = getActivePinia()!
     const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/community', component: { render: () => null } }] })
     await router.push('/community')
     const users: CommunityAuthorDto[] = ['林宇', '周楠', '陈曦'].map((displayName, index) => ({ id: `user-${index}`, username: `user-${index}`, displayName, avatar: null, school: null, major: null, verifiedType: 'none' }))
     const store = useCommunityStore()
-    store.publishNotice = { id: 'published-post', text: '发布成功，已插入当前列表顶部' }
     store.context = { todayPlan: null, continueCourse: null, continueLab: null, currentChallenge: null, trendingTopics: [], suggestedUsers: users, needsInterests: false }
     const scrollTo = vi.fn(), scrollElement = Object.assign(new EventTarget(), { scrollTop: 251, scrollHeight: 1400, clientHeight: 400, scrollTo })
     const root = ref(scrollElement as unknown as HTMLElement)

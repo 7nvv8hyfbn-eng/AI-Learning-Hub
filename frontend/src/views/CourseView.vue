@@ -112,7 +112,7 @@ watch(courseId, async () => {
 </script>
 
 <template>
-  <NotFoundState v-if="!course" title="没有找到这门课程" description="未知 courseId 不会回退到其他课程，请返回学习主题重新选择。" back-to="/topics" back-label="返回学习主题" />
+  <NotFoundState v-if="!course" title="没有找到这门课程" description="未知 courseId 不会回退到其他课程，请返回通识基础重新选择。" back-to="/topics" back-label="返回通识基础" />
   <div v-else class="page-container">
     <section class="course-hero">
       <div class="hero-copy"><span class="tag purple">{{ course.category }}</span><h1>{{ course.title }}</h1><p>{{ course.description }}{{ dataMode === 'mock' ? ' 从核心概念出发，逐步走向受控实践。' : '' }}</p><div class="meta"><span>{{ course.level }}</span><span>{{ chapterCount }} 章 · {{ displayLessons.length }} 节</span><span>{{ course.learners === undefined ? '学习人数 —' : `${course.learners.toLocaleString()} 人学习` }}</span><span>{{ dataMode === 'api' ? (courseDetail?.data.rating ? `${courseDetail.data.rating} 分` : '评分 —') : '4.9 分' }}</span></div><div class="teacher"><CommunityAvatar :name="courseDetail?.data.instructor?.name || '讲师'" :avatar-key="dataMode === 'mock' ? 'official-teacher' : undefined" /><div><strong>{{ courseDetail?.data.instructor?.name || (dataMode === 'api' ? '讲师待配置' : '林知远老师') }}</strong><small>{{ courseDetail?.data.instructor?.title || (dataMode === 'api' ? '信息待配置' : '高校 AI 应用课程讲师') }}</small></div><FollowButton v-if="dataMode === 'mock'" :active="followed" @click="followed = !followed" /></div></div>

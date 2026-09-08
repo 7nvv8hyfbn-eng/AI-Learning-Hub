@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { isNavigationFailure, NavigationFailureType, useRouter } from 'vue-router'
 import AppDialog from '../components/base/AppDialog.vue'
 import AppIcon from '../components/base/AppIcon.vue'
@@ -10,6 +10,7 @@ import { useCommunityScrollRoot } from './composables/useCommunityScrollRoot'
 import CommunityAdvancedComposer from './CommunityAdvancedComposer.vue'
 import CommunityQuickComposer from './CommunityQuickComposer.vue'
 const store = useCommunityStore(), editor = useCommunityDraft(), router = useRouter()
+const RichEditPanel = defineAsyncComponent(() => import('./coop/RichEditPanel.vue'))
 const scrollRoot = useCommunityScrollRoot()
 const pastQuarter = () => !!scrollRoot.value && scrollRoot.value.scrollTop > (scrollRoot.value.scrollHeight - scrollRoot.value.clientHeight) / 4
 const showBackToTop = ref(pastQuarter())
@@ -26,7 +27,9 @@ onMounted(() => { window.addEventListener('beforeunload', leave); bindScrollRoot
 onBeforeUnmount(() => { removeGuard(); removeAfter(); window.removeEventListener('beforeunload', leave); scrollRoot.value?.removeEventListener('scroll', updateBackToTop) })
 </script>
 <template>
-<div v-if="showBackToTop" class="community-publish-feedback" role="status" aria-live="polite"><button type="button" :aria-label="`${store.publishNotice?.text || '已发布'}，返回社区顶部`" @click="backToTop"><AppIcon name="arrow-right" :size="16" /><span class="community-publish-avatars" aria-hidden="true"><CommunityAvatar v-for="user in (store.context?.suggestedUsers || []).slice(0, 3)" :key="user.id" :src="user.avatar" :username="user.username" :name="user.displayName" size="xs" /></span><strong>已发布</strong></button></div>
-<AppDialog :model-value="store.composerOpen && !store.composerInline" :title="store.composerMode === 'advanced' ? '高级编辑' : '分享学习收获'" class="community-composer" @update:model-value="editor.close()"><template v-if="store.composerOpen && !store.composerInline"><CommunityAdvancedComposer v-if="store.composerMode === 'advanced'" /><CommunityQuickComposer v-else dialog /></template></AppDialog>
+<div v-if="store.publishNotice" class="toast" role="status"><span>{{ store.publishNotice.text }}</span><br /><RouterLink class="text-link" :to="`/community/post/${store.publishNotice.id}`">查看投稿</RouterLink> · <button type="button" class="text-link" @click="store.publishNotice = null">关闭</button></div>
+<div v-else-if="showBackToTop" class="community-publish-feedback" role="status" aria-live="polite"><button type="button" aria-label="返回社区顶部" @click="backToTop"><AppIcon name="arrow-right" :size="16" /><span class="community-publish-avatars" aria-hidden="true"><CommunityAvatar v-for="user in (store.context?.suggestedUsers || []).slice(0, 3)" :key="user.id" :src="user.avatar" :username="user.username" :name="user.displayName" size="xs" /></span><strong>已发布</strong></button></div>
+<RichEditPanel v-if="store.composerOpen && store.composerMode === 'rich'" />
+<AppDialog :model-value="store.composerOpen && !store.composerInline && store.composerMode !== 'rich'" :title="store.composerMode === 'advanced' ? '高级编辑' : '分享学习收获'" class="community-composer" @update:model-value="editor.close()"><template v-if="store.composerOpen && !store.composerInline && store.composerMode !== 'rich'"><CommunityAdvancedComposer v-if="store.composerMode === 'advanced'" /><CommunityQuickComposer v-else dialog /></template></AppDialog>
 <AppDialog :model-value="editor.closePrompt" title="保留未完成的内容" @update:model-value="cancel"><p>还有正在编辑的内容，你希望怎样离开？</p><div class="composer-actions"><button class="button primary" :disabled="editor.saving" @click="finish(true)">{{ store.editingId && !editor.draftId ? '保留本地副本' : '保存服务器草稿' }}</button><button class="button secondary" @click="finish(false)">放弃修改</button><button class="button secondary" @click="cancel">继续编辑</button></div></AppDialog>
 </template>

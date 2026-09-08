@@ -390,7 +390,7 @@ export const demoHomepageModules = [
       secondaryAction: { label: '查看实训项目', route: '/labs' },
       visualVariant: 'campus-maker',
       floatingLabels: ['Build', 'Learn', 'Explore'],
-      stats: [{ label: 'AI 学习主题', value: '6' }, { label: '模拟实训项目', value: '12+' }, { label: '学习资源', value: '24+' }],
+      stats: [{ label: 'AI 通识基础', value: '6' }, { label: '模拟实训项目', value: '12+' }, { label: '学习资源', value: '24+' }],
       layoutVariant: 'hero-split', displayLimit: 1,
     },
   },

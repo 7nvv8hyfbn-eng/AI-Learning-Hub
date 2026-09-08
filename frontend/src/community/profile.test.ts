@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
-import type { AuthUser, CommunityProfileDto } from '@ai-learning-hub/contracts'
+import type { AuthUser, CommunityProfileDto, CommunityProfileInput } from '@ai-learning-hub/contracts'
 import CommunityProfileView from './CommunityProfileView.vue'
 import { communityApi } from '../services/api/community'
 import { flushRender, setupComponent } from './test-renderer'
@@ -10,13 +10,16 @@ interface ProfileState {
   tab: string
   legacyPanel: string | null
   editOpen: boolean
+  openEditor(): void
+  form: CommunityProfileInput
+  username: string
 }
 
 const routing = vi.hoisted(() => ({
   route: {} as Record<string, unknown>,
   replace: vi.fn(),
 }))
-const auth = vi.hoisted(() => ({ user: { id: 'student', username: 'student' } as AuthUser }))
+const auth = vi.hoisted(() => ({ user: { id: 'student', username: 'student', communityWriteEnabled: true } as AuthUser }))
 vi.mock('vue-router', () => ({ useRoute: () => routing.route, useRouter: () => ({ replace: routing.replace }) }))
 vi.mock('../stores/auth', () => ({ useAuthStore: () => auth }))
 vi.mock('../stores/community', () => ({ useCommunityStore: () => ({ operations: {}, postCopies: () => [], follow: vi.fn() }) }))
@@ -41,6 +44,16 @@ beforeEach(() => {
 })
 
 describe('独立社区个人主页', () => {
+  it('公开展示保持旧资料，编辑器恢复待审新值和当前修订', async () => {
+    vi.mocked(communityApi.profile).mockResolvedValue({ ...profile(), pendingChanges: { username: 'synthetic_pending', displayName: '待审昵称', bio: '待审简介', expertiseTopics: ['RAG'] } })
+    const view = setupComponent<ProfileState>(CommunityProfileView)
+    await flushRender()
+    view.state.openEditor()
+    expect(view.state.profile?.displayName).toBe('学习者')
+    expect(view.state.form).toMatchObject({ displayName: '待审昵称', bio: '待审简介', expertiseTopics: ['RAG'], expectedUserRevision: 3, expectedProfileRevision: 2 })
+    expect(view.state.username).toBe('synthetic_pending')
+    view.unmount()
+  })
   it('按公开用户名读取资料，再按真实用户ID读取动态', async () => {
     const view = setupComponent<ProfileState>(CommunityProfileView)
     await flushRender()

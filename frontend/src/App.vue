@@ -9,7 +9,7 @@ import PageState from './components/PageState.vue'
 import QuizBridgeDialog from './components/QuizBridgeDialog.vue'
 import AuthDialog from './components/AuthDialog.vue'
 import CommunityComposer from './community/CommunityComposer.vue'
-import { AUTH_SESSION_CLEARED_EVENT, dataMode } from './services/api/client'
+import { AUTH_SESSION_CLEARED_EVENT, COMMUNITY_VERIFICATION_REQUIRED_EVENT, dataMode } from './services/api/client'
 import { useAuthStore } from './stores/auth'
 import { useLearningStore } from './stores/learning'
 import { useAuthUiStore } from './stores/authUi'
@@ -53,6 +53,7 @@ const showApiError = (event: Event) => {
 }
 
 const clearApiSession = () => auth.clearSession()
+const verificationRequired = async () => { await auth.restore(true); await router.push('/community/verification') }
 const reconnect = async () => { await auth.restore(true); if (!auth.user && auth.authState === 'anonymous') useAuthUiStore().open({ redirect: route.fullPath, reason: '登录已失效，请重新登录后继续当前页面' }) }
 const layout = computed(() => route.meta.layout === 'landing' ? LandingLayout : route.meta.layout === 'immersive' ? ImmersiveLabLayout : route.meta.layout === 'community' || (route.meta.layout === 'adaptive' && auth.user) ? CommunityLayout : PublicLayout)
 
@@ -70,12 +71,14 @@ onMounted(() => {
   window.addEventListener('quiz-bridge', showBridgeNotice)
   window.addEventListener('api-error', showApiError)
   window.addEventListener(AUTH_SESSION_CLEARED_EVENT, clearApiSession)
+  window.addEventListener(COMMUNITY_VERIFICATION_REQUIRED_EVENT, verificationRequired)
   void loadApi()
 })
 onBeforeUnmount(() => {
   window.removeEventListener('quiz-bridge', showBridgeNotice)
   window.removeEventListener('api-error', showApiError)
   window.removeEventListener(AUTH_SESSION_CLEARED_EVENT, clearApiSession)
+  window.removeEventListener(COMMUNITY_VERIFICATION_REQUIRED_EVENT, verificationRequired)
   window.clearTimeout(hideTimer)
 })
 </script>

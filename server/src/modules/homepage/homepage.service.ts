@@ -10,6 +10,7 @@ import { ResourceService } from '../resources/resource.service'
 import { ThemeService } from '../themes/theme.service'
 import type { CreateHomepageItemDto, CreateHomepageModuleDto, ReorderDto, UpdateHomepageModuleDto } from './homepage.dto'
 import { ContentReferenceService } from '../../common/content-reference/content-reference.service'
+import { availableAccount, visibleProfile, visiblePublicPost } from '../community/governance-policy'
 
 type SnapshotModule = Record<string, unknown> & { items?: Array<Record<string, unknown>> }
 
@@ -196,7 +197,7 @@ export class HomepageService {
           if (!fifth || fifth.targetType !== 'community_post' || earlierPostIds.includes(fifth.slug)) {
             items = items.filter((item) => item.slot !== 4)
             const fallback = await this.prisma.communityPost.findFirst({
-              where: { id: { notIn: earlierPostIds }, status: 'published', visibility: 'public', deletedAt: null, publishedAt: { not: null }, author: { status: 'active' } },
+              where: { id: { notIn: earlierPostIds }, ...visiblePublicPost() },
               orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
               select: { id: true },
             })
@@ -215,7 +216,7 @@ export class HomepageService {
       })))
     return {
       pageMode: 'community_landing_v1',
-      community: { members: await this.prisma.user.count({ where: { status: 'active', userType: 'student' } }), creators: rendered.flatMap((module) => module.items.filter((item) => item.targetType === 'community_user').map((item) => item.data as unknown as NonNullable<PublicHomepageDto['community']>['creators'][number])).slice(0, 4) },
+      community: { members: await this.prisma.user.count({ where: { ...availableAccount(), userType: 'student' } }), creators: rendered.flatMap((module) => module.items.filter((item) => item.targetType === 'community_user').map((item) => item.data as unknown as NonNullable<PublicHomepageDto['community']>['creators'][number])).slice(0, 4) },
       modules: version > 0 ? rendered.filter((module) => this.readinessIssues(module).length === 0) : rendered,
       updatedAt: updatedAt.toISOString(),
       version,
@@ -287,9 +288,9 @@ export class HomepageService {
 
   async contentOptions(type: string) {
     if (!['community_post', 'community_topic', 'community_user', 'course', 'lab', 'article', 'resource'].includes(type)) throw new BadRequestException('不支持的内容类型')
-    const rows = type === 'community_post' ? await this.prisma.communityPost.findMany({ where: { status: 'published', visibility: 'public', deletedAt: null, publishedAt: { not: null }, author: { status: 'active' } }, orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }], select: { id: true }, take: 100 })
+    const rows = type === 'community_post' ? await this.prisma.communityPost.findMany({ where: visiblePublicPost(), orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }], select: { id: true }, take: 100 })
       : type === 'community_topic' ? await this.prisma.communityTopic.findMany({ where: { status: 'active' }, select: { id: true }, take: 100 })
-        : type === 'community_user' ? await this.prisma.user.findMany({ where: { status: 'active', communityProfile: { isNot: null } }, select: { id: true }, take: 100 })
+        : type === 'community_user' ? await this.prisma.user.findMany({ where: { ...visibleProfile(), communityProfile: { isNot: null } }, select: { id: true }, take: 100 })
           : type === 'course' ? await this.prisma.course.findMany({ where: { status: 'published', deletedAt: null }, select: { id: true }, take: 100 })
             : type === 'lab' ? await this.prisma.lab.findMany({ where: { status: 'published', deletedAt: null }, select: { id: true }, take: 100 })
               : type === 'article' ? await this.prisma.article.findMany({ where: { status: 'published', deletedAt: null }, select: { id: true }, take: 100 })

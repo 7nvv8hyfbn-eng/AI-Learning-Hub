@@ -8,8 +8,10 @@ import ResourceHubCard from '../components/ResourceHubCard.vue'
 import CommunityPostCard from '../community/CommunityPostCard.vue'
 import CommunityPostView from '../community/CommunityPostView.vue'
 import { resourceHubApi } from '../services/api/resourceHub'
+import { useCommunityAccess } from '../community/composables/useCommunityAccess'
 
 const route = useRoute(), router = useRouter()
+const { requireWrite } = useCommunityAccess()
 const detail = ref<ResourceContributionDetailDto | null>(null)
 const playback = ref<VideoPlaybackDto | null>(null)
 const player = ref<HTMLVideoElement>()
@@ -67,6 +69,7 @@ const ended = () => {
   notice.value = nextItem.value ? `本节已完成，可继续学习“${nextItem.value.title}”` : '本节已完成'
 }
 const add = async (id: string) => {
+  if (collections.value.find((item) => item.id === id)?.visibility === 'community' && !requireWrite('collection')) return
   try { await resourceHubApi.addToCollection(id, String(route.params.postId)); collectionOpen.value = false; notice.value = '已加入学习合集' }
   catch (cause) { error.value = cause instanceof Error ? cause.message : '加入合集失败' }
 }
@@ -95,7 +98,7 @@ onBeforeUnmount(() => { void saveProgress() })
 
 <template>
   <section class="page-container resource-detail-page">
-    <header class="resource-detail-breadcrumb"><RouterLink to="/resources"><i class="resource-direction-arrow back" aria-hidden="true" />返回资源中心</RouterLink><button class="button secondary small" @click="share">分享</button></header>
+    <header class="resource-detail-breadcrumb"><RouterLink to="/resources"><i class="resource-direction-arrow back" aria-hidden="true" />返回教程中心</RouterLink><button class="button secondary small" @click="share">分享</button></header>
     <p v-if="error" class="community-error" role="alert">{{ error }} <button class="text-link" @click="load">重试</button></p>
     <p v-if="notice" class="community-notice" role="status">{{ notice }}</p>
     <template v-if="detail">

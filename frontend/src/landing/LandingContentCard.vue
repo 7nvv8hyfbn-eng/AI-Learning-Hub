@@ -9,7 +9,7 @@ import { itemCover } from '../homepage/module-utils'
 const props = withDefaults(defineProps<{ item: HomepageResolvedItemDto; variant?: 'featured' | 'note' | 'visual' | 'code' | 'resource'; cover?: LandingAssetKey }>(), { variant: 'featured', cover: 'robotCar' })
 defineEmits<{ open: [item: HomepageResolvedItemDto] }>()
 const author = computed(() => props.item.data.author && typeof props.item.data.author === 'object' ? props.item.data.author as LandingPublicAuthor : null)
-const label = computed(() => ({ community_post: '社区精选', lab: '实训项目', course: '课程学习', article: 'AI 前沿', resource: '学习资源', community_topic: '话题讨论', community_user: '社区创作者', theme: '学习主题', challenge: '挑战测评' })[props.item.targetType])
+const label = computed(() => ({ community_post: '社区精选', lab: '实训项目', course: '课程学习', article: 'AI 前沿', resource: '学习资源', community_topic: '话题讨论', community_user: '社区创作者', theme: '通识基础', challenge: '挑战测评' })[props.item.targetType])
 const hasImage = computed(() => ['featured', 'visual', 'code'].includes(props.variant))
 const isCatalog = computed(() => ['theme', 'course', 'lab', 'resource', 'article', 'challenge'].includes(props.item.targetType))
 </script>

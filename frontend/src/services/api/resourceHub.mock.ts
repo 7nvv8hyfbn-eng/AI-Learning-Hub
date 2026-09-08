@@ -1,7 +1,8 @@
 import { demoResourceHubCategories, demoResourceHubContributions } from '@ai-learning-hub/demo-fixtures'
 import type { CommunityAuthorDto, CommunityPostDetailDto, LearningCollectionDto, LearningCollectionSummaryDto, ResourceContributionDetailDto, ResourceHubHomeDto, ResourceHubItemDto, ResourceHubListDto, VideoAssetDto, VideoPlaybackDto } from '@ai-learning-hub/contracts'
-import { mockCommunity, mockResourceContributionPosts } from './community.mock'
+import { assertMockCommunityWrite, checkMockContent, mockCommunity, mockResourceContributionPosts } from './community.mock'
 import { randomId } from './random-id'
+import { mockCoverUrl } from './community-images.mock'
 
 const collectionsKey = 'ai-learning-resource-hub:collections-v1'
 const progressKey = 'ai-learning-resource-hub:progress-v1'
@@ -30,7 +31,7 @@ const item = (post: CommunityPostDetailDto): ResourceHubItemDto => {
   kind: contribution.kind,
   category: contribution.category,
   tags: contribution.tags,
-  coverUrl: contribution.coverUrl,
+  coverUrl: mockCoverUrl(contribution.coverFileId) || contribution.video?.posterUrl || fixture?.coverUrl || mockCoverUrl(post.contentBlocks.find((block) => block.type === 'image')?.fileId) || contribution.coverUrl,
   author: post.author,
   stats: { views: fixture?.views || 0, likes: post.stats.likes, comments: post.stats.comments, bookmarks: post.stats.bookmarks, downloads: 0 },
   durationSeconds: contribution.video?.durationSeconds || null,
@@ -51,7 +52,11 @@ const readCollections = (): StoredCollection[] => {
   ]
   try { return JSON.parse(localStorage.getItem(collectionsKey) || 'null') || fallback } catch { return fallback }
 }
-const saveCollections = (value: StoredCollection[]) => localStorage.setItem(collectionsKey, JSON.stringify(value))
+const saveCollections = (value: StoredCollection[], changed: StoredCollection) => {
+  changed.detection = changed.visibility === 'community' ? checkMockContent({ collectionName: changed.name, collectionDescription: changed.description, collectionGoal: changed.learningGoal }) : undefined
+  changed.contentStatus = changed.detection?.action === 'review' ? 'pending_review' : 'published'
+  localStorage.setItem(collectionsKey, JSON.stringify(value))
+}
 const summary = ({ postIds, ...value }: StoredCollection): LearningCollectionSummaryDto => {
   void postIds
   return value
@@ -68,7 +73,7 @@ const watchLater = () => {
   let value = rows.find((row) => row.systemKind === 'watch_later')
   if (!value) {
     value = { id: 'demo-watch-later', name: '稍后再看', description: '仅自己可见', visibility: 'private', systemKind: 'watch_later', learningGoal: '', itemCount: 0, videoCount: 0, durationSeconds: 0, owner: student, isOwner: true, revision: 1, updatedAt: new Date().toISOString(), postIds: [] }
-    rows.unshift(value); saveCollections(rows)
+    rows.unshift(value); saveCollections(rows, value)
   }
   return value
 }
@@ -78,7 +83,7 @@ export async function mockResourceHub<T>(path: string, method = 'GET', body?: un
   const parts = url.pathname.split('/').filter(Boolean)
   let value: unknown
   if (parts[0] === 'home') {
-    const entries = all(), collections = readCollections().map(summary)
+    const entries = all(), collections = readCollections().filter((entry) => entry.owner.id === student.id || entry.visibility === 'community' && (entry.contentStatus || 'published') === 'published').map(summary)
     value = {
       banners: entries.filter((entry) => entry.featured).slice(0, 3).map((entry) => {
         const bannerUrl = demoResourceHubContributions.find((row) => row.id === entry.id)?.bannerUrl
@@ -92,6 +97,9 @@ export async function mockResourceHub<T>(path: string, method = 'GET', body?: un
       likedVideos: entries.filter((entry) => entry.kind === 'video').slice(4, 8),
       liveReplay: entries.filter((entry) => entry.liveReplay),
     } satisfies ResourceHubHomeDto
+  } else if (parts[0] === 'capacity') {
+    const quotaBytes = 10 * 1024 ** 3
+    value = { driver: 'mock', usedBytes: 0, reservedBytes: 0, temporaryReservedBytes: 0, quotaBytes, remainingBytes: quotaBytes, activeUploads: 0, parallelUploadLimit: 2, queuedTasks: 0, queueLimit: 3, site: { usedBytes: 0, reservedBytes: 0, temporaryReservedBytes: 0, capacityBytes: quotaBytes, availableBytes: quotaBytes, temporaryFreeBytes: quotaBytes, minimumFreeBytes: 2 * 1024 ** 3, activeUploads: 0, queuedTasks: 0 }, unavailableReason: 'Mock演示容量，不代表实际存储或扫描结果' }
   } else if (parts[0] === 'categories') value = demoResourceHubCategories
   else if (parts[0] === 'items') {
     const keyword = (url.searchParams.get('keyword') || '').toLowerCase(), kind = url.searchParams.get('kind') || 'all', categoryCode = url.searchParams.get('category') || ''
@@ -103,10 +111,11 @@ export async function mockResourceHub<T>(path: string, method = 'GET', body?: un
     value = {
       items: entries.filter((entry) => posts.find((post) => post.id === entry.postId)?.status === 'published'),
       drafts: posts.filter((post) => post.status === 'draft'),
+      pendingReview: posts.filter((post) => post.status === 'pending_review'),
       processing: entries.filter((entry) => ['uploaded', 'processing', 'failed'].includes(entry.mediaStatus || '')),
     }
   } else if (parts[0] === 'creators') {
-    value = { items: all().filter((entry) => entry.author?.id === parts[1]), collections: readCollections().filter((entry) => entry.owner.id === parts[1] && (parts[1] === student.id || entry.visibility === 'community')).map(summary) }
+    value = { items: all().filter((entry) => entry.author?.id === parts[1]), collections: readCollections().filter((entry) => entry.owner.id === parts[1] && (parts[1] === student.id || entry.visibility === 'community' && (entry.contentStatus || 'published') === 'published')).map(summary) }
   } else if (parts[0] === 'contributions') {
     const post = await mockCommunity<ResourceContributionDetailDto['post']>(`/posts/${parts[1]}`, 'GET')
     if (!post.contribution) throw new Error('资源作品不存在')
@@ -114,8 +123,10 @@ export async function mockResourceHub<T>(path: string, method = 'GET', body?: un
     const uploaded = post.contribution?.attachmentFileId ? uploadedDocuments.get(post.contribution.attachmentFileId) : undefined
     const contribution = uploaded && post.contribution?.attachment
       ? { ...post.contribution, attachment: { ...post.contribution.attachment, name: uploaded.name, size: uploaded.size, mimeType: uploaded.mimeType, downloadUrl: uploaded.url } }
-      : post.contribution!
-    const collection = readCollections().find((row) => row.postIds.includes(post.id))
+      : { ...post.contribution! }
+    contribution.coverUrl = entry.coverUrl
+    if (contribution.video) contribution.video = { ...contribution.video, posterUrl: entry.coverUrl }
+    const collection = readCollections().find((row) => row.postIds.includes(post.id) && (row.owner.id === student.id || row.visibility === 'community' && (row.contentStatus || 'published') === 'published'))
     value = { post: { ...post, contribution }, contribution, stats: entry.stats, collection: collection ? detail(collection) : null, related: all().filter((candidate) => candidate.id !== entry.id && candidate.category?.code === entry.category?.code).slice(0, 6) } satisfies ResourceContributionDetailDto
   } else if (parts[0] === 'videos' && parts.length === 2) {
     const fixture = demoResourceHubContributions.find((candidate) => `video-${candidate.id}` === parts[1])
@@ -138,18 +149,22 @@ export async function mockResourceHub<T>(path: string, method = 'GET', body?: un
       updatedAt: now,
     } satisfies VideoAssetDto
   } else if (parts[0] === 'videos' && parts[2] === 'playback') {
+    const post = mockResourceContributionPosts(true).find((post) => (post.contribution?.video?.id || post.contribution?.videoAssetId) === parts[1])
+    if (!post) throw new Error('视频不存在或不可见')
     const entry = demoResourceHubContributions.find((candidate) => `video-${candidate.id}` === parts[1])
     const uploaded = uploadedVideos.get(parts[1])
     if (!entry && !uploaded) throw new Error('视频不存在')
     let progress = null
     try { progress = JSON.parse(localStorage.getItem(progressKey) || '{}')[parts[1]] || null } catch { /* 使用空进度。 */ }
-    value = { assetId: parts[1], sources: [{ src: entry?.videoUrl || uploaded!.url, type: 'video/mp4' }], poster: entry?.coverUrl || null, durationSeconds: entry?.durationSeconds || 60, expiresAt: new Date(Date.now() + 21600000).toISOString(), captions: [], chapters: [], progress } satisfies VideoPlaybackDto
+    value = { assetId: parts[1], sources: [{ src: entry?.videoUrl || uploaded!.url, type: 'video/mp4' }], poster: item(post).coverUrl, durationSeconds: entry?.durationSeconds || 60, expiresAt: new Date(Date.now() + 21600000).toISOString(), captions: [], chapters: [], progress } satisfies VideoPlaybackDto
   } else if (parts[0] === 'videos' && parts[2] === 'progress') {
+    if (!mockResourceContributionPosts().some((post) => (post.contribution?.video?.id || post.contribution?.videoAssetId) === parts[1])) throw new Error('待审预览不能计入学习进度')
     const input = body as { positionSeconds: number; watchedSeconds: number; completed: boolean }
     let state: Record<string, unknown> = {}
     try { state = JSON.parse(localStorage.getItem(progressKey) || '{}') } catch { /* 重建演示进度。 */ }
     state[parts[1]] = input; localStorage.setItem(progressKey, JSON.stringify(state)); value = input
   } else if (parts[0] === 'uploads' && parts[1] === 'video') {
+    assertMockCommunityWrite()
     const file = body as File
     const now = new Date().toISOString()
     const id = `demo-upload-${randomId()}`
@@ -157,47 +172,54 @@ export async function mockResourceHub<T>(path: string, method = 'GET', body?: un
     uploadedVideos.set(id, { url: URL.createObjectURL(file), asset })
     value = asset
   } else if (parts[0] === 'uploads' && parts[1] === 'document') {
+    assertMockCommunityWrite()
     const file = body as File
     const id = `demo-file-${randomId()}`
     uploadedDocuments.set(id, { url: URL.createObjectURL(file), name: file.name, mimeType: file.type || 'application/octet-stream', size: file.size })
-    value = { id, originalName: file.name, mimeType: file.type, size: file.size, checksum: 'demo' }
+    value = { id, originalName: file.name, mimeType: file.type, size: file.size, checksum: 'demo', securityScan: { status: 'unavailable', message: 'Mock未执行恶意文件扫描', scannedAt: null, quarantined: false } }
   } else if (parts[0] === 'collections') {
     const rows = readCollections()
-    if (!parts[1] && method === 'GET') value = rows.map(summary)
+    if (!parts[1] && method === 'GET') value = rows.filter((entry) => entry.owner.id === student.id || entry.visibility === 'community' && (entry.contentStatus || 'published') === 'published').map(summary)
     else if (!parts[1] && method === 'POST') {
       const input = body as { name: string; description: string; visibility: 'private' | 'community'; learningGoal?: string }
+      if (input.visibility === 'community') assertMockCommunityWrite()
       const created: StoredCollection = { id: `demo-collection-${randomId()}`, ...input, learningGoal: input.learningGoal || '', systemKind: null, itemCount: 0, videoCount: 0, durationSeconds: 0, owner: student, isOwner: true, revision: 1, updatedAt: new Date().toISOString(), postIds: [] }
-      rows.push(created); saveCollections(rows); value = detail(created)
+      rows.push(created); saveCollections(rows, created); value = detail(created)
     } else {
       const target = parts[1] === 'watch-later' ? watchLater() : readCollections().find((row) => row.id === parts[1])
-      if (!target) throw new Error('合集不存在')
+      if (!target || target.owner.id !== student.id && (target.visibility !== 'community' || (target.contentStatus || 'published') !== 'published')) throw new Error('合集不存在')
+      if (method !== 'GET' && target.owner.id !== student.id) throw new Error('只能修改自己的合集')
       if (parts[2] === 'items' && method === 'POST') {
+        if (target.visibility === 'community') assertMockCommunityWrite()
         const postId = (body as { postId: string }).postId
         if (!target.postIds.includes(postId)) target.postIds.push(postId)
         target.revision++; target.updatedAt = new Date().toISOString(); target.itemCount = target.postIds.length
         const entries = all().filter((entry) => target.postIds.includes(entry.postId || ''))
         target.videoCount = entries.filter((entry) => entry.kind === 'video').length
         target.durationSeconds = entries.reduce((total, entry) => total + (entry.durationSeconds || 0), 0)
-        const next = readCollections().filter((row) => row.id !== target.id); next.push(target); saveCollections(next); value = detail(target)
+        const next = readCollections().filter((row) => row.id !== target.id); next.push(target); saveCollections(next, target); value = detail(target)
       } else if (parts[2] === 'items' && parts[3] && method === 'DELETE') {
+        if (target.visibility === 'community') assertMockCommunityWrite()
         target.postIds = target.postIds.filter((postId) => `${target.id}-${postId}` !== parts[3])
         target.revision++; target.updatedAt = new Date().toISOString(); target.itemCount = target.postIds.length
         const entries = all().filter((entry) => target.postIds.includes(entry.postId || ''))
         target.videoCount = entries.filter((entry) => entry.kind === 'video').length
         target.durationSeconds = entries.reduce((total, entry) => total + (entry.durationSeconds || 0), 0)
-        const next = readCollections().filter((row) => row.id !== target.id); next.push(target); saveCollections(next); value = detail(target)
+        const next = readCollections().filter((row) => row.id !== target.id); next.push(target); saveCollections(next, target); value = detail(target)
       } else if (parts[2] === 'order' && method === 'PUT') {
+        if (target.visibility === 'community') assertMockCommunityWrite()
         const input = body as { expectedRevision: number; itemIds: string[] }
         if (input.expectedRevision !== target.revision || input.itemIds.length !== target.postIds.length) throw new Error('合集已变化，请刷新后重试')
         const ordered = input.itemIds.map((itemId) => target.postIds.find((postId) => `${target.id}-${postId}` === itemId))
         if (ordered.some((postId) => !postId) || new Set(ordered).size !== target.postIds.length) throw new Error('合集排序项不完整')
         target.postIds = ordered as string[]; target.revision++; target.updatedAt = new Date().toISOString()
-        const next = readCollections().filter((row) => row.id !== target.id); next.push(target); saveCollections(next); value = detail(target)
+        const next = readCollections().filter((row) => row.id !== target.id); next.push(target); saveCollections(next, target); value = detail(target)
       } else if (method === 'PATCH') {
         const input = body as { name: string; description: string; visibility: 'private' | 'community'; learningGoal?: string; expectedRevision?: number }
+        if (target.visibility === 'community' || input.visibility === 'community') assertMockCommunityWrite()
         if (input.expectedRevision !== target.revision || target.systemKind) throw new Error('合集已变化、不可编辑或不存在')
         Object.assign(target, { name: input.name, description: input.description, visibility: input.visibility, learningGoal: input.learningGoal || '', revision: target.revision + 1, updatedAt: new Date().toISOString() })
-        const next = readCollections().filter((row) => row.id !== target.id); next.push(target); saveCollections(next); value = detail(target)
+        const next = readCollections().filter((row) => row.id !== target.id); next.push(target); saveCollections(next, target); value = detail(target)
       } else value = detail(target)
     }
   }

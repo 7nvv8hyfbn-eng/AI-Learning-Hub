@@ -46,6 +46,7 @@ export class MediaService {
     const trustedSvg = actor.roles.some((role) => ['admin', 'super_admin'].includes(role))
     const dimensions = await inspectMediaImage(file, trustedSvg)
     const stored = await this.storage.upload(file, { uploadedBy: actor.id, visibility: 'public', catalogMedia: true, trustedSvg })
+    if (stored.securityScan?.quarantined) throw new BadRequestException(stored.securityScan.message || '文件已隔离')
     const asset = await this.prisma.$transaction(async (tx) => {
       await lockFileReferences(tx)
       const existing = await tx.mediaAsset.findUnique({ where: { fileId: stored.id } })

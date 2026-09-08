@@ -4,10 +4,10 @@
 | --- | --- | --- |
 | 社区运营 | `/community`、动态/话题/用户详情、`/bookmarks`、`/notifications` | 统一社区 DTO、可见性门禁、真实学习对象绑定与不透明推荐游标 |
 | 门户首页（原 `/homepage`） | 未登录 `/`、`/welcome` | 已发布整页快照、允许的 `moduleKey`、`resolvedItems` |
-| 学习主题 | `/topics` | 主题详情、学习路径、稳定 `stageKey` |
+| 通识基础 | `/topics` | 主题详情、学习路径、稳定 `stageKey` |
 | 课程内容 | `/courses/:courseId` | 课程版本、章节、课时、内容块、课时完成聚合 |
 | 实训项目 | `/labs`、`/labs/:labId` | 已发布步骤、活动运行、动作事件、服务端评分 |
-| 资源中心 | `/resources` | 资源元数据、文件绑定、显式浏览事件 |
+| 教程中心 | `/resources` | 资源元数据、文件绑定、显式浏览事件 |
 | AI 前沿 | `/frontier` | 文章内容块、受控推荐位、独立定时发布 |
 | 挑战测评 | `/assessments` | 题库、知识点、五题型判分、最好成绩和排行 |
 | 用户成长 | `/profile` | 服务端成长快照、积分、学习/实训/测评记录 |

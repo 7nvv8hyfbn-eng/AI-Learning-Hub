@@ -1,15 +1,51 @@
 import type { ResourceContributionDto, ResourceContributionInput } from '../resource-hub'
+import type { ContentDetectionResult } from '../content-detection'
 
 export const communityPostTypes = ['question', 'note', 'lab_result', 'project', 'frontier_discussion', 'achievement', 'general'] as const
 export type CommunityPostType = typeof communityPostTypes[number]
-export type CommunityPostStatus = 'draft' | 'published' | 'limited' | 'hidden' | 'removed'
+export type CommunityPostStatus = 'draft' | 'pending_review' | 'published' | 'limited' | 'hidden' | 'removed'
 export type CommunityVisibility = 'public' | 'school'
 export type CommunityReactionType = 'like' | 'useful'
 export type CommunityFeedMode = 'for_you' | 'following' | 'latest'
 export type CommunityVerifiedType = 'none' | 'teacher' | 'official' | 'mentor'
+export const communityOperations = ['read', 'post', 'comment', 'upload', 'interaction', 'profile', 'collection', 'report'] as const
+export type CommunityOperation = typeof communityOperations[number]
+export type CommunityEligibilityReasonCode =
+  | 'ACCOUNT_UNAVAILABLE'
+  | 'COMMUNITY_VERIFICATION_REQUIRED'
+  | 'EMAIL_VERIFICATION_REQUIRED'
+  | 'AGREEMENT_UPDATE_REQUIRED'
+  | 'COMMUNITY_OPERATION_RESTRICTED'
+  | 'COMMUNITY_RATE_LIMITED'
+export interface CommunityEligibilityDecisionDto {
+  allowed: boolean
+  reasonCode: CommunityEligibilityReasonCode | null
+  message: string | null
+  availableAt: string | null
+  nextAction: { label: string; route: string } | null
+}
+export interface CommunityEligibilityDto {
+  canRead: boolean
+  canPost: boolean
+  canComment: boolean
+  canUpload: boolean
+  operations: Record<CommunityOperation, CommunityEligibilityDecisionDto>
+  evaluatedAt: string
+}
+export interface CommunityOperationRestrictionDto {
+  id: string; revision: number; userId: string; username: string; displayName: string
+  operations: Exclude<CommunityOperation, 'read'>[]; reason: string
+  startsAt: string; endsAt: string; revokedAt: string | null
+  createdBy: string; createdAt: string; updatedAt: string; active: boolean
+}
+export interface CommunityEligibilityPolicyDto {
+  revision: number
+  quotas: Record<Exclude<CommunityOperation, 'read' | 'profile' | 'collection'>, { limit: number; windowSeconds: number }>
+}
 export type LearningContentType = 'theme' | 'course' | 'lesson' | 'lab' | 'resource' | 'article' | 'challenge' | 'lab_run'
 export type CommunityContentBlock =
   | { type: 'paragraph'; text: string }
+  | { type: 'rich_text'; text: string }
   | { type: 'heading'; text: string; level: number }
   | { type: 'list'; ordered: boolean; items: string[] }
   | { type: 'code'; language: string; code: string }
@@ -27,6 +63,8 @@ export interface CommunityAuthorDto {
   school: string | null; major: string | null; verifiedType: CommunityVerifiedType
 }
 export interface CommunityProfileDto extends CommunityAuthorDto {
+  detection?: ContentDetectionResult
+  pendingChanges?: Partial<CommunityProfileInput> & { username?: string }
   revision: number; userRevision: number
   bio: string; headline: string; location: string | null; websiteUrl: string | null
   bannerUrl: string | null; joinedAt: string; expertiseTopics: string[]; allowAchievementDrafts?: boolean
@@ -61,6 +99,8 @@ export interface CommunityViewerStateDto {
   liked: boolean; markedUseful: boolean; bookmarked: boolean; followingAuthor: boolean
 }
 export interface CommunityPostSummaryDto {
+  coverFileId?: string | null
+  detection?: ContentDetectionResult
   revision?: number
   mediaCount?: number
   reportCount?: number
@@ -75,6 +115,7 @@ export interface CommunityPostSummaryDto {
 }
 export interface CommunityPostDetailDto extends CommunityPostSummaryDto { body: string }
 export interface CommunityPostInput {
+  coverFileId?: string | null
   expectedRevision?: number
   type: CommunityPostType; title?: string; contentBlocks: CommunityContentBlock[]
   bindings: CommunityBindingInput[]; topicIds: string[]; visibility: CommunityVisibility
@@ -82,6 +123,8 @@ export interface CommunityPostInput {
   contribution?: ResourceContributionInput
 }
 export interface CommunityCommentDto {
+  detection?: ContentDetectionResult
+  status?: 'published' | 'pending_review' | 'hidden' | 'removed'
   revision?: number
   id: string; postId: string; author: CommunityAuthorDto; parentId: string | null; rootId: string | null
   body: string; contentBlocks: CommunityContentBlock[]; deleted: boolean; likes: number
@@ -120,6 +163,7 @@ export interface CommunityFeedPolicyDto {
 }
 export interface CommunityAdminReportDto {
   id: string; postId: string | null; commentId: string | null; reason: string; description: string
+  collectionId?: string | null; profileId?: string | null; category?: string; revision?: number
   status: string; createdAt: string
 }
 export interface CommunityAdminInspectionDto {
