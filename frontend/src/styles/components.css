@@ -37,7 +37,7 @@
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin: 82px 0 24px; }
 .section-heading h2 { margin-bottom: 0; }
 .section-heading > a, .section-heading > button { display: inline-flex; align-items: center; gap: 4px; color: var(--secondary); font-size: .82rem; }
-.back-link, .path-cards a, .tech-list span, .featured-resource-row em, .five-resource-grid small, .direction-grid > a > span:last-child { display: inline-flex; align-items: center; gap: 4px; }
+.path-cards a, .tech-list span, .featured-resource-row em, .five-resource-grid small, .direction-grid > a > span:last-child { display: inline-flex; align-items: center; gap: 4px; }
 .section-grid { display: grid; grid-template-columns: 1fr 1.7fr; gap: 44px; }
 .three-grid, .four-grid { display: grid; gap: 18px; }
 .three-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -318,3 +318,7 @@ label:has(> input[type="checkbox"]:disabled) { color: var(--amc-text-secondary);
   color: var(--brand);
   font-size: 3rem;
 }
+
+.back-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 40px; height: 40px; min-width: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; vertical-align: middle; }
+.back-button:hover { color: var(--brand); }
+.back-button > svg { width: 32px; height: 32px; flex: 0 0 32px; }

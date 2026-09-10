@@ -120,7 +120,7 @@ onBeforeUnmount(() => { selectionEpoch++; rankingEpoch++ })
       <CategoryCover :title="challenge.title" :media="challenge.data" eager />
       <div class="challenge-target"><h3>挑战目标</h3><strong>{{ challenge.targetScore }} 分</strong><ProgressBar v-if="accountDataReady" :value="store.serverGrowth?.knowledgeAccuracy || 0" label="知识正确率" /><span v-else>{{ accountDataMessage }}</span><span v-if="rankingState === 'ready'">排行榜已有 {{ ranking.length }} 条有效最佳成绩</span><span v-else-if="rankingState === 'login-required'">登录后查看挑战排行榜</span><span v-else-if="rankingState === 'error'">{{ rankingMessage }}</span><span v-else>排行榜加载中…</span><span>通过后奖励 {{ challenge.rewardPoints }} 积分</span></div>
     </section>
-    <div v-else-if="selectionError" class="inline-empty" role="alert"><p>{{ selectionError }}</p><RouterLink class="text-link" to="/assessments">返回挑战列表</RouterLink></div>
+    <div v-else-if="selectionError" class="inline-empty" role="alert"><p>{{ selectionError }}</p><RouterLink class="back-button" to="/assessments" aria-label="返回挑战列表" title="返回挑战列表"><AppIcon name="back" /></RouterLink></div>
     <div v-else-if="selectionLoading" class="inline-empty" role="status"><p>正在加载指定挑战…</p></div>
     <div v-else-if="challengeLoadError" class="inline-empty"><p>{{ challengeLoadError }}</p></div>
     <div v-else-if="dataMode === 'api'" class="inline-empty"><p>{{ challengeStore.loading ? '正在加载已发布挑战…' : '当前没有已发布挑战。' }}</p></div>

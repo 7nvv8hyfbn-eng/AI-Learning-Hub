@@ -541,3 +541,7 @@ label:has(> input[type="checkbox"]:disabled) { color: var(--muted); cursor: not-
   .dashboard-bottom { grid-template-columns: 1fr; }
   .dashboard-side-stack { grid-template-columns: 1fr .65fr; }
 }
+
+.back-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 40px; height: 40px; min-width: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; vertical-align: middle; }
+.back-button:hover { color: var(--brand); }
+.back-button > svg { width: 32px; height: 32px; flex: 0 0 32px; }

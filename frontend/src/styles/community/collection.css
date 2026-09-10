@@ -14,7 +14,7 @@
 .community-reply-form h3 { margin-bottom: 0; }
 .community-profile-links { display: flex; gap: 18px; flex-wrap: wrap; padding: 20px 0; color: var(--amc-orange); font-size: 13px; }
 .community-profile-page { min-width: 0; }
-.community-profile-back { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 14px; color: var(--amc-text-secondary); font-size: 13px; }
+.community-profile-back { margin-bottom: 14px; color: var(--amc-text-secondary); }
 .community-profile-header { overflow: hidden; margin-bottom: 18px; border: 1px solid var(--amc-border); border-radius: var(--amc-radius-card); background: var(--amc-surface); box-shadow: var(--amc-shadow-card); }
 .community-profile-banner { aspect-ratio: 3 / 1; max-height: 320px; background-position: center; background-size: cover; }
 .community-profile-banner.empty { position: relative; overflow: hidden; background: var(--amc-surface-purple); }

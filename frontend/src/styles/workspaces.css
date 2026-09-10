@@ -7,7 +7,7 @@
 .lab-hero { display: grid; grid-template-columns: 1.1fr .7fr auto; align-items: center; gap: 25px; padding: 34px 0; }
 .lab-hero h1 { margin: 16px 0 10px; font-size: clamp(2rem, 3vw, 3rem); }
 .lab-hero > img { width: 100%; height: 190px; object-fit: cover; border-radius: 18px; }
-.back-link { display: block; margin-bottom: 20px; color: #97a8b8; font-size: .8rem; }
+.back-link { margin-bottom: 20px; color: #97a8b8; }
 .lab-secondary { color: #d8e0e8; border-color: #324353; background: #15222d; }
 .workspace-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr) 280px; gap: 10px; }
 .step-panel, .workspace-main, .guidance-panel { overflow: hidden; border: 1px solid #2b3a47; border-radius: 12px; background: rgba(17, 31, 42, .95); }

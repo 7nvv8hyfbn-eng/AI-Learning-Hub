@@ -103,7 +103,6 @@
 .resource-detail-page, .resource-collection-page, .resource-studio-page { display: grid; gap: 22px; }
 .resource-detail-breadcrumb, .resource-studio-page > header { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .resource-detail-breadcrumb > a, .resource-detail-back { display: inline-flex; align-items: center; gap: 7px; color: var(--secondary); }
-.resource-detail-breadcrumb > a svg, .resource-detail-back svg { transform: rotate(180deg); }
 .resource-player-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: stretch; }
 .resource-player-layout.single { grid-template-columns: minmax(0, 1fr); }
 .resource-player-shell { overflow: hidden; border-radius: 18px; background: #12100f; box-shadow: 0 12px 34px rgba(25,18,14,.12); }

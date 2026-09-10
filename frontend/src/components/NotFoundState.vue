@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './base/AppIcon.vue'
 withDefaults(defineProps<{ title?: string; description?: string; backTo?: string; backLabel?: string }>(), {
   title: '没有找到对应内容',
   description: '当前地址可能已失效，请返回列表重新选择。',
@@ -12,6 +13,6 @@ withDefaults(defineProps<{ title?: string; description?: string; backTo?: string
     <span aria-hidden="true">404</span>
     <h1>{{ title }}</h1>
     <p>{{ description }}</p>
-    <RouterLink class="button primary" :to="backTo">{{ backLabel }}</RouterLink>
+    <RouterLink class="back-button" :to="backTo" :aria-label="backLabel" :title="backLabel"><AppIcon name="back" /></RouterLink>
   </section>
 </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/base/AppIcon.vue'
 import type { CampusIdentityVerificationDto, IdentityVerificationStatus } from '@ai-learning-hub/contracts'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -62,7 +63,7 @@ onMounted(load)
         <p>完整身份证号只会加密保存，并仅供具备专门权限的审核人员核验。</p>
         <div class="verification-actions"><button class="button primary" :disabled="saving">{{ saving ? '提交中…' : '提交认证' }}</button><button type="button" class="button secondary" @click="router.push('/community')">稍后认证，先浏览</button></div>
       </form>
-      <div v-else class="verification-actions"><RouterLink class="button secondary" to="/community">返回社区</RouterLink></div>
+      <div v-else class="verification-actions"><RouterLink class="back-button" to="/community" aria-label="返回社区" title="返回社区"><AppIcon name="back" /></RouterLink></div>
       <section v-if="auth.dataMode === 'mock' && ['pending', 'approved'].includes(state.status)" class="verification-card verification-simulator">
         <h2>演示审核</h2><p>以下操作只切换当前浏览器中的虚构状态，用于检查完整状态流。</p>
         <div class="verification-actions"><button v-if="state.status === 'pending'" class="button secondary" @click="demoReview('approved')">模拟通过</button><button v-if="state.status === 'pending'" class="button secondary" @click="demoReview('rejected')">模拟驳回</button><button v-if="state.status === 'approved'" class="button secondary" @click="demoReview('revoked')">模拟撤销</button></div>

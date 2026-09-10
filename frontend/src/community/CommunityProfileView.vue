@@ -250,7 +250,7 @@ onBeforeUnmount(() => {
 <template>
   <RouterLink v-if="profile?.isSelf" class="button secondary small" to="/account/security">账号安全</RouterLink>
   <section class="community-profile-page">
-    <RouterLink class="community-profile-back" to="/community">返回社区发现</RouterLink>
+    <RouterLink class="community-profile-back back-button" to="/community" aria-label="返回社区发现" title="返回社区发现"><AppIcon name="back" /></RouterLink>
     <CommunitySkeleton v-if="loading && !profile" />
     <p v-if="error" class="community-error" role="alert">{{ error }}</p>
     <p v-if="notice" class="community-notice" role="status">{{ notice }}</p>

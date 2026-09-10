@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from './base/AppIcon.vue'
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppDialog from './base/AppDialog.vue'
@@ -54,7 +55,7 @@ const submit = async () => {
     </template>
     <p v-if="localError || auth.error" class="community-error" role="alert">{{ localError || auth.error }}</p><p v-if="message" role="status">{{ message }}</p>
     <button class="button primary" :disabled="auth.loading || (!forgot && ui.mode === 'register' && (!auth.registrationConfig || auth.registrationConfig.mode === 'closed'))">{{ auth.loading ? '处理中…' : forgot ? '发送重置邮件' : ui.mode === 'register' ? '注册并开始学习' : '登录' }}</button>
-    <button v-if="forgot" type="button" class="text-link" @click="forgot = false">返回登录</button>
+    <button v-if="forgot" type="button" class="back-button" @click="forgot = false" aria-label="返回登录" title="返回登录"><AppIcon name="back" /></button>
     <p v-if="auth.registrationConfig?.mode === 'closed'" class="muted">注册已关闭，请联系管理员创建账号。</p>
   </form>
 </AppDialog></template>

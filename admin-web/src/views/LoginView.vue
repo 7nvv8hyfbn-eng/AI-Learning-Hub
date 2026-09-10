@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AdminIcon from '../components/AdminIcon.vue'
 import { onBeforeUnmount, reactive, ref, watch } from 'vue'
 import type { MfaHintDto } from '@ai-learning-hub/contracts'
 import { api } from '../services/api'
@@ -74,7 +75,7 @@ const enter = async () => {
           <p v-else-if="session.mfa.enrollment">请在认证器中添加 TOTP 账号，输入下方密钥，再填写6位验证码完成绑定。</p>
           <label v-if="session.mfa.secret">认证器密钥<input :value="session.mfa.secret" readonly autocomplete="off" /></label>
           <label>{{ session.mfa.enrollment ? '6位动态验证码' : '动态验证码或一次性恢复码' }}<input v-model="code" required autocomplete="one-time-code" maxlength="64" /></label>
-          <button type="button" class="text-link" @click="session.mfa = null; code = ''">返回密码登录</button>
+          <button type="button" class="back-button" @click="session.mfa = null; code = ''" aria-label="返回密码登录" title="返回密码登录"><AdminIcon name="back" /></button>
         </template>
         <p v-if="session.error" class="form-error" role="alert">{{ session.error }}</p>
         <button class="admin-primary" type="submit" :disabled="session.loading">{{ session.loading ? '正在验证…' : session.mfa ? '验证并登录' : '登录管理后台' }}</button>
