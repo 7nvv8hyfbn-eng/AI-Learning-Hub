@@ -130,7 +130,7 @@ describe('校园实名、账号和社区写权限', () => {
       systemSetting: { findUnique: vi.fn(async () => null) },
       $queryRaw: vi.fn(), campusIdentityVerification,
       user: { findUnique: vi.fn().mockResolvedValue({ status: 'active' }), update: vi.fn() },
-      school: { count: vi.fn().mockResolvedValue(0) }, systemSetting: { findUnique: vi.fn().mockResolvedValue(null) },
+      school: { count: vi.fn().mockResolvedValue(0) },
       activityEvent: { create: vi.fn() }, auditLog: { create: vi.fn() },
     }
     const prisma: any = { ...tx, $transaction: vi.fn(async (callback) => callback(tx)) }

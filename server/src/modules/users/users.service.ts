@@ -129,7 +129,7 @@ export class UsersService {
       await this.assertTarget(actor, userId, tx)
       const request = await idempotency(tx, actor.id, `moderator-grants:${userId}`, key, input)
       if (request.resourceId) return { updated: true, revision: Number(request.resourceId) }
-      const user = await tx.user.findUniqueOrThrow({ where: { id: userId } })
+      const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, include: { communityProfile: true } })
       if (user.revision !== input.expectedRevision) throw new ConflictException('用户资料或授权已更新，请重新读取')
       const before = await tx.frontendModeratorGrant.findMany({ where: { userId } })
       await tx.frontendModeratorGrant.updateMany({ where: { userId, ...(input.enabled ? { scope: { notIn: input.scopes } } : {}) }, data: { enabled: false, grantedById: actor.id, revision: { increment: 1 } } })
@@ -138,6 +138,7 @@ export class UsersService {
         await tx.frontendModeratorGrant.upsert({ where: { userId_scope: { userId, scope } }, create: { userId, scope, ...data }, update: { ...data, revision: { increment: 1 } } })
       }
       const after = await tx.frontendModeratorGrant.findMany({ where: { userId } })
+      if (!input.enabled && user.communityProfile) await tx.communityProfile.update({ where: { userId }, data: { hiddenAutomaticBadges: user.communityProfile.hiddenAutomaticBadges.filter(code => code !== 'moderator'), revision: { increment: 1 } } })
       await tx.user.update({ where: { id: userId }, data: { revision: { increment: 1 } } })
       await tx.auditLog.create({ data: { actorId: actor.id, action: 'frontend_moderator_grants_updated', targetType: 'user', targetId: userId, details: { reason: input.reason.trim(), source: 'admin-web', before: before.map((grant) => ({ ...moderatorGrantDto(grant) })), after: after.map((grant) => ({ ...moderatorGrantDto(grant) })) } } })
       await request.complete(String(user.revision + 1))

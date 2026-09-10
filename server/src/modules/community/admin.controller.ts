@@ -203,9 +203,15 @@ export class CommunityAdminController {
       await lockFileReferences(tx)
       await lockUser(tx, id)
       await this.detection.saveProfile(tx, id, { expertiseTopics: input.expertiseTopics }, user.id, input.expectedRevision)
-      await tx.communityProfile.update({ where: { userId: id }, data: { verifiedType: input.verifiedType } })
+      const before = await tx.communityProfile.findUniqueOrThrow({ where: { userId: id } })
+      await tx.communityProfile.update({ where: { userId: id }, data: {
+        verifiedType: input.verifiedType,
+        ...(before.verifiedType !== input.verifiedType ? { hiddenAutomaticBadges: before.hiddenAutomaticBadges.filter(code => !['official', 'teacher', 'mentor'].includes(code)) } : {}),
+      } })
       await tx.userRole.deleteMany({ where: { userId: id, role: { code: { in: ['community_official', 'teacher', 'mentor'] } } } })
       if (role) await tx.userRole.create({ data: { userId: id, roleId: role.id } })
+      await tx.user.update({ where: { id }, data: { revision: { increment: 1 } } })
+      await tx.auditLog.create({ data: { actorId: user.id, action: 'community_identity_updated', targetType: 'user', targetId: id, details: { reason: input.reason, before: before.verifiedType, after: input.verifiedType } } })
       await tx.communityModerationAction.create({ data: { actorId: user.id, targetType: 'user', targetId: id, action: 'verify', reason: input.reason, metadata: { verifiedType: input.verifiedType } } })
     })
     return { updated: true }

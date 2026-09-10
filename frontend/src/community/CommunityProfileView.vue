@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import CommunityUserBadges from './CommunityUserBadges.vue'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { CommunityProfileDto, CommunityProfileInput, CommunityProfileRelationDto, CommunityProfileTab, CommunityReplySummaryDto, LearningCollectionSummaryDto, ResourceHubItemDto } from '@ai-learning-hub/contracts'
 import AppDialog from '../components/base/AppDialog.vue'
@@ -39,6 +39,23 @@ const avatarFile = ref<File | null>(null), bannerFile = ref<File | null>(null), 
 const form = ref<CommunityProfileInput>({ expectedUserRevision: 1, expectedProfileRevision: 1, displayName: '', bio: '', headline: '', location: '', websiteUrl: '', expertiseTopics: [], allowAchievementDrafts: false })
 const topicsText = ref(''), reportOpen = ref(false)
 let loadEpoch = 0
+let refreshingBadges = false
+
+const refreshBadges = async () => {
+  if (document.visibilityState !== 'visible' || !profile.value || loading.value || refreshingBadges) return
+  const current = profile.value, epoch = loadEpoch
+  refreshingBadges = true
+  try {
+    const next = await communityApi.profileById(current.id)
+    if (epoch !== loadEpoch || current !== profile.value) return
+    const badges = { id: next.id, badges: next.badges, verifiedType: next.verifiedType }
+    const displayedPosts = [...posts.value, ...(current.pinnedPost ? [current.pinnedPost] : [])]
+    const authors = [current, ...relationPeople.value, ...resourceItems.value.map(item => item.author), ...resourceCollections.value.map(item => item.owner), ...displayedPosts.flatMap(post => [post.author, ...(post.quotedPost?.available ? [post.quotedPost.author] : [])])]
+    for (const author of authors) if (author?.id === next.id) Object.assign(author, badges)
+    store.syncAuthors([badges])
+  } catch { /* 暂时读取失败时保留页面，下一次返回时重试。 */ }
+  finally { refreshingBadges = false }
+}
 
 const requestedTab = () => {
   const value = String(route.query.tab || 'posts')
@@ -219,7 +236,15 @@ const joined = computed(() => profile.value ? new Date(profile.value.joinedAt).t
 const filteredResourceItems = computed(() => resourceKind.value === 'all' ? resourceItems.value : resourceItems.value.filter((item) => item.kind === resourceKind.value))
 watch(resourceKind, () => { if (tab.value === 'resources') { cursor.value = null; void loadTimeline().catch((cause) => { error.value = cause instanceof Error ? cause.message : '资源读取失败' }) } })
 watch(() => route.fullPath, load, { immediate: true })
-onBeforeUnmount(() => { loadEpoch++ })
+onMounted(() => {
+  window.addEventListener('focus', refreshBadges)
+  document.addEventListener('visibilitychange', refreshBadges)
+})
+onBeforeUnmount(() => {
+  loadEpoch++
+  window.removeEventListener('focus', refreshBadges)
+  document.removeEventListener('visibilitychange', refreshBadges)
+})
 </script>
 
 <template>

@@ -92,6 +92,45 @@ beforeAll(async () => {
 afterAll(async () => { vi.restoreAllMocks(); await app?.close(); await db.$disconnect(); if (storage) await rm(storage, { recursive: true, force: true }) })
 
 describe('前台版主真实授权、处罚及展示联动', () => {
+  it('删除身份标签撤销对应角色，保留普通角色、实名、版主权限及其他标签', async () => {
+    for (const verifiedType of ['official', 'teacher', 'mentor']) {
+      const actor = await account(), path = `/admin/users/${actor.id}/badges`
+      await configure(actor, ['community'])
+      let profile = await db.communityProfile.findUniqueOrThrow({ where: { userId: actor.id } })
+      const verify = (type: string, revision: number) => request(`/admin/community/official/${actor.id}`, admin, 'PATCH', { verifiedType: type, expectedRevision: revision, expertiseTopics: ['RAG'], reason: '隔离验证身份标签删除联动' })
+      expect((await verify(verifiedType, profile.revision)).status).toBe(200)
+      const settings = (await request(path, admin)).data
+      expect((await request(path, admin, 'PUT', { expectedRevision: settings.revision, hiddenAutomaticBadges: [verifiedType], customBadges: [{ label: '热心同学', tone: 'green' }], reason: '先隐藏身份标签再删除' })).status).toBe(200)
+      profile = await db.communityProfile.findUniqueOrThrow({ where: { userId: actor.id } })
+      expect((await verify('none', profile.revision - 1)).status).toBe(409)
+      expect((await request(`/admin/community/official/${actor.id}`, reader, 'PATCH', { verifiedType: 'none', expectedRevision: profile.revision, expertiseTopics: [], reason: '只读管理员不能删除身份' })).status).toBe(403)
+      expect((await verify('none', profile.revision)).status).toBe(200)
+      const me = (await request('/me', actor)).data
+      expect(me.roles).toContain('student'); expect(me.roles).not.toContain(verifiedType === 'official' ? 'community_official' : verifiedType)
+      expect(me.badges.map((badge: { code: string }) => badge.code)).toEqual(['moderator', 'custom:热心同学'])
+      expect((await db.campusIdentityVerification.findUniqueOrThrow({ where: { userId: actor.id } })).status).toBe('approved')
+      expect((await request(path, admin)).data.hiddenAutomaticBadges).toEqual([])
+      expect(await db.auditLog.count({ where: { targetId: actor.id, action: 'community_identity_updated' } })).toBe(2)
+      profile = await db.communityProfile.findUniqueOrThrow({ where: { userId: actor.id } })
+      expect((await verify(verifiedType, profile.revision)).status).toBe(200)
+      expect((await request('/me', actor)).data.badges[0].code).toBe(verifiedType)
+    }
+  })
+  it('删除已隐藏版主标签撤销全部范围，旧会话立即失去管理能力', async () => {
+    const actor = await account(), target = await post(), path = `/admin/users/${actor.id}/badges`
+    await configure(actor, ['community', 'tutorials'])
+    const settings = (await request(path, admin)).data
+    expect((await request(path, admin, 'PUT', { expectedRevision: settings.revision, hiddenAutomaticBadges: ['moderator'], customBadges: [], reason: '先隐藏版主标签再撤销权限' })).status).toBe(200)
+    await configure(actor, [], { enabled: false })
+    const next = (await request(path, admin)).data
+    expect(next.hiddenAutomaticBadges).toEqual([]); expect(next.badges).toEqual([])
+    expect(next.revision).toBeGreaterThan(settings.revision + 1)
+    expect((await decision(actor, 'post', target.id)).status).toBe(403)
+    expect(await db.frontendModeratorGrant.count({ where: { userId: actor.id, enabled: true } })).toBe(0)
+    await configure(actor, ['community'])
+    expect((await request('/me', actor)).data.badges[0].code).toBe('moderator')
+  })
+
   it('后台专门权限配置并审计，学生登录与后台MFA边界不变', async () => {
     const detail = await request(`/admin/users/${community.id}`, admin)
     expect(detail.status).toBe(200); expect(detail.data.moderatorGrants[0]).toMatchObject({ scope: 'community', actions: ['takedown', 'mute'], enabled: true, grantedById: admin.id })

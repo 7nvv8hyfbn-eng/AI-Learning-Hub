@@ -7,9 +7,11 @@ import CommunityUserBadges from '../src/community/CommunityUserBadges.vue'
 import { useCommunityStore } from '../src/stores/community'
 import UserPublicBadges from '../../admin-web/src/components/UserPublicBadges.vue'
 import { usersApi } from '../../admin-web/src/services/users'
+import { communityAdminApi } from '../../admin-web/src/services/community'
 import { setupComponent, flushRender } from '../src/community/test-renderer'
 
-vi.mock('../../admin-web/src/services/users', () => ({ usersApi: { badges: vi.fn(), updateBadges: vi.fn() } }))
+vi.mock('../../admin-web/src/services/users', () => ({ usersApi: { badges: vi.fn(), updateBadges: vi.fn(), moderatorGrants: vi.fn() } }))
+vi.mock('../../admin-web/src/services/community', () => ({ communityAdminApi: { verify: vi.fn() } }))
 const badges: CommunityUserBadge[] = [{ code: 'official', label: '官方', tone: 'orange' }, { code: 'moderator', label: '版主', tone: 'purple', scopes: ['community', 'tutorials'] }, { code: 'custom:热心同学', label: '热心同学', tone: 'green' }]
 describe('公开标签展示和副本同步', () => {
   it('最多两个标签并显示真实范围，其余可通过键盘读取', async () => {
@@ -35,8 +37,31 @@ describe('公开标签展示和副本同步', () => {
   })
 })
 describe('后台公开标签保存', () => {
-  interface State { settings?: UserBadgeSettingsDto; form: Omit<UserBadgeUpdateInput, 'expectedRevision'>; error: string; toggle(code: string): void; save(): Promise<void> }
+  interface State { settings?: UserBadgeSettingsDto; form: Omit<UserBadgeUpdateInput, 'expectedRevision'>; error: string; toggle(code: string): void; save(): Promise<void>; deleting?: string; deleteReason: string; requestDelete(code: string): void; deleteBadge(): Promise<void> }
   const settings = (): UserBadgeSettingsDto => ({ publicVisible: true, revision: 3, badges: [...badges], automaticBadges: badges.slice(0, 2), customBadges: [{ label: '热心同学', tone: 'green' }], hiddenAutomaticBadges: [] })
+  it('删除已隐藏身份标签须确认，调用真实身份撤销接口并保留擅长方向', async () => {
+    vi.mocked(usersApi.badges).mockResolvedValue({ ...settings(), hiddenAutomaticBadges: ['official'] })
+    const saved = vi.fn(), view = setupComponent<State>(UserPublicBadges, { userId: 'target', userRevision: 5, expertiseTopics: ['RAG'], permissions: ['platform.manage', 'community.official.publish'], onSaved: saved })
+    await flushRender(); view.state.requestDelete('official')
+    expect(view.state.deleting).toBe('official'); expect(communityAdminApi.verify).not.toHaveBeenCalled()
+    view.state.deleteReason = '撤销不再需要的官方身份'
+    vi.mocked(communityAdminApi.verify).mockRejectedValueOnce(new Error('409：资料已变化'))
+    await view.state.deleteBadge(); expect(saved).not.toHaveBeenCalled(); expect(view.state.deleting).toBe('official')
+    vi.mocked(communityAdminApi.verify).mockResolvedValueOnce({ updated: true })
+    await view.state.deleteBadge()
+    expect(communityAdminApi.verify).toHaveBeenLastCalledWith('target', 'none', ['RAG'], '撤销不再需要的官方身份', 3)
+    expect(saved).toHaveBeenCalledOnce(); expect(view.state.deleting).toBeUndefined(); view.unmount()
+  })
+  it('删除版主标签撤销全部范围；权限不足或未保存时不能启动删除', async () => {
+    vi.mocked(usersApi.badges).mockResolvedValue(settings())
+    const view = setupComponent<State>(UserPublicBadges, { userId: 'target', userRevision: 7, permissions: ['user.moderator.manage'] }); await flushRender()
+    view.state.requestDelete('official'); expect(view.state.deleting).toBeUndefined()
+    view.state.toggle('moderator'); view.state.requestDelete('moderator'); expect(view.state.deleting).toBeUndefined()
+    view.state.toggle('moderator'); view.state.requestDelete('moderator'); view.state.deleteReason = '撤销全部版主权限'
+    await view.state.deleteBadge()
+    expect(usersApi.moderatorGrants).toHaveBeenLastCalledWith('target', { expectedRevision: 7, enabled: false, scopes: [], canDelete: false, canMute: false, canBan: false, reason: '撤销全部版主权限' }, expect.stringMatching(/^[a-f0-9]{32}$/))
+    view.unmount()
+  })
   it('保存使用服务端版本并立即回显规范化结果；409保留输入', async () => {
     vi.mocked(usersApi.badges).mockResolvedValue(settings() as never)
     const view = setupComponent<State>(UserPublicBadges, { userId: 'target', userRevision: 1 }); await flushRender()
