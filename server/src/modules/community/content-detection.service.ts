@@ -1,3 +1,4 @@
+import { CommunityPostRelationsService } from './post-relations.service'
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
 import type { CommunityProfileInput, ContentDetectionInput, ContentDetectionPolicy, ContentDetectionResult, ContentDetectionRule } from '@ai-learning-hub/contracts'
 import { Prisma } from '@prisma/client'
@@ -13,7 +14,7 @@ type ProfileTextChange = Partial<Pick<CommunityProfileInput, 'displayName' | 'bi
 
 @Injectable()
 export class ContentDetectionService {
-  constructor(private readonly prisma: PrismaService, private readonly notifications: CommunityNotificationService, private readonly signals: SignalsService) {}
+  constructor(private readonly prisma: PrismaService, private readonly notifications: CommunityNotificationService, private readonly signals: SignalsService, private readonly relations: CommunityPostRelationsService) {}
 
   async policy(tx: Prisma.TransactionClient = this.prisma): Promise<ContentDetectionPolicy> {
     const row = await tx.systemSetting.findUnique({ where: { key: policyKey } })
@@ -139,6 +140,7 @@ export class ContentDetectionService {
         const changed = await tx.communityPost.updateMany({ where: { id: review.targetId, authorId: review.authorId, revision: review.contentRevision, status: 'pending_review', deletedAt: null }, data: { status: approved ? 'published' : 'pending_review', publishedAt: approved ? new Date() : null } })
         if (!changed.count) throw new ConflictException('正文或状态已变化，旧复核不能放行新内容')
         await tx.communityProfile.updateMany({ where: { userId: review.authorId }, data: { postCount: await tx.communityPost.count({ where: { authorId: review.authorId, status: 'published', deletedAt: null } }) } })
+        if (approved) await this.relations.approve(tx, review.targetId)
         const topics = await tx.communityPostTopic.findMany({ where: { postId: review.targetId } })
         for (const { topicId } of topics) await tx.communityTopic.update({ where: { id: topicId }, data: { postCount: await tx.communityPostTopic.count({ where: { topicId, post: { status: 'published', deletedAt: null } } }) } })
         if (approved) {

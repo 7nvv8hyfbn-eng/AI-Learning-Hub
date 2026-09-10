@@ -14,7 +14,7 @@ const route = useRoute(), store = useCommunityStore(), learning = useLearningSto
 const posts = ref<CommunityPostDetailDto[]>([]), topic = ref<CommunityTopicDto | null>(null), error = ref(''), tab = ref('posts'), loading = ref(false)
 let loadEpoch = 0
 const view = computed(() => String(route.meta.communityView || 'search'))
-const title = computed(() => view.value === 'bookmarks' ? '收藏与笔记' : view.value === 'topic' ? `# ${topic.value?.name || '学习话题'}` : `搜索：${String(route.query.q || '')}`)
+const title = computed(() => view.value === 'bookmarks' ? '收藏与笔记' : view.value === 'quotes' ? '引用这篇帖子的观点' : view.value === 'topic' ? `# ${topic.value?.name || '学习话题'}` : `搜索：${String(route.query.q || '')}`)
 const load = async () => {
   const epoch = ++loadEpoch, accountEpoch = store.epoch
   const current = () => epoch === loadEpoch && accountEpoch === store.epoch
@@ -24,9 +24,13 @@ const load = async () => {
   loading.value = true; error.value = ''
   try {
     if (requestedView === 'topic') {
-      const [nextTopics, nextPosts] = await Promise.all([communityApi.topics(), communityApi.list('topic', slug)])
+      const [nextTopic, nextPosts] = await Promise.all([communityApi.topic(slug), communityApi.list('topic', slug)])
       if (!current()) return
-      topic.value = nextTopics.find((item) => item.slug === slug) || null; posts.value = nextPosts
+      topic.value = nextTopic; posts.value = nextPosts
+    } else if (requestedView === 'quotes') {
+      const nextPosts = await communityApi.quotes(String(route.params.id))
+      if (!current()) return
+      posts.value = nextPosts
     } else {
       const nextPosts = await communityApi.list(requestedView === 'bookmarks' ? 'bookmarks' : 'posts', '', query)
       if (!current()) return

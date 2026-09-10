@@ -3,7 +3,7 @@ import CommunityCoverField from '../src/community/CommunityCoverField.vue'
 import { communityApi } from '../src/services/api/community'
 import { flushRender, setupComponent } from '../src/community/test-renderer'
 
-const state = vi.hoisted(() => ({ editor: { form: {}, saving: false }, auth: { user: { id: 'owner' } }, store: { epoch: 1 }, allowed: true }))
+const state = vi.hoisted(() => ({ editor: { form: {}, saving: false, pendingUploads: 0, registerUpload: vi.fn() }, auth: { user: { id: 'owner' } }, store: { epoch: 1, composerSession: 1, composerOpen: true }, allowed: true }))
 vi.mock('../src/community/composables/useCommunityDraft', () => ({ useCommunityDraft: () => state.editor }))
 vi.mock('../src/community/composables/useCommunityAccess', () => ({ useCommunityAccess: () => ({ requireWrite: () => state.allowed, decision: () => ({ allowed: state.allowed }) }) }))
 vi.mock('../src/stores/auth', () => ({ useAuthStore: () => state.auth }))
@@ -13,7 +13,8 @@ interface Field { choose(event: Event): Promise<void>; remove(): void; preview: 
 const event = () => ({ target: { files: [new File(['cover'], 'cover.png', { type: 'image/png' })], value: 'cover.png' } }) as unknown as Event
 beforeEach(() => {
   vi.resetAllMocks()
-  Object.assign(state.editor, { form: {}, saving: false }); state.auth.user.id = 'owner'; state.store.epoch = 1; state.allowed = true
+  state.editor.registerUpload.mockImplementation(() => { state.editor.pendingUploads++; let done = false; return () => { if (!done) state.editor.pendingUploads--; done = true } });
+  Object.assign(state.editor, { form: {}, saving: false, pendingUploads: 0 }); state.auth.user.id = 'owner'; state.store.epoch = 1; state.allowed = true
   vi.mocked(communityApi.image).mockResolvedValue('blob:old-cover')
 })
 afterEach(() => vi.restoreAllMocks())
@@ -26,7 +27,7 @@ describe('共用封面选择器', () => {
     const field = setupComponent<Field>(CommunityCoverField, { modelValue: 'old', 'onUpdate:modelValue': update })
     await flushRender(); expect(field.state.preview).toBe('blob:old-cover')
     const pending = field.state.choose(event())
-    expect(state.editor.saving).toBe(true)
+    expect(state.editor.saving).toBe(false); expect(state.editor.pendingUploads).toBe(1)
     field.state.remove(); expect(update).not.toHaveBeenCalled()
     finish({ id: 'new-cover' }); await pending
     expect(update).toHaveBeenCalledWith('new-cover'); expect(state.editor.saving).toBe(false)

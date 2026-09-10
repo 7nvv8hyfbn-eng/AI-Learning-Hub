@@ -36,7 +36,9 @@ CommonJS 运行入口为 `dist/manifest.js`，声明入口为 `dist/manifest.d.t
 
 未知名称返回中性 `missing` 图标；开发环境警告由页面 `AppIcon` 统一处理。正式 SVG 不含位图、Base64、脚本或外部引用。
 
-侧栏与信息流工具按钮使用 hanabizh 的[无风格化icon 图标集](https://www.iconfont.cn/collections/detail?cid=53651)：菜单 `46962277`、加载 `46962308`、搜索 `46962314`，分别映射 `sidebar-menu`、`feed-refresh`、`feed-search`；保留原始路径，仅统一为 `currentColor`。
+侧栏菜单与搜索使用 hanabizh 的[无风格化icon 图标集](https://www.iconfont.cn/collections/detail?cid=53651)：菜单 `46962277`、搜索 `46962314` 分别映射 `sidebar-menu`、`feed-search`。
+
+教程中心与信息流刷新使用 dazzzzle 的[企业云盘集合 5045](https://www.iconfont.cn/collections/detail?cid=5045)。已核对集合页面中的原 SVG：视频图标 ID `2325926` 对应本地 `icon-c5045-2325926`（业务名 `tutorial-center`）；刷新图标 ID `2325927` 对应本地 `icon-c5045-2325927`（业务名 `feed-refresh`）。这两个本地 symbol 保留原路径与 `0 0 1024 1024` viewBox，仅把原填色 `#878895` 统一为 `currentColor`；不修改通用 `folder`、菜单或搜索映射。
 
 ## 生成来源
 

@@ -1,3 +1,4 @@
+import { normalizeTopicName } from '@ai-learning-hub/contracts'
 import { CommunityGovernanceService } from './governance.service'
 import { GovernanceDecisionDto } from './governance.dto'
 import { activeSanction, availableAccount } from './governance-policy'
@@ -127,7 +128,12 @@ export class CommunityAdminController {
     const { reason, ...fields } = input
     if (fields.themeId && !await this.prisma.theme.count({ where: { id: fields.themeId, status: 'published', deletedAt: null } })) throw new BadRequestException('关联学习主题不存在')
     return this.prisma.$transaction(async (tx) => {
-      const data = { ...fields, themeId: fields.themeId || null }
+      const normalizedName = normalizeTopicName(fields.name)
+      const existing = await tx.communityTopic.findUnique({ where: { normalizedName } })
+      const original = id ? await tx.communityTopic.findUnique({ where: { id } }) : null
+      const legacyDuplicate = original?.normalizedName === null && normalizeTopicName(original.name) === normalizedName
+      if (existing && existing.id !== id && !legacyDuplicate) throw new BadRequestException('同名话题已存在')
+      const data = { ...fields, normalizedName: legacyDuplicate && existing?.id !== id ? null : normalizedName, themeId: fields.themeId || null }
       const row = id ? await tx.communityTopic.update({ where: { id }, data }) : await tx.communityTopic.create({ data })
       await tx.communityModerationAction.create({ data: { actorId, targetType: 'topic', targetId: row.id, action: id ? 'update' : 'create', reason } })
       return row

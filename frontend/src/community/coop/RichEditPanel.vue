@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import AppDialog from '../../components/base/AppDialog.vue'
 import AppIcon from '../../components/base/AppIcon.vue'
+import CommunityQuotePreview from '../CommunityQuotePreview.vue'
 import BaseRichEditor from './BaseRichEditor.vue'
 import CommunityDraftConflict from '../CommunityDraftConflict.vue'
 import ResourceContributionFields from '../ResourceContributionFields.vue'
@@ -22,10 +23,14 @@ const onImportFile = async (event: Event) => {
   if (!file || editor.saving) return
   if (!/\.(md|markdown|txt)$/i.test(file.name) || file.size > 2 * 1024 * 1024) { editor.error = '请选择不超过 2MB 的 Markdown 或 TXT 文件'; return }
   if (editor.blocks.length && !window.confirm('导入将替换当前正文，是否继续？')) return
+  const form = editor.form, session = store.composerSession, epoch = store.epoch
+  let cancelled = false
+  const current = () => !cancelled && store.composerOpen && form === editor.form && session === store.composerSession && epoch === store.epoch
+  const release = editor.registerUpload(() => { cancelled = true })
   importing.value = true
-  try { richRef.value?.replaceWithHtml(mdToHtml(await file.text())) }
-  catch (cause) { editor.error = cause instanceof Error ? cause.message : '导入失败，当前正文已保留' }
-  finally { importing.value = false }
+  try { const text = await file.text(); if (current()) richRef.value?.replaceWithHtml(mdToHtml(text)) }
+  catch (cause) { if (current()) editor.error = cause instanceof Error ? cause.message : '导入失败，当前正文已保留' }
+  finally { release(); importing.value = false }
 }
 const exportMarkdown = () => {
   const blob = new Blob([htmlToMarkdown(richRef.value?.getSanitizedHtml() || '')], { type: 'text/markdown;charset=utf-8' })
@@ -58,6 +63,7 @@ const publish = () => { if (requireWrite('post')) void editor.save() }
 
       <!-- 公共富文本编辑器(打开时才创建,关闭即销毁;草稿负责跨会话保存) -->
       <BaseRichEditor ref="richRef" @change="wordCount = $event.getText().replace(/\s+/g, '').length" />
+      <CommunityQuotePreview v-if="editor.form.quotedPostId" :id="editor.form.quotedPostId" />
       <CommunityCoverField v-if="editor.form.contribution?.kind === 'article'" v-model="editor.form.contribution.coverFileId" />
       <details v-if="editor.form.contribution"><summary>分类、标签与教学引用设置</summary><ResourceContributionFields :show-cover="false" /></details>
       <p v-if="editor.error" class="community-notice" role="alert">{{ editor.error }}</p>
@@ -75,7 +81,7 @@ const publish = () => { if (requireWrite('post')) void editor.save() }
         <small class="rich-wordcount" aria-live="polite">{{ editor.savedAt }} · {{ wordCount }} 字</small>
         <button class="button secondary" type="button" :disabled="editor.saving" @click="editor.close()">取消</button>
         <button class="button secondary" type="button" :disabled="editor.saving || importing" @click="editor.save(true)">保存草稿</button>
-        <button class="button primary" type="button" :disabled="editor.saving || importing" @click="publish">{{ editor.saving ? '处理中…' : '发布图文' }}</button>
+        <button class="button primary" type="button" :disabled="editor.saving || importing || !!editor.pendingUploads" @click="publish">{{ editor.saving ? '处理中…' : '发布图文' }}</button>
       </footer>
     </div>
   </AppDialog>

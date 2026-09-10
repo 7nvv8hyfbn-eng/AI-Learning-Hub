@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { CommunityPostType } from '@prisma/client'
 import { communityPostTypes } from '@ai-learning-hub/contracts'
 import { LearningFeedPipeline } from '../src/modules/feed/feed.service'
@@ -6,11 +6,21 @@ import { learningFeedPolicy } from '../src/modules/feed/feed-policy'
 import type { CommunityContextDto } from '@ai-learning-hub/contracts'
 import { plainToInstance } from 'class-transformer'
 import { validate } from 'class-validator'
-import { ProfileDto } from '../src/modules/community/community.dto'
+import { CommunityQueryDto, ProfileDto } from '../src/modules/community/community.dto'
 import { profileMediaUrl } from '../src/modules/community/community.mapper'
 
 const context: CommunityContextDto = { todayPlan: null, continueCourse: null, continueLab: null, currentChallenge: null, trendingTopics: [], suggestedUsers: [], needsInterests: false }
 describe('社区统一策略与契约', () => {
+  it('临时优先项只批量核验作者本人当前可见的公开状态，不写推荐字段', async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: 'readable' }]), where = vi.fn().mockResolvedValue({ author: { status: 'active' } })
+    const pipeline = Object.assign(Object.create(LearningFeedPipeline.prototype), { prisma: { communityPost: { findMany } }, visibility: { where } }) as LearningFeedPipeline
+    expect(await pipeline.invalidPriorities('owner')).toEqual([]); expect(findMany).not.toHaveBeenCalled()
+    expect(await pipeline.invalidPriorities('owner', ['readable', 'removed', 'private'])).toEqual(['removed', 'private'])
+    expect(findMany).toHaveBeenCalledOnce()
+    expect(findMany).toHaveBeenCalledWith({ where: { AND: [{ author: { status: 'active' } }, { id: { in: ['readable', 'removed', 'private'] }, authorId: 'owner', status: 'published' }] }, select: { id: true } })
+    expect(await validate(plainToInstance(CommunityQueryDto, { priorityIds: 'one,two' }))).toHaveLength(0)
+    for (const priorityIds of [Array.from({ length: 151 }, (_, i) => `p${i}`).join(','), 'one,one', 'x'.repeat(101)]) expect((await validate(plainToInstance(CommunityQueryDto, { priorityIds }))).length).toBeGreaterThan(0)
+  })
   it('公开类型与生成数据库枚举一致', () => {
     expect([...communityPostTypes].sort()).toEqual(Object.values(CommunityPostType).sort())
     expect(Object.values(learningFeedPolicy.weights).reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1)

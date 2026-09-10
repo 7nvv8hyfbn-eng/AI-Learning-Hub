@@ -12,7 +12,7 @@ vi.mock('vue-router', () => ({ useRoute: () => routing.route }))
 vi.mock('../stores/learning', () => ({ useLearningStore: () => ({ notes: {}, favorites: [] }) }))
 vi.mock('../stores/community', () => ({ useCommunityStore: () => ({ epoch: 0, operations: {}, follow: vi.fn(), openComposer: vi.fn() }) }))
 vi.mock('./CommunityPostCard.vue', () => ({ default: { render: () => null } }))
-vi.mock('../services/api/community', () => ({ communityApi: { topics: vi.fn(), list: vi.fn(), signals: vi.fn() } }))
+vi.mock('../services/api/community', () => ({ communityApi: { topic: vi.fn(), list: vi.fn(), signals: vi.fn() } }))
 
 const navigate = (view: 'topic' | 'bookmarks', slug = '') => Object.assign(routing.route, {
   path: view === 'topic' ? `/community/topic/${slug}` : '/bookmarks',
@@ -25,7 +25,7 @@ const navigate = (view: 'topic' | 'bookmarks', slug = '') => Object.assign(routi
 beforeEach(() => {
   vi.resetAllMocks()
   routing.route = reactive({})
-  vi.mocked(communityApi.topics).mockResolvedValue([{ id: 'topic-1', slug: 'linux', name: 'Linux', description: '系统基础', accent: '#000', themeId: null, status: 'active', recommended: true, sortOrder: 1, postCount: 2, followerCount: 1, following: false }])
+  vi.mocked(communityApi.topic).mockResolvedValue({ id: 'topic-1', slug: 'linux', name: 'Linux', description: '系统基础', accent: '#000', themeId: null, status: 'active', recommended: true, sortOrder: 1, postCount: 2, followerCount: 1, following: false })
   vi.mocked(communityApi.list).mockResolvedValue([])
   vi.mocked(communityApi.signals).mockResolvedValue({})
 })
@@ -36,6 +36,7 @@ describe('社区集合页保持话题与收藏职责', () => {
     const view = setupComponent<CollectionState>(CommunityCollectionView)
     await flushRender()
     expect(view.state.topic?.description).toBe('系统基础')
+    expect(communityApi.topic).toHaveBeenCalledWith('linux')
     expect(communityApi.list).toHaveBeenCalledWith('topic', 'linux')
     expect(communityApi.signals).toHaveBeenCalledWith(expect.objectContaining({ targetId: 'topic-1' }))
     view.unmount()

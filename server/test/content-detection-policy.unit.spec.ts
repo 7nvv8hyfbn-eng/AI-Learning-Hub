@@ -22,7 +22,7 @@ function setup() {
     $transaction: async <T>(fn: (client: unknown) => Promise<T>) => fn(tx),
   }
   const notifications = { send: vi.fn() }, signals = { record: vi.fn() }
-  return { service: new ContentDetectionService(tx as unknown as PrismaService, notifications as never, signals as never), tx, settings, notifications, signals }
+  return { service: new ContentDetectionService(tx as unknown as PrismaService, notifications as never, signals as never, { approve: vi.fn() } as never), tx, settings, notifications, signals }
 }
 
 describe('规则版本持久化边界', () => {

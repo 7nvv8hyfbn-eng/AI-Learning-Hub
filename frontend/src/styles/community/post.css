@@ -90,3 +90,5 @@
 .question-state > span { background: var(--amc-yellow-soft); color: var(--amc-warning); font-size: 12px; border-radius: var(--amc-radius-xs); padding: 4px 7px; }
 .question-state > span.solved { background: var(--amc-green-soft); color: var(--amc-success); }
 .question-state small { color: var(--amc-text-secondary); font-size: 12px; }
+
+@media (max-width: 767px) { .community-interactions { gap: 2px; } .community-interactions button, .community-interactions a, .community-interactions .community-view-count { justify-content: center; flex: 1; gap: 4px; padding: 4px 2px; white-space: nowrap; } }

@@ -16,7 +16,7 @@ function setup() {
     activityEvent: { create: vi.fn() },
   }
   const prisma = { ...tx, $transaction: (fn: (tx: unknown) => Promise<unknown>) => fn(tx) }
-  const detection = new ContentDetectionService(prisma as never, { send: vi.fn() } as never, { record: vi.fn() } as never)
+  const detection = new ContentDetectionService(prisma as never, { send: vi.fn() } as never, { record: vi.fn() } as never, {} as never)
   const storage = { upload: vi.fn(async () => ({ id: 'synthetic-image' })) }
   const context = new CommunityContextService(prisma as never, { assertOperation: vi.fn(), viewer: vi.fn() } as never, {} as never, {} as never, {} as never, {} as never, storage as never, detection)
   vi.spyOn(context as unknown as { profileUpdateResult(): Promise<object> }, 'profileUpdateResult').mockResolvedValue({})

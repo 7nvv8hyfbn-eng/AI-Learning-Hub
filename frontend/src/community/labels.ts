@@ -12,7 +12,7 @@ export function contentDetectionNotice(result?: ContentDetectionResult) {
 export const postLabels: Record<CommunityPostType, string> = { question: '学习问答', note: '学习笔记', lab_result: '实训成果', project: '创客项目', frontier_discussion: '前沿讨论', achievement: '学习成就', general: '学习交流' }
 export const badgeLabels = { none: '', teacher: '认证教师', official: '官方', mentor: '学习导师' }
 export const communityNavActive = (path: string, target: string) => {
-  if (target === '/community') return path === target || /^\/community\/(post|search|topic|user)(\/|$)/.test(path)
+  if (target === '/community') return path === target || /^\/community\/(post|search|topic|user|people)(\/|$)/.test(path)
   if (target === '/topics' && path.startsWith('/courses/')) return true
   return path === target || path.startsWith(`${target}/`)
 }
@@ -27,8 +27,8 @@ export const relativeTime = (value: string, now = Date.now()) => {
 }
 export const communityNavigation = [
   { label: '社区首页', path: '/community', icon: 'message', desktop: true, mobile: true, mobileOrder: 1, requiresAuth: true },
-  { label: '教程中心', path: '/resources', icon: 'folder', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
-  { label: '通识基础', path: '/topics', icon: 'layers', desktop: true, mobile: true, mobileOrder: 2, requiresAuth: true },
+  { label: '教程中心', path: '/resources', icon: 'tutorial-center', desktop: true, mobile: true, mobileOrder: 2, requiresAuth: true },
+  { label: '通识基础', path: '/topics', icon: 'layers', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
   { label: '实训项目', path: '/labs', icon: 'terminal', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
   { label: 'AI 前沿', path: '/frontier', icon: 'sparkles', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },
   { label: '挑战与测评', path: '/assessments', icon: 'trophy', desktop: true, mobile: false, mobileOrder: 0, requiresAuth: true },

@@ -33,7 +33,7 @@ watch(() => props.panel, (panel) => { if (panel === 'topics') void editor.loadTo
     </template>
     <template v-else>
       <p>学习话题（最多 {{ advanced ? 5 : 3 }} 项）</p><p v-if="topicsLoading" role="status">正在读取话题…</p>
-      <div class="composer-topics"><label v-for="topic in topics" :key="topic.id"><input v-model="form.topicIds" type="checkbox" :value="topic.id" :disabled="form.topicIds.length >= (advanced ? 5 : 3) && !form.topicIds.includes(topic.id)" />{{ topic.name }}</label></div>
+      <div class="composer-topics"><label v-for="topic in topics" :key="topic.id"><input v-model="form.topicIds" type="checkbox" :value="topic.id" :disabled="form.topicIds.length >= 5 && !form.topicIds.includes(topic.id)" />{{ topic.name }}</label></div>
       <button v-if="!topics.length && !topicsLoading" class="text-link" type="button" @click="editor.loadTopics">重新读取话题</button>
     </template>
   </div>

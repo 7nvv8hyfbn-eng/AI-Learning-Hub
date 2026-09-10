@@ -2,25 +2,35 @@ import { defineStore } from 'pinia'
 import type { CommunityContextDto, CommunityEligibilityDto, CommunityFeedMode, CommunityPostDetailDto, CommunityPostInput, CommunityPostSummaryDto, CommunityPostType, FeedUnitDto } from '@ai-learning-hub/contracts'
 import { communityApi } from '../services/api/community'
 import { contentDetectionNotice } from '../community/labels'
+import { ApiError } from '../services/api/client'
 export const MAX_FEED_ITEMS = 150, MAX_FEED_CACHES = 6
+export type ComposerIntent = 'post' | 'video' | 'article' | 'document' | 'quote' | 'edit' | 'restore'
+export interface ComposerRequest { input: CommunityPostInput; id?: string; intent: ComposerIntent; localKey?: string }
 interface FeedState {
-  items: FeedUnitDto[]; publishedPosts: FeedUnitDto[]; cursor: string | null; loaded: boolean; scroll: number; requestId: string
-  pageCursors: Record<string, string | undefined>; resumeCursor?: string; anchor?: { id: string; offset: number }; evicted?: boolean
+  items: FeedUnitDto[]; cursor: string | null; loaded: boolean; scroll: number; requestId: string; loadSequence: number
+  pageCursors: Record<string, string | undefined>; resumeCursor?: string; anchor?: { id: string; offset: number }; evicted?: boolean; revealPostId?: string
 }
 export const useCommunityStore = defineStore('community', {
-  state: () => ({ feeds: {} as Record<string, FeedState>, feedOrder: [] as string[], operations: {} as Record<string, boolean>, authorFollowing: {} as Record<string, boolean>, context: null as CommunityContextDto | null, eligibility: null as CommunityEligibilityDto | null, unread: 0, composerOpen: false, composerMode: 'quick' as 'quick' | 'advanced' | 'rich', composerInline: false, draft: null as CommunityPostInput | null, editingId: undefined as string | undefined, publishNotice: null as { id: string; text: string } | null, error: '', epoch: 0, lastFeedLocation: '/community' }),
+  state: () => ({ feeds: {} as Record<string, FeedState>, publishedPosts: [] as Extract<FeedUnitDto, { type: 'post' }>[], feedOrder: [] as string[], operations: {} as Record<string, boolean>, authorFollowing: {} as Record<string, boolean>, context: null as CommunityContextDto | null, eligibility: null as CommunityEligibilityDto | null, unread: 0, composerOpen: false, composerMode: 'quick' as 'quick' | 'advanced' | 'rich', composerInline: false, composerIntent: 'post' as ComposerIntent, composerSession: 0, composerRequest: null as ComposerRequest | null, composerLocalKey: undefined as string | undefined, draft: null as CommunityPostInput | null, editingId: undefined as string | undefined, publishNotice: null as { id: string; text: string } | null, error: '', epoch: 0, lastFeedLocation: '/community' }),
   actions: {
     clear() { const epoch = this.epoch + 1; this.$reset(); this.epoch = epoch },
-    openComposer(input?: Partial<CommunityPostInput>, id?: string) {
-      if (this.composerOpen) {
+    openComposer(input?: Partial<CommunityPostInput>, id?: string, options?: { intent?: ComposerIntent; localKey?: string }) {
+      if (this.composerOpen && !input && !id && !options && this.composerIntent === 'post') {
         window.dispatchEvent(new CustomEvent('community-composer-focus'))
-        if (input || id) window.dispatchEvent(new CustomEvent('api-error', { detail: { message: '请先保存或关闭当前编辑，再打开其他内容；当前草稿未被覆盖。' } }))
         return
       }
-      this.draft = { type: 'general', title: '', contentBlocks: [], bindings: [], topicIds: [], visibility: 'public', status: 'published', ...input }
-      this.composerMode = id ? 'advanced' : 'quick'
-      this.composerInline = typeof location !== 'undefined' && location.pathname === '/community' && typeof matchMedia !== 'undefined' && !matchMedia('(max-width: 767px)').matches && !id
-      this.editingId = id; this.publishNotice = null; this.composerOpen = true
+      const request: ComposerRequest = { input: { type: 'general', title: '', contentBlocks: [], bindings: [], topicIds: [], visibility: 'public', status: 'published', ...input }, id, intent: options?.intent || (id ? input?.status === 'draft' ? 'restore' : 'edit' : input?.quotedPostId ? 'quote' : input?.contribution?.kind || 'post'), localKey: options?.localKey }
+      if (this.composerOpen) this.composerRequest = request
+      else this.applyComposerRequest(request)
+    },
+    applyComposerRequest(request: ComposerRequest) {
+      const value = request.input
+      const rich = value.contribution?.kind === 'article' || !!value.coverFileId || value.contentBlocks.some((block) => ['rich_text', 'heading', 'list'].includes(block.type))
+      this.$patch((state) => Object.assign(state, { draft: value, editingId: request.id, composerIntent: request.intent, composerLocalKey: request.localKey,
+        composerMode: rich ? 'rich' : request.id || value.contribution ? 'advanced' : 'quick',
+        composerInline: request.intent === 'post' && !rich && !request.id && typeof location !== 'undefined' && location.pathname === '/community' && typeof matchMedia !== 'undefined' && !matchMedia('(max-width: 767px)').matches,
+        composerRequest: null, publishNotice: null, composerOpen: true }))
+      this.composerSession++
     },
     async loadContext(userId?: string) {
       const epoch = this.epoch
@@ -35,31 +45,53 @@ export const useCommunityStore = defineStore('community', {
       this.feedOrder = [...this.feedOrder.filter((value) => value !== key), key]
       while (this.feedOrder.length > MAX_FEED_CACHES) {
         const stale = this.feedOrder.shift()!, entry = this.feeds[stale]
-        if (entry) this.feeds[stale] = { ...entry, items: [], publishedPosts: [], pageCursors: {}, loaded: false, evicted: true }
+        if (entry) this.feeds[stale] = { ...entry, items: [], pageCursors: {}, loaded: false, evicted: true }
       }
     },
     rememberFeed(key: string, scroll: number, anchor?: { id: string; offset: number }) {
       const entry = this.feeds[key]
-      if (!entry) return
+      if (!entry || entry.revealPostId) return
       entry.scroll = scroll
       if (anchor) { entry.anchor = anchor; entry.resumeCursor = entry.pageCursors[anchor.id] }
+    },
+    prioritizeFeed(key: string, items: FeedUnitDto[]) {
+      const [mode, type] = key.split(':')
+      const priorities = mode === 'for_you' ? this.publishedPosts.filter((item) => type === 'all' || item.post.type === type) : []
+      const ids = new Set(priorities.map((item) => item.post.id))
+      const rest = items.filter((item) => { const id = item.type === 'post' ? item.post.id : item.id; if (ids.has(id)) return false; ids.add(id); return true })
+      return [...priorities, ...rest.slice(Math.max(0, rest.length - (MAX_FEED_ITEMS - priorities.length)))]
+    },
+    prunePublished(ids: string[] = []) {
+      if (!ids.length) return
+      this.unavailableQuotes(ids)
+      const removed = new Set(ids)
+      this.publishedPosts = this.publishedPosts.filter((item) => !removed.has(item.post.id))
+      for (const entry of Object.values(this.feeds)) {
+        entry.items = entry.items.filter((item) => item.type !== 'post' || !removed.has(item.post.id))
+        if (entry.revealPostId && removed.has(entry.revealPostId)) entry.revealPostId = undefined
+      }
     },
     async loadFeed(mode: CommunityFeedMode, type: CommunityPostType | 'all', reset = false) {
       const key = `${mode}:${type}`, epoch = this.epoch
       this.lastFeedLocation = `/community?${new URLSearchParams({ mode, type })}`
-      this.feeds[key] ||= { items: [], publishedPosts: [], cursor: null, loaded: false, scroll: 0, requestId: '', pageCursors: {} }
+      this.feeds[key] ||= { items: [], cursor: null, loaded: false, scroll: 0, requestId: '', pageCursors: {}, loadSequence: 0, revealPostId: mode === 'for_you' ? this.publishedPosts.find((item) => type === 'all' || item.post.type === type)?.post.id : undefined }
       this.touchFeed(key)
       const entry = this.feeds[key]
       const reload = reset || (!entry.loaded && !entry.evicted)
-      if (reset) { entry.publishedPosts = []; entry.anchor = undefined; entry.resumeCursor = undefined; entry.scroll = 0 }
+      const sequence = ++entry.loadSequence
+      const refreshed = new Set(reset && mode === 'for_you' ? this.publishedPosts.map((item) => item.post.id) : [])
       const cursor = reload ? undefined : entry.evicted ? entry.resumeCursor : entry.cursor || undefined
-      const result = await communityApi.feed(mode, type, cursor)
-      if (epoch !== this.epoch || this.feeds[key] !== entry) return
-      const retained = reload ? entry.publishedPosts : entry.items
-      const ids = new Set(retained.map((item) => item.id))
-      entry.items = [...retained, ...result.items.filter((item) => !ids.has(item.id))].slice(-MAX_FEED_ITEMS)
+      const result = await communityApi.feed(mode, type, cursor, this.publishedPosts.map((item) => item.post.id))
+      if (epoch !== this.epoch || this.feeds[key] !== entry || sequence !== entry.loadSequence) return
+      if (reset) {
+        this.publishedPosts = this.publishedPosts.filter((item) => !refreshed.has(item.post.id))
+        entry.anchor = undefined; entry.resumeCursor = undefined; entry.scroll = 0
+        if (entry.revealPostId && refreshed.has(entry.revealPostId)) entry.revealPostId = undefined
+        for (const [otherKey, other] of Object.entries(this.feeds)) if (refreshed.size && otherKey !== key && otherKey.startsWith('for_you:')) this.feeds[otherKey] = { ...other, loaded: false, evicted: false, cursor: null }
+      }
+      entry.items = this.prioritizeFeed(key, [...(reload ? [] : entry.items), ...result.items])
+      this.prunePublished(result.invalidPriorityIds)
       const kept = new Set(entry.items.map((item) => item.id))
-      entry.publishedPosts = entry.publishedPosts.filter((item) => kept.has(item.id))
       entry.pageCursors = Object.fromEntries(Object.entries(entry.pageCursors).filter(([id]) => kept.has(id)))
       for (const item of result.items) if (kept.has(item.id)) entry.pageCursors[item.id] = cursor
       entry.evicted = false
@@ -68,16 +100,21 @@ export const useCommunityStore = defineStore('community', {
     },
     async refreshPost(id: string) {
       const epoch = this.epoch
-      const post = await communityApi.post(id)
+      let post: CommunityPostDetailDto
+      try { post = await communityApi.post(id) }
+      catch (cause) { if (epoch === this.epoch && cause instanceof ApiError && [403, 404].includes(cause.status)) this.removePost(id); throw cause }
       if (epoch !== this.epoch) return post
+      if (post.status !== 'published') { this.removePost(id); return post }
+      if (post.visibility !== 'public') this.unavailableQuotes([id])
+      for (const item of this.publishedPosts) if (item.post.id === id) item.post = post
       for (const feed of Object.values(this.feeds)) for (const item of feed.items) if (item.type === 'post' && item.id === id) item.post = post
       return post
     },
     invalidateFollowing() {
-      for (const [key, feed] of Object.entries(this.feeds)) if (key.startsWith('following:')) this.feeds[key] = { ...feed, loaded: false, evicted: false, cursor: null, resumeCursor: undefined, publishedPosts: [] }
+      for (const [key, feed] of Object.entries(this.feeds)) if (key.startsWith('following:')) this.feeds[key] = { ...feed, loaded: false, evicted: false, cursor: null, resumeCursor: undefined }
     },
     postCopies(post?: CommunityPostSummaryDto) {
-      return [...new Set([...(post ? [post] : []), ...Object.values(this.feeds).flatMap((feed) => feed.items.flatMap((item) => item.type === 'post' ? [item.post] : []))])]
+      return [...new Set([...(post ? [post] : []), ...this.publishedPosts.map((item) => item.post), ...Object.values(this.feeds).flatMap((feed) => feed.items.flatMap((item) => item.type === 'post' ? [item.post] : []))])]
     },
     async react(post: CommunityPostSummaryDto, kind: 'like' | 'useful' | 'bookmark') {
       const key = `${post.id}:${kind}`, epoch = this.epoch
@@ -114,26 +151,35 @@ export const useCommunityStore = defineStore('community', {
         throw cause
       } finally { if (epoch === this.epoch) delete this.operations[key] }
     },
-    removePost(id: string, authorId?: string) {
-      const keep = (item: FeedUnitDto) => item.id !== id && (!authorId || item.type !== 'post' || item.post.author.id !== authorId)
-      for (const [key, feed] of Object.entries(this.feeds)) this.feeds[key] = { ...feed, loaded: false, evicted: false, cursor: null, resumeCursor: undefined, items: feed.items.filter(keep), publishedPosts: (feed.publishedPosts || []).filter(keep) }
+    unavailableQuotes(ids: string[], authorId?: string) {
+      for (const post of this.postCopies()) if (post.quotedPostId && (ids.includes(post.quotedPostId) || authorId && post.quotedPost?.available && post.quotedPost.author.id === authorId)) post.quotedPost = { id: post.quotedPostId, available: false }
     },
-    published(post: CommunityPostDetailDto, keepComposer = false) {
+    removePost(id: string, authorId?: string) {
+      this.unavailableQuotes([id], authorId)
+      const keep = (item: FeedUnitDto) => item.id !== id && (!authorId || item.type !== 'post' || item.post.author.id !== authorId)
+      this.publishedPosts = this.publishedPosts.filter(keep)
+      for (const [key, feed] of Object.entries(this.feeds)) this.feeds[key] = { ...feed, loaded: false, evicted: false, cursor: null, resumeCursor: undefined, items: feed.items.filter(keep) }
+    },
+    published(post: CommunityPostDetailDto, keepComposer = false, newlyCreated?: boolean) {
+      const isNew = newlyCreated ?? (!this.editingId || this.draft?.status === 'draft')
       const query = new URLSearchParams(this.lastFeedLocation.split('?')[1]), mode = query.get('mode') || 'for_you', type = query.get('type') || 'all'
       const key = `${mode}:${type}`, entry = this.feeds[key]
-      const matches = post.status === 'published' && (type === 'all' || type === post.type) && (mode !== 'following' || post.viewerState.followingAuthor || post.topics.some((topic) => topic.following))
-      for (const [otherKey, feed] of Object.entries(this.feeds)) if (otherKey !== key) this.feeds[otherKey] = { ...feed, loaded: false, evicted: false, cursor: null, resumeCursor: undefined, items: feed.items.filter((item) => item.id !== post.id), publishedPosts: [] }
-      if (entry) {
-        entry.items = entry.items.filter((item) => item.id !== post.id)
-        entry.publishedPosts = (entry.publishedPosts || []).filter((item) => item.id !== post.id)
-      }
-      if (entry && matches) {
-        const item: FeedUnitDto = { type: 'post', id: post.id, post }
-        entry.publishedPosts = [item, ...entry.publishedPosts].slice(0, MAX_FEED_ITEMS)
-        entry.items = [item, ...entry.items].slice(0, MAX_FEED_ITEMS)
+      const matches = post.status === 'published' && mode === 'for_you' && (type === 'all' || type === post.type)
+      if (post.status !== 'published') this.removePost(post.id)
+      else {
+        if (isNew) this.publishedPosts = [{ type: 'post' as const, id: post.id, post }, ...this.publishedPosts.filter((item) => item.post.id !== post.id)].slice(0, MAX_FEED_ITEMS)
+        else for (const item of this.publishedPosts) if (item.post.id === post.id) item.post = post
+        for (const [feedKey, feed] of Object.entries(this.feeds)) {
+          const feedType = feedKey.split(':')[1]
+          feed.items = feed.items.flatMap((item) => item.type !== 'post' || item.post.id !== post.id ? [item] : feedType === 'all' || feedType === post.type ? [{ ...item, post }] : [])
+          if (feedKey.startsWith('for_you:')) {
+            feed.items = this.prioritizeFeed(feedKey, feed.items)
+            if (isNew && (feedType === 'all' || feedType === post.type)) { feed.anchor = undefined; feed.resumeCursor = undefined; feed.scroll = 0; feed.revealPostId = post.id }
+          } else if (isNew) this.feeds[feedKey] = { ...feed, loaded: false, evicted: false, cursor: null, resumeCursor: undefined }
+        }
       }
       const notice = contentDetectionNotice(post.detection)
-      this.publishNotice = { id: post.id, text: post.status === 'pending_review' ? notice || '投稿已保存，正在等待人工复核，尚未公开。可查看并修改后重新提交。' : `${this.editingId ? '更新' : '发布'}成功${entry ? matches ? '，已插入当前列表顶部' : '，当前筛选未展示此内容' : '，可查看动态'}${notice ? `。${notice}` : ''}` }
+      this.publishNotice = { id: post.id, text: post.status === 'draft' ? '草稿已保存，尚未公开。' : post.status === 'pending_review' ? notice || '投稿已保存，正在等待人工复核，尚未公开。可查看并修改后重新提交。' : `${isNew ? '发布' : '更新'}成功${isNew ? entry && matches ? '，已插入当前列表顶部' : '，可在推荐列表查看' : ''}${notice ? `。${notice}` : ''}` }
       if (!keepComposer) this.composerOpen = false
       return post.id
     },

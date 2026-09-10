@@ -11,7 +11,7 @@ export function postTextPreview(blocks: CommunityContentBlock[]) {
       const doc = new DOMParser().parseFromString(sanitizeRichHtml(block.text), 'text/html')
       doc.querySelectorAll('img').forEach((image) => image.remove())
       doc.querySelectorAll('table, pre').forEach((node) => {
-        const summary = doc.createElement('p')
+        const summary = doc.createElement(node.tagName === 'PRE' ? 'pre' : 'p')
         const content = node.tagName === 'TABLE' ? [...node.querySelectorAll('th, td')].map((cell) => cell.textContent).join(' · ') : node.textContent || ''
         summary.textContent = `${node.tagName === 'TABLE' ? '表格' : '代码'}：${content.replace(/\s+/g, ' ').trim()}`
         node.replaceWith(summary); shortened = true
@@ -21,7 +21,7 @@ export function postTextPreview(blocks: CommunityContentBlock[]) {
     } else if (block.type === 'code') {
       const lines = block.code.split(/\r?\n/)
       if (lines.length > 2) shortened = true
-      text.push({ type: 'paragraph', text: `代码${block.language ? `（${block.language}）` : ''}：${lines.slice(0, 2).join('\n')}` })
+      text.push({ ...block, code: lines.slice(0, 2).join('\n') })
     } else if (block.type === 'list') {
       const items = block.items.filter((item) => item.trim())
       if (items.length) text.push({ ...block, items })

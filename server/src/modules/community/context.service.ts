@@ -1,3 +1,4 @@
+import { normalizeTopicName } from '@ai-learning-hub/contracts'
 import { availableAccount, visibleProfile, visibleComment } from './governance-policy'
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 import type { CommunityBindingInput, CommunityBindingContextDto, CommunityContextDto, CommunityProfileDto, CommunityProfileRelationsDto, CommunityProfileTimelineDto, CommunityTopicDto } from '@ai-learning-hub/contracts'
@@ -92,9 +93,17 @@ export class CommunityContextService {
     const topics = await this.prisma.communityTopic.findMany({ where: { status: 'active', OR: [{ themeId: { in: themes } }, { posts: { some: { post: { AND: [await this.visibility.where(userId), { bindings: { some: { targetType: input.type, targetId: binding.id } } }] } } } }] }, select: { id: true }, orderBy: { sortOrder: 'asc' }, take: 3 })
     return { binding, topicIds: topics.map((topic) => topic.id) }
   }
-  async topics(userId: string): Promise<CommunityTopicDto[]> {
+  async topic(userId: string, slug: string): Promise<CommunityTopicDto> {
     await this.visibility.viewer(userId)
-    const rows = await this.prisma.communityTopic.findMany({ where: { status: 'active' }, include: { follows: { where: { userId } } }, orderBy: [{ recommended: 'desc' }, { sortOrder: 'asc' }], take: 200 })
+    const row = await this.prisma.communityTopic.findFirst({ where: { slug, status: 'active' }, include: { follows: { where: { userId } } } })
+    if (!row) throw new NotFoundException('话题不存在或已关闭')
+    const { follows, ...topic } = row
+    return { ...topic, following: follows.length > 0 }
+  }
+  async topics(userId: string, query?: { text: string; after?: string; limit: number }): Promise<CommunityTopicDto[]> {
+    await this.visibility.viewer(userId)
+    const text = query?.text.normalize('NFKC').trim() || ''
+    const rows = await this.prisma.communityTopic.findMany({ where: { status: 'active', ...(query?.after ? { id: { gt: query.after } } : {}), ...(text ? { OR: [{ normalizedName: { contains: normalizeTopicName(text) } }, { name: { contains: text, mode: 'insensitive' } }, { description: { contains: text, mode: 'insensitive' } }] } : {}) }, include: { follows: { where: { userId } } }, orderBy: query ? { id: 'asc' } : [{ recommended: 'desc' }, { sortOrder: 'asc' }], take: query ? Math.max(1, Math.min(31, query.limit)) : 200 })
     return rows.map(({ follows, ...row }) => ({ ...row, following: follows.length > 0 }))
   }
   async profile(userId: string, username: string): Promise<CommunityProfileDto> {

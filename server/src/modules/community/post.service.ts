@@ -1,8 +1,9 @@
+import { CommunityPostRelationsService } from './post-relations.service'
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { createHash } from 'node:crypto'
 import sanitizeHtml from 'sanitize-html'
 import { Prisma } from '@prisma/client'
-import type { CommunityContentBlock, CommunityPostDetailDto, CommunityTopicDto, CommunityPostSummaryDto, CommunityBindingInput, ResourceContributionDto, ResourceContributionInput } from '@ai-learning-hub/contracts'
+import type { CommunityInlineReference, CommunityContentBlock, CommunityPostDetailDto, CommunityTopicDto, CommunityPostSummaryDto, CommunityBindingInput, ResourceContributionDto, ResourceContributionInput } from '@ai-learning-hub/contracts'
 import { PrismaService } from '../../prisma/prisma.service'
 import { ContentReferenceService } from '../../common/content-reference/content-reference.service'
 import { SignalsService } from '../signals/signals.service'
@@ -23,7 +24,7 @@ export type HydratedPost = Prisma.CommunityPostGetPayload<{ include: typeof post
 
 @Injectable()
 export class CommunityPostService {
-  constructor(private readonly prisma: PrismaService, private readonly refs: ContentReferenceService, private readonly visibility: CommunityVisibilityPolicyService, private readonly signals: SignalsService, private readonly detection: ContentDetectionService) {}
+  constructor(private readonly prisma: PrismaService, private readonly refs: ContentReferenceService, private readonly visibility: CommunityVisibilityPolicyService, private readonly signals: SignalsService, private readonly detection: ContentDetectionService, private readonly relations: CommunityPostRelationsService) {}
 
   async blocks(userId: string, blocks: CommunityContentBlock[], draft = false) {
     if (!blocks.length && !draft) throw new BadRequestException('请填写正文')
@@ -125,8 +126,8 @@ export class CommunityPostService {
         if (!video) throw new ForbiddenException('视频必须由本人上传')
         if (input.status === 'published' && video.status !== 'ready') throw new BadRequestException(video.status === 'failed' ? '视频处理失败，请重试后发布' : '视频尚未处理完成')
       }
-      if (contribution.kind === 'video' && !contribution.videoAssetId) throw new BadRequestException('视频投稿需要已上传的视频')
-      if (contribution.kind === 'document' && !contribution.attachmentFileId) throw new BadRequestException('资料投稿需要附件')
+      if (input.status === 'published' && contribution.kind === 'video' && !contribution.videoAssetId) throw new BadRequestException('视频投稿需要已上传的视频')
+      if (input.status === 'published' && contribution.kind === 'document' && !contribution.attachmentFileId) throw new BadRequestException('资料投稿需要附件')
       const fileIds = [contribution.attachmentFileId, contribution.coverFileId].filter((value): value is string => !!value)
       if (fileIds.length) {
         const files = await this.prisma.fileRecord.findMany({ where: { quarantinedAt: null, id: { in: [...new Set(fileIds)] }, uploadedBy: userId }, select: { id: true, mimeType: true, size: true } })
@@ -138,7 +139,9 @@ export class CommunityPostService {
         if (attachment && (!['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/zip', 'application/x-zip-compressed', 'text/plain'].includes(attachment.mimeType) || attachment.size > attachmentMaxBytes)) throw new BadRequestException('资料附件的类型或大小不符合要求')
       }
     }
-    const contentHash = createHash('sha256').update(`${input.title || ''}\n${plainText}\n${JSON.stringify(normalizedContribution || null)}${coverFileId || ''}`.replace(/\s+/g, '').toLowerCase()).digest('hex')
+    const quotedPostId = input.quotedPostId === undefined ? current?.quotedPostId || null : input.quotedPostId
+    if (quotedPostId && input.status === 'published' && !clean.some((block) => block.type !== 'image' && (block.type === 'code' ? block.code.trim() : block.type === 'list' ? block.items.join('').trim() : sanitizeHtml(block.text, { allowedTags: [], allowedAttributes: {} }).trim()))) throw new BadRequestException('请写下自己的观点后再引用发布')
+    const contentHash = createHash('sha256').update(`${input.title || ''}\n${plainText}\n${JSON.stringify(normalizedContribution || null)}${coverFileId || ''}${quotedPostId || ''}`.replace(/\s+/g, '').toLowerCase()).digest('hex')
     const post = await this.prisma.$transaction(async (tx) => {
       await lockFileReferences(tx)
       const scope = audit?.action === 'official_publish' ? `post:${userId}:new` : `post:${id || 'new'}`
@@ -156,8 +159,9 @@ export class CommunityPostService {
       const status = detection?.action === 'review' ? 'pending_review' as const : input.status
       const publishing = status === 'published' && latest?.status !== 'published'
       if (input.status === 'published' && latest?.status !== 'published') await this.visibility.consumeQuota(tx, userId, 'post', ip)
+      await this.relations.quote(tx, userId, quotedPostId, latest, input.status === 'published')
       const oldTopicIds = current ? (await tx.communityPostTopic.findMany({ where: { postId: current.id } })).map((row) => row.topicId) : []
-      const data = { authorId: userId, postType: input.type, status, visibility: input.visibility, portalConsent: input.portalConsent === true && input.visibility === 'public', schoolId: viewer.schoolId, title: input.title?.trim() || null, body: plainText, plainText, contentBlocks: json(clean), coverFileId, contentHash, sourceType: input.sourceType || null, sourceId: input.sourceId || null, publishedAt: status === 'published' ? current?.publishedAt || new Date() : null, ...(id ? { editedAt: new Date() } : {}) }
+      const data = { quotedPostId, authorId: userId, postType: input.type, status, visibility: input.visibility, portalConsent: input.portalConsent === true && input.visibility === 'public', schoolId: viewer.schoolId, title: input.title?.trim() || null, body: plainText, plainText, contentBlocks: json(clean), coverFileId, contentHash, sourceType: input.sourceType || null, sourceId: input.sourceId || null, publishedAt: status === 'published' ? current?.publishedAt || new Date() : null, ...(id ? { editedAt: new Date() } : {}) }
       if (latest) await postRevision(tx, latest.id, userId, 'user', '编辑前版本')
       const saved = id ? await tx.communityPost.update({ where: { id, revision: latest!.revision }, data: { ...data, revision: { increment: 1 } } }) : await tx.communityPost.create({ data })
       if (detection) await this.detection.record(tx, { type: 'post', id: saved.id, revision: saved.revision, authorId: userId, submittedById: audit?.actorId || userId }, detection)
@@ -193,16 +197,16 @@ export class CommunityPostService {
         })
       }
       await tx.communityPostBinding.deleteMany({ where: { postId: saved.id } })
-      await tx.communityPostTopic.deleteMany({ where: { postId: saved.id } })
       await tx.communityPostBinding.createMany({ data: input.bindings.map((ref, sortOrder) => ({ postId: saved.id, targetType: ref.type, targetId: references.get(`${ref.type}:${ref.id}`)!.id, titleSnapshot: references.get(`${ref.type}:${ref.id}`)!.title, sortOrder })), skipDuplicates: true })
-      await tx.communityPostTopic.createMany({ data: topics.map((topic) => ({ postId: saved.id, topicId: topic.id })), skipDuplicates: true })
+      const resolved = await this.relations.resolve(tx, saved, input.topicIds, input.inlineReferences, (latest?.inlineReferences || []) as unknown as CommunityInlineReference[])
+      await this.relations.notify(tx, saved, resolved.refs, latest?.status === 'published' ? (latest.inlineReferences || []) as unknown as CommunityInlineReference[] : [])
       if (input.type === 'question') await tx.communityQuestionState.upsert({ where: { postId: saved.id }, create: { postId: saved.id }, update: {} })
       else await tx.communityQuestionState.deleteMany({ where: { postId: saved.id } })
       await tx.communityProfile.upsert({ where: { userId }, create: { userId }, update: {} })
       await tx.communityProfile.update({ where: { userId }, data: { postCount: await tx.communityPost.count({ where: { authorId: userId, status: 'published', deletedAt: null } }) } })
-      const topicIds = [...new Set([...topics.map((row) => row.id), ...oldTopicIds])]
+      const topicIds = [...new Set([...resolved.topicIds, ...oldTopicIds])]
       for (const topicId of topicIds) await tx.communityTopic.update({ where: { id: topicId }, data: { postCount: await tx.communityPostTopic.count({ where: { topicId, post: { status: 'published', deletedAt: null } } }) } })
-      if (publishing) await this.signals.record(userId, 'community_post_publish', 'post', saved.id, { postType: input.type, topicIds: input.topicIds, bindingKeys: input.bindings.map((ref) => `${ref.type}:${references.get(`${ref.type}:${ref.id}`)!.id}`) }, tx)
+      if (publishing) await this.signals.record(userId, 'community_post_publish', 'post', saved.id, { postType: input.type, topicIds: resolved.topicIds, bindingKeys: input.bindings.map((ref) => `${ref.type}:${references.get(`${ref.type}:${ref.id}`)!.id}`) }, tx)
       else await actionEvent(tx, audit?.actorId || userId, input.status === 'draft' ? 'post_draft_saved' : 'post_edited', 'post', saved.id, {}, audit ? 'admin-web' : 'student-web')
       await postRevision(tx, saved.id, audit?.actorId || userId, audit ? 'admin' : 'user', audit?.reason || '')
       if (audit) await tx.communityModerationAction.create({ data: { ...audit, targetType: 'post', targetId: saved.id } })
@@ -263,7 +267,10 @@ export class CommunityPostService {
     const runs = privateRuns.length ? await this.prisma.labRun.findMany({ where: { id: { in: privateRuns }, status: 'submitted' }, select: { id: true, labId: true } }) : []
     const publicLabs = await this.refs.resolveMany(runs.map((run) => ({ type: 'lab', id: run.labId })), userId)
     const runRefs = new Map(runs.map((run) => [run.id, publicLabs.get(`lab:${run.labId}`)]))
+    const [inline, quotes] = await Promise.all([this.relations.links(userId, rows.map((row) => row.inlineReferences)), this.relations.quotes(userId, rows)])
     return rows.map((row) => ({
+      inlineReferences: inline.get(JSON.stringify(row.inlineReferences)) || [], manualTopicIds: row.topics.filter((ref) => ref.manual).map((ref) => ref.topicId),
+      quotedPostId: row.quotedPostId, quotedPost: row.quotedPostId ? quotes.previews.get(row.quotedPostId) || { id: row.quotedPostId, available: false } : null,
       id: row.id, revision: row.revision, type: row.postType, status: row.status, visibility: row.visibility, portalConsent: row.portalConsent, title: row.title,
       mediaCount: (row.contentBlocks as CommunityContentBlock[]).filter((block) => block.type === 'image').length + (row.coverFileId ? 1 : 0),
       body: row.body, bodyPreview: row.plainText.slice(0, 320), contentBlocks: row.contentBlocks as CommunityContentBlock[], coverFileId: row.coverFileId,
@@ -273,7 +280,7 @@ export class CommunityPostService {
         return references.get(`${ref.targetType}:${ref.targetId}`) || { type: ref.targetType as CommunityBindingInput['type'], id: ref.targetId, title: '关联内容已下架', route: '', status: 'unavailable' }
       }).filter((ref): ref is NonNullable<typeof ref> => !!ref).map((ref) => [`${ref.type}:${ref.id}`, ref])).values()],
       topics: row.topics.filter((ref) => ref.topic.status === 'active').map(({ topic }): CommunityTopicDto => ({ ...topic, following: topicFollows.some((follow) => follow.topicId === topic.id) })),
-      stats: { likes: row.likeCount, useful: row.usefulCount, comments: commentCounts.find((count) => count.postId === row.id)?._count._all || 0, bookmarks: row.bookmarkCount, views: row.impressionCount },
+      stats: { likes: row.likeCount, useful: row.usefulCount, comments: commentCounts.find((count) => count.postId === row.id)?._count._all || 0, bookmarks: row.bookmarkCount, views: row.impressionCount, quotes: quotes.counts.get(row.id) || 0 },
       viewerState: { liked: reactions.some((r) => r.postId === row.id && r.reactionType === 'like'), markedUseful: reactions.some((r) => r.postId === row.id && r.reactionType === 'useful'), bookmarked: bookmarks.some((b) => b.postId === row.id), followingAuthor: follows.some((f) => f.followeeId === row.authorId) },
       recommendationReasons: [], labels: row.status === 'limited' ? [...row.labels, '内容正在人工复核'] : row.labels,
       question: row.question ? { status: row.question.status === 'solved' && !acceptedComments.some((comment) => comment.id === row.question!.acceptedCommentId) ? 'open' : row.question.status as 'open' | 'solved' | 'closed', acceptedCommentId: acceptedComments.some((comment) => comment.id === row.question!.acceptedCommentId) ? row.question.acceptedCommentId : null, teacherAnswered: teachers.some((c) => c.postId === row.id) } : null,

@@ -14,7 +14,7 @@ const allowed = computed(() => decision('upload'))
 const fileInput = ref<HTMLInputElement | null>(null)
 const preview = ref(''), error = ref(''), uploading = ref(false)
 let disposed = false
-let releaseUpload = () => {}
+let cancelUpload = () => {}
 
 watch(() => props.modelValue, async (id, _, onCleanup) => {
   let stale = false, url = ''
@@ -31,20 +31,21 @@ watch(() => props.modelValue, async (id, _, onCleanup) => {
 const choose = async (event: Event) => {
   const input = event.target as HTMLInputElement, file = input.files?.[0]
   input.value = ''
-  if (!file || editor.saving || !requireWrite('upload')) return
-  const form = editor.form, owner = auth.user?.id, epoch = store.epoch
-  const current = () => !disposed && editor.form === form && auth.user?.id === owner && store.epoch === epoch
-  const release = () => { if (editor.form === form && auth.user?.id === owner && store.epoch === epoch) editor.saving = false }
-  releaseUpload = release
-  uploading.value = true; editor.saving = true; error.value = ''
+  if (!file || uploading.value || editor.saving || !requireWrite('upload')) return
+  const form = editor.form, owner = auth.user?.id, epoch = store.epoch, session = store.composerSession
+  const controller = new AbortController()
+  const current = () => !disposed && !controller.signal.aborted && store.composerOpen && store.composerSession === session && editor.form === form && auth.user?.id === owner && store.epoch === epoch
+  cancelUpload = () => { controller.abort(); uploading.value = false; release() }
+  const release = editor.registerUpload(cancelUpload)
+  uploading.value = true; error.value = ''
   try {
-    const result = await communityApi.upload(file)
+    const result = await communityApi.upload(file, { signal: controller.signal })
     if (current()) emit('update:modelValue', result.id)
   } catch (cause) { if (current()) error.value = cause instanceof Error ? cause.message : '封面上传失败，原封面已保留' }
-  finally { release(); if (releaseUpload === release) uploading.value = false }
+  finally { release(); if (current()) uploading.value = false }
 }
-const remove = () => { if (!editor.saving) emit('update:modelValue', undefined) }
-onBeforeUnmount(() => { disposed = true; if (uploading.value) releaseUpload() })
+const remove = () => { if (!editor.saving && !uploading.value) emit('update:modelValue', undefined) }
+onBeforeUnmount(() => { disposed = true; cancelUpload() })
 </script>
 
 <template>
@@ -55,8 +56,8 @@ onBeforeUnmount(() => { disposed = true; if (uploading.value) releaseUpload() })
       <p>PNG、JPEG 或 WebP，最大 5MB，建议使用横向图片。</p>
       <div class="cover-actions">
         <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp" aria-label="选择封面图片" hidden :disabled="editor.saving || !allowed.allowed" @change="choose" />
-        <button class="button secondary small" type="button" :disabled="editor.saving || !allowed.allowed" @click="fileInput?.click()">{{ uploading ? '封面上传中…' : modelValue ? '更换封面' : '添加封面' }}</button>
-        <button v-if="modelValue" class="text-link" type="button" :disabled="editor.saving" @click="remove">移除封面</button>
+        <button class="button secondary small" type="button" :disabled="uploading || editor.saving || !allowed.allowed" @click="fileInput?.click()">{{ uploading ? '封面上传中…' : modelValue ? '更换封面' : '添加封面' }}</button>
+        <button v-if="modelValue" class="text-link" type="button" :disabled="editor.saving || uploading" @click="remove">移除封面</button>
       </div>
       <p v-if="!allowed.allowed">{{ allowed.message }}</p>
       <p v-if="error" role="alert">{{ error }}</p>

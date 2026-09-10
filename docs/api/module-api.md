@@ -65,6 +65,14 @@
 | 引导与用户名 | `POST /community/onboarding`、`GET /community/onboarding/schools`、`PATCH /community/profile/username`（只能修改一次） |
 | 草稿 | `GET/POST /community/drafts`、`PATCH/DELETE /community/drafts/:id`；复用动态模型且仅本人可见 |
 | 搜索 | `GET /community/search?q=…&type=all|posts|users|topics|courses|labs|resources|articles&cursor=…` |
+| 正文补全 | `GET /community/search/suggestions?kind=topic|mention&q=…`；数据库有界查询，最多 8 项，用户候选仅含公开资料 |
+| 引用列表 | `GET /community/posts/:id/quotes`；沿用分页及当前查看者的可见性过滤 |
+
+帖子写入可携带 `inlineReferences` 和 `quotedPostId`。服务端解析正文话题与提及，合并手选话题，并以稳定 ID 保存引用；新话题只在公开发布或审核通过时创建，草稿不产生公开目录或通知。提及和引用通知按帖子、收件人幂等，且接收者必须有权阅读。
+
+引用目标限可见的已发布 `public` 帖子，首次公开后不可更换。原帖失效时仅返回 `{ id, available: false }`；预览最多一层，不复制原作者文件，不上报原帖曝光。`stats.quotes` 批量统计有效引用。
+
+本人新发布内容只在当前账号、本次页面运行的推荐列表临时靠前；分页和互动保留，主动刷新成功后清除刷新前的优先项。`priorityIds` 最多 150 项，仅用于核验本人帖子的当前可见性，不修改服务端排名或数据库置顶状态。
 
 用户公开路由使用 `/community/user/:username`，资料入口为 `GET /community/users/by-username/:username`；关注等受保护写操作使用明确的内部用户 ID。快捷发布和高级编辑共用内容块、图片上传、学习关联及发布接口；每分钟最多新发布5条，草稿保存不计入，发布草稿不能绕过限制。
 

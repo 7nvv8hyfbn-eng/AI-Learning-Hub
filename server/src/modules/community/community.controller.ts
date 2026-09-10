@@ -17,7 +17,7 @@ import { SignalsService } from '../signals/signals.service'
 import { STORAGE_SERVICE, StorageService } from '../storage/storage.types'
 import { FileAccessService } from '../storage/file-access.service'
 import { BindingDto, CommentDto, CommunityQueryDto, FeedbackDto, FeedUpdatesDto, ImpressionsDto, InterestsDto, PostDto, ProfileDto, ProfileMediaDto, ProfilePinDto, ProfileRelationQueryDto, ProfileTimelineQueryDto, ReportDto, SignalDto } from './community.dto'
-import { CommentQueryDto, OnboardingDto, SearchDto, UsernameDto } from './community.dto'
+import { CommentQueryDto, InlineSearchDto, OnboardingDto, SearchDto, UsernameDto } from './community.dto'
 import { CommunitySearchService } from './search.service'
 import type { CommunityDraftDto, CommunityPostInput } from '@ai-learning-hub/contracts'
 import { createHash } from 'node:crypto'
@@ -29,6 +29,7 @@ import { reserveIdempotency } from '../../common/persistence'
 export class CommunityController {
   constructor(private readonly governance: CommunityGovernanceService, private readonly posts: CommunityPostService, private readonly comments: CommunityCommentService, private readonly interactions: CommunityInteractionService, private readonly notifications: CommunityNotificationService, private readonly context: CommunityContextService, private readonly feed: LearningFeedPipeline, private readonly visibility: CommunityVisibilityPolicyService, private readonly signals: SignalsService, private readonly prisma: PrismaService, @Inject(STORAGE_SERVICE) private readonly storage: StorageService, private readonly files: FileAccessService, private readonly searchService: CommunitySearchService) {}
   @Get('search') search(@CurrentUser() user: AuthUser, @Query() input: SearchDto) { return this.searchService.search(user.id, input) }
+  @Get('search/suggestions') suggestions(@CurrentUser() user: AuthUser, @Query() input: InlineSearchDto) { return this.searchService.suggestions(user.id, input) }
   @Get('onboarding/schools') schools() { return this.prisma.school.findMany({ where: { status: 'active' }, select: { id: true, name: true, departments: { select: { id: true, name: true } } }, orderBy: { name: 'asc' } }) }
   @Post('onboarding') onboarding(@CurrentUser() user: AuthUser, @Body() input: OnboardingDto) { return this.context.onboarding(user.id, input) }
   @Patch('profile/username') username(@CurrentUser() user: AuthUser, @Body() input: UsernameDto) { return this.context.changeUsername(user.id, input.username) }
@@ -37,7 +38,7 @@ export class CommunityController {
   async drafts(@CurrentUser() user: AuthUser): Promise<CommunityDraftDto[]> {
     await this.visibility.viewer(user.id)
     const rows = await this.prisma.communityPost.findMany({ where: { authorId: user.id, status: 'draft', deletedAt: null }, include: { bindings: true, topics: true, contribution: true }, orderBy: { updatedAt: 'desc' }, take: 100 })
-    return rows.map((row) => ({ id: row.id, revision: row.revision, updatedAt: row.updatedAt.toISOString(), input: { expectedRevision: row.revision, type: row.postType, title: row.title || '', coverFileId: row.coverFileId, contentBlocks: row.contentBlocks as CommunityPostInput['contentBlocks'], bindings: row.bindings.map((ref) => ({ type: ref.targetType as CommunityPostInput['bindings'][number]['type'], id: ref.targetId })), topicIds: row.topics.map((ref) => ref.topicId), visibility: row.visibility, portalConsent: row.portalConsent, status: 'draft', ...(row.sourceType ? { sourceType: row.sourceType as CommunityPostInput['sourceType'], sourceId: row.sourceId! } : {}), ...(row.contribution ? { contribution: { kind: row.contribution.kind, categoryId: row.contribution.categoryId || undefined, tags: row.contribution.tags, teachingReuseConsent: row.contribution.teachingReuseConsent, sourceName: row.contribution.sourceName || undefined, sourceUrl: row.contribution.sourceUrl || undefined, videoAssetId: row.contribution.videoAssetId || undefined, attachmentFileId: row.contribution.attachmentFileId || undefined, coverFileId: row.contribution.coverFileId || undefined } } : {}) } }))
+    return rows.map((row) => ({ id: row.id, revision: row.revision, updatedAt: row.updatedAt.toISOString(), input: { expectedRevision: row.revision, type: row.postType, title: row.title || '', coverFileId: row.coverFileId, contentBlocks: row.contentBlocks as CommunityPostInput['contentBlocks'], bindings: row.bindings.map((ref) => ({ type: ref.targetType as CommunityPostInput['bindings'][number]['type'], id: ref.targetId })), inlineReferences: row.inlineReferences as unknown as CommunityPostInput['inlineReferences'], quotedPostId: row.quotedPostId, topicIds: row.topics.filter((ref) => ref.manual).map((ref) => ref.topicId), visibility: row.visibility, portalConsent: row.portalConsent, status: 'draft', ...(row.sourceType ? { sourceType: row.sourceType as CommunityPostInput['sourceType'], sourceId: row.sourceId! } : {}), ...(row.contribution ? { contribution: { kind: row.contribution.kind, categoryId: row.contribution.categoryId || undefined, tags: row.contribution.tags, teachingReuseConsent: row.contribution.teachingReuseConsent, sourceName: row.contribution.sourceName || undefined, sourceUrl: row.contribution.sourceUrl || undefined, videoAssetId: row.contribution.videoAssetId || undefined, attachmentFileId: row.contribution.attachmentFileId || undefined, coverFileId: row.contribution.coverFileId || undefined } } : {}) } }))
   }
   @Post('drafts') createDraft(@CurrentUser() user: AuthUser, @Body() input: PostDto, @Headers('idempotency-key') key?: string) { return this.posts.save(user.id, { ...input, status: 'draft' }, undefined, undefined, key) }
   private async ownDraft(userId: string, id: string) {
@@ -48,7 +49,7 @@ export class CommunityController {
   @Get('feed') getFeed(@CurrentUser() user: AuthUser, @Query() query: CommunityQueryDto) { return this.feed.feed(user.id, query) }
   @Get('feed/updates') async updates(@CurrentUser() user: AuthUser, @Query() input: FeedUpdatesDto) {
     const following = input.mode === 'following' ? await this.prisma.communityUserFollow.findMany({ where: { followerId: user.id }, select: { followeeId: true } }) : []
-    return { count: await this.prisma.communityPost.count({ where: { AND: [await this.visibility.where(user.id), { publishedAt: { gt: new Date(input.since) }, ...(input.type === 'all' ? {} : { postType: input.type }) }, ...(input.mode === 'following' ? [{ OR: [{ authorId: { in: following.map((row) => row.followeeId) } }, { topics: { some: { topic: { follows: { some: { userId: user.id } } } } } }] }] : [])] } }) }
+    return { invalidPriorityIds: await this.feed.invalidPriorities(user.id, input.priorityIds), count: await this.prisma.communityPost.count({ where: { AND: [await this.visibility.where(user.id), { publishedAt: { gt: new Date(input.since) }, ...(input.type === 'all' ? {} : { postType: input.type }) }, ...(input.mode === 'following' ? [{ OR: [{ authorId: { in: following.map((row) => row.followeeId) } }, { topics: { some: { topic: { follows: { some: { userId: user.id } } } } } }] }] : [])] } }) }
   }
   @Get('context') getContext(@CurrentUser() user: AuthUser) { return this.context.context(user.id) }
   @Get('eligibility') eligibility(@CurrentUser() user: AuthUser) { return this.visibility.eligibility(user.id) }
@@ -113,6 +114,7 @@ export class CommunityController {
   @Put('posts/:id/bookmark') bookmark(@CurrentUser() user: AuthUser, @Param('id') id: string, @Ip() ip: string) { return this.interactions.react(user.id, id, 'bookmark', true, ip) }
   @Delete('posts/:id/bookmark') unbookmark(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.react(user.id, id, 'bookmark', false) }
   @Get('bookmarks') bookmarks(@CurrentUser() user: AuthUser, @Query() query: CommunityQueryDto) { return this.posts.list(user.id, query, { bookmarks: { some: { userId: user.id } } }) }
+  @Get('posts/:id/quotes') async quotes(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() query: CommunityQueryDto) { await this.posts.detail(user.id, id); return this.posts.list(user.id, query, { quotedPostId: id, status: 'published' }) }
   @Get('users/:id') profile(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.context.profile(user.id, id) }
   @Get('users/:id/timeline') timeline(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() query: ProfileTimelineQueryDto) { return this.context.timeline(user.id, id, query) }
   @Get('users/:id/followers') followers(@CurrentUser() user: AuthUser, @Param('id') id: string, @Query() query: ProfileRelationQueryDto) { return this.context.relations(user.id, id, 'followers', query) }
@@ -136,6 +138,7 @@ export class CommunityController {
   @Delete('profile/pinned-post') unpin(@CurrentUser() user: AuthUser, @Body() input: ProfilePinDto) { return this.context.pinPost(user.id, null, input.expectedProfileRevision) }
   @Post('interests') interests(@CurrentUser() user: AuthUser, @Body() input: InterestsDto) { return this.context.interests(user.id, input.themeIds) }
   @Get('topics') topics(@CurrentUser() user: AuthUser) { return this.context.topics(user.id) }
+  @Get('topics/:slug') topic(@CurrentUser() user: AuthUser, @Param('slug') slug: string) { return this.context.topic(user.id, slug) }
   @Get('topics/:slug/posts') topicPosts(@CurrentUser() user: AuthUser, @Param('slug') slug: string, @Query() query: CommunityQueryDto) { return this.posts.list(user.id, query, { topics: { some: { topic: { slug, status: 'active' } } } }) }
   @Put('topics/:id/follow') followTopic(@CurrentUser() user: AuthUser, @Param('id') id: string, @Ip() ip: string) { return this.interactions.follow(user.id, id, true, true, ip) }
   @Delete('topics/:id/follow') unfollowTopic(@CurrentUser() user: AuthUser, @Param('id') id: string) { return this.interactions.follow(user.id, id, true, false) }

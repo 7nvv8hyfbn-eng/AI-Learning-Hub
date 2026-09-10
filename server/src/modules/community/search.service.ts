@@ -1,6 +1,6 @@
 import { visibleProfile } from './governance-policy'
 import { BadRequestException, Injectable } from '@nestjs/common'
-import type { CatalogContentType, CommunitySearchResultDto } from '@ai-learning-hub/contracts'
+import { normalizeTopicName, COMMUNITY_USERNAME_PATTERN, type CatalogContentType, type CommunitySearchResultDto, type CommunityInlineCandidateDto } from '@ai-learning-hub/contracts'
 import type { Prisma } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
 import { CommunityPostService, postInclude } from './post.service'
@@ -8,10 +8,18 @@ import { CommunityContextService } from './context.service'
 import { CommunityVisibilityPolicyService } from './visibility.service'
 import { ContentSupportService, type ContentRecord } from '../../common/content/content-support.service'
 import { authorDto, authorInclude } from './community.mapper'
-import type { SearchDto } from './community.dto'
+import type { InlineSearchDto, SearchDto } from './community.dto'
 @Injectable()
 export class CommunitySearchService {
   constructor(private readonly prisma: PrismaService, private readonly posts: CommunityPostService, private readonly context: CommunityContextService, private readonly visibility: CommunityVisibilityPolicyService, private readonly support: ContentSupportService) {}
+  async suggestions(userId: string, query: InlineSearchDto): Promise<CommunityInlineCandidateDto[]> {
+    await this.visibility.viewer(userId)
+    const q = query.kind === 'topic' ? normalizeTopicName(query.q) : query.q.normalize('NFKC').trim().toLowerCase()
+    if (query.kind === 'topic') return (await this.context.topics(userId, { text: q, limit: 8 })).map((topic) => ({ kind: 'topic', id: topic.id, name: topic.name, postCount: topic.postCount }))
+    const excluded = await this.visibility.authorExclusions(userId), text = { contains: q, mode: 'insensitive' as const }
+    const users = await this.prisma.user.findMany({ where: { ...visibleProfile(), id: { notIn: excluded.authors }, ...(q ? { OR: [{ username: text }, { displayName: text }] } : {}) }, include: authorInclude, orderBy: { id: 'asc' }, take: 24 })
+    return users.filter((row) => COMMUNITY_USERNAME_PATTERN.test(row.username || '')).slice(0, 8).map((row) => { const user = authorDto(row); return { kind: 'mention', id: user.id, name: user.displayName, username: user.username, avatar: user.avatar, verifiedType: user.verifiedType } })
+  }
   async search(userId: string, query: SearchDto): Promise<CommunitySearchResultDto> {
     await this.visibility.viewer(userId)
     const q = query.q.trim(), result: CommunitySearchResultDto = { posts: [], users: [], topics: [], courses: [], labs: [], resources: [], articles: [], nextCursor: null }
@@ -36,7 +44,7 @@ export class CommunitySearchService {
       const excluded = await this.visibility.authorExclusions(userId)
       result.users = page(await this.prisma.user.findMany({ where: { id: { ...id, notIn: excluded.authors }, ...visibleProfile(), OR: [{ username: text }, { displayName: text }] }, include: authorInclude, orderBy: { id: 'asc' }, take: take + 1 })).map(authorDto)
     }
-    if (selected('topics')) result.topics = page((await this.context.topics(userId)).filter((row) => row.id > after && `${row.name} ${row.description}`.toLowerCase().includes(q.toLowerCase())).sort((a, b) => a.id.localeCompare(b.id)))
+    if (selected('topics')) result.topics = page(await this.context.topics(userId, { text: q, after, limit: take + 1 }))
     // 仅检索已发布快照，避免草稿标题进入公开搜索；映射复用内容公共基础契约。
     const where = { status: 'published' as const, deletedAt: null, id, publishedVersion: { is: { OR: [{ snapshot: { path: ['title'], string_contains: q, mode: 'insensitive' as const } }, { snapshot: { path: ['summary'], string_contains: q, mode: 'insensitive' as const } }] } } }
     const [courses, labs, resources, articles] = await Promise.all([

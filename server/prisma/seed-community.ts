@@ -1,3 +1,4 @@
+import { normalizeTopicName } from '@ai-learning-hub/contracts'
 import { PrismaClient } from '@prisma/client'
 import { createHash } from 'node:crypto'
 import { createCommunityFixtures, demoArticles, demoCourses, demoLabs, demoStudents, demoThemes } from '@ai-learning-hub/demo-fixtures'
@@ -29,7 +30,7 @@ export async function seedCommunity(prisma: PrismaClient) {
     }
   }
   const themes = await prisma.theme.findMany(), courses = await prisma.course.findMany(), labs = await prisma.lab.findMany(), articles = await prisma.article.findMany()
-  for (const topic of fixtures.topics) await prisma.communityTopic.upsert({ where: { id: topic.id }, update: {}, create: { id: topic.id, slug: topic.slug, name: topic.name, description: topic.description, themeId: themes.find((row) => row.slug === topic.theme)?.id, accent: topic.accent, sortOrder: topic.sortOrder, recommended: topic.recommended } })
+  for (const topic of fixtures.topics) await prisma.communityTopic.upsert({ where: { id: topic.id }, update: {}, create: { id: topic.id, slug: topic.slug, name: topic.name, normalizedName: normalizeTopicName(topic.name), description: topic.description, themeId: themes.find((row) => row.slug === topic.theme)?.id, accent: topic.accent, sortOrder: topic.sortOrder, recommended: topic.recommended } })
   for (const fixture of fixtures.posts) {
     const userId = userIds.get(fixture.author)!
     const body = fixture.blocks.map((block) => block.type === 'code' ? block.code : block.type === 'image' ? block.alt : block.type === 'list' ? block.items.join('\n') : block.text).join('\n')

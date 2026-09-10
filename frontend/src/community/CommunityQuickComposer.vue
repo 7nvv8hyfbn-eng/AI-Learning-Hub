@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import CommunityInlineSuggestions from './CommunityInlineSuggestions.vue'
+import CommunityQuotePreview from './CommunityQuotePreview.vue'
 import { storeToRefs } from 'pinia'
 import { useCommunityStore } from '../stores/community'
 import { useAuthStore } from '../stores/auth'
@@ -38,6 +40,8 @@ const focus = () => {
 watch(active, async (open) => { tool.value = null; if (open) { await nextTick(); focus() } })
 watch(body, async () => { await nextTick(); resize() })
 const keydown = (event: KeyboardEvent) => {
+  if (event.isComposing || event.keyCode === 229 || event.defaultPrevented) return
+
   if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void editor.save() }
   if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (tool.value) tool.value = null; else editor.close() }
 }
@@ -67,6 +71,7 @@ onBeforeUnmount(() => window.removeEventListener('community-composer-focus', foc
       </header>
       <label v-if="['question', 'project'].includes(form.type)">标题（必填）<input v-model="form.title" required maxlength="160" placeholder="用一句话说明问题或项目" /></label>
       <textarea ref="textarea" v-model="body" aria-label="正文" maxlength="15000" autofocus required placeholder="分享你今天学到的 AI 知识……" />
+      <CommunityInlineSuggestions :target="textarea" /><CommunityQuotePreview v-if="form.quotedPostId" :id="form.quotedPostId" />
       <input ref="filePicker" type="file" hidden multiple accept="image/png,image/jpeg,image/webp" aria-label="选择学习图片" @change="editor.upload" />
       <CommunityImageGallery v-if="images.length" :images="images" editable @edit="editImage" @remove="editor.removeImage" />
       <p v-if="editor.pendingImages" class="community-notice" role="status">还有 {{ editor.pendingImages }} 张图片待保存或上传，请处理完成或取消后再发布。本地未保存的图片无法跨刷新恢复。</p>

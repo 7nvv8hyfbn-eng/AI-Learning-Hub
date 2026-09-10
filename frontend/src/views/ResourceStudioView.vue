@@ -60,8 +60,6 @@ const publish = (kind: ResourceContributionKind) => {
     status: 'published',
     contribution: { kind, tags: [], teachingReuseConsent: false },
   })
-  community.composerMode = 'advanced'
-  community.composerInline = false
 }
 const editCollection = (item?: LearningCollectionSummaryDto) => {
   if (item?.visibility === 'community' && !requireWrite('collection')) return

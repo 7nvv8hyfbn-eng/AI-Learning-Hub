@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer'
+import { Transform, Type } from 'class-transformer'
 import { ArrayMaxSize, ArrayMinSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsObject, IsOptional, IsString, IsUrl, Length, Matches, Max, MaxLength, Min, ValidateIf, ValidateNested } from 'class-validator'
 import { CommunityPostType as DatabasePostType } from '@prisma/client'
 import { communityOperations, type CommunityPostInput, type CommunityCommentInput, type CommunityPostType, type CommunityVisibility, type CommunityContentBlock, type CommunityBindingInput, type LearningContentType, type CommunityFeedMode, type CommunitySignalInput, type ResourceContributionInput, type CommunityOperation } from '@ai-learning-hub/contracts'
@@ -56,7 +56,14 @@ export class ContributionDto implements ResourceContributionInput {
   @IsOptional() @IsString() @Length(1, 100) attachmentFileId?: string
   @IsOptional() @IsString() @Length(1, 100) coverFileId?: string
 }
+export class InlineReferenceDto {
+  @IsIn(['topic', 'mention']) kind!: 'topic' | 'mention'
+  @IsString() @Length(2, 62) text!: string
+  @IsString() @Length(1, 100) id!: string
+}
 export class PostDto implements CommunityPostInput {
+  @IsOptional() @IsArray() @ArrayMaxSize(13) @ValidateNested({ each: true }) @Type(() => InlineReferenceDto) inlineReferences?: InlineReferenceDto[]
+  @IsOptional() @IsString() @Length(1, 100) quotedPostId?: string | null
   @IsOptional() @IsBoolean() portalConsent?: boolean
   @IsOptional() @IsString() @Length(1, 100) coverFileId?: string | null
   @IsOptional() @IsInt() @Min(1) expectedRevision?: number
@@ -80,6 +87,7 @@ export class AdminPostDto extends PostDto {
   @IsString() @Length(4, 500) @Matches(/\S/) reason!: string
 }
 export class CommunityQueryDto {
+  @IsOptional() @Transform(({ value }) => typeof value === 'string' ? value.split(',') : value) @IsArray() @ArrayMaxSize(150) @ArrayUnique() @IsString({ each: true }) @Length(1, 100, { each: true }) priorityIds?: string[]
   @IsOptional() @IsIn(['for_you', 'following', 'latest']) mode: CommunityFeedMode = 'for_you'
   @IsOptional() @IsIn(['all', ...communityPostTypes]) type: CommunityPostType | 'all' = 'all'
   @IsOptional() @IsString() @MaxLength(2000) cursor?: string
@@ -144,6 +152,10 @@ export class SearchDto {
   @IsIn(['all', 'posts', 'users', 'topics', 'courses', 'labs', 'resources', 'articles']) type: CommunitySearchType = 'all'
   @IsOptional() @IsString() @MaxLength(2000) cursor?: string
   @Type(() => Number) @IsInt() @Min(1) @Max(30) limit = 20
+}
+export class InlineSearchDto {
+  @IsIn(['topic', 'mention']) kind!: 'topic' | 'mention'
+  @IsOptional() @IsString() @MaxLength(30) q = ''
 }
 export class TopicDto {
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/) @MaxLength(80) slug!: string

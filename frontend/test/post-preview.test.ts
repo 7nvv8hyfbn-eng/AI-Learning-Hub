@@ -28,7 +28,7 @@ describe('帖子折叠展示投影', () => {
     expect(postTextPreview([{ type: 'rich_text', text: '<p><br></p>' }]).blocks).toEqual([])
     const result = postTextPreview([{ type: 'code', code: '<tag>\n</tag>', language: 'html' }])
     expect(result.shortened).toBe(false)
-    expect(result.blocks[0]).toMatchObject({ type: 'paragraph', text: '代码（html）：<tag>\n</tag>' })
+    expect(result.blocks[0]).toMatchObject({ type: 'code', language: 'html', code: '<tag>\n</tag>' })
   })
   it.each([[0, '0'], [9999, '9999'], [10000, '1万'], [12000, '1.2万']])('浏览量%s显示为%s', (value, display) => {
     expect(formatPostViews(Number(value))).toBe(display)

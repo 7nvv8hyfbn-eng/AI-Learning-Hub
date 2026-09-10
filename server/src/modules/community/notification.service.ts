@@ -14,7 +14,7 @@ export class CommunityNotificationService {
   async send(recipientId: string, actorId: string, type: CommunityNotificationDto['type'], entityType: string, entityId: string, tx: Prisma.TransactionClient = this.prisma) {
     if (recipientId === actorId) return
     const day = new Date().toISOString().slice(0, 13)
-    const dedupeKey = `${recipientId}:${type}:${entityType}:${entityId}:${day}`
+    const dedupeKey = `${recipientId}:${type}:${entityType}:${entityId}${['mention', 'quote'].includes(type) ? '' : `:${day}`}`
     await tx.userNotification.createMany({ data: [{ recipientId, actorId, notificationType: type, entityType, entityId, dedupeKey, actorIds: [actorId] }], skipDuplicates: true })
     await tx.userNotification.updateMany({ where: { dedupeKey, NOT: { actorIds: { has: actorId } } }, data: { actorId, actorIds: { push: actorId }, readAt: null } })
   }
@@ -33,7 +33,7 @@ export class CommunityNotificationService {
     const authorMap = new Map(authors.map((row) => [row.id, authorDto(row)]))
     const reviewMap = new Map(reviews.map((row) => [row.id, row]))
     const targetLabels: Record<string, string> = { post: '投稿', comment: '评论', profile: '公开资料', collection: '合集', resource: '资源' }
-    const labels: Record<string, string> = { comment: '回答了你的动态', reply: '回复了你的评论', like: '赞了你的内容', useful: '认为你的内容有帮助', answer_accepted: '采纳了你的回答', follow: '关注了你', mention: '提到了你', official: '发布了学习提醒', moderation: '你的内容有新的处理结果' }
+    const labels: Record<string, string> = { comment: '回答了你的动态', reply: '回复了你的评论', like: '赞了你的内容', useful: '认为你的内容有帮助', answer_accepted: '采纳了你的回答', follow: '关注了你', mention: '提到了你', quote: '引用了你的帖子', official: '发布了学习提醒', moderation: '你的内容有新的处理结果' }
     const items: CommunityNotificationDto[] = rows.filter((row) => row.entityType === 'content_review' ? reviewMap.has(row.entityId) : row.notificationType === 'moderation' || (!row.actorId || authorMap.has(row.actorId)) && (row.entityType !== 'post' || visibleIds.has(row.entityId))).map((row) => {
       const review = row.entityType === 'content_review' ? reviewMap.get(row.entityId) : undefined
       const governanceMessage = row.dedupeKey?.startsWith('governance:') ? (row.payload as { message?: string }).message : undefined

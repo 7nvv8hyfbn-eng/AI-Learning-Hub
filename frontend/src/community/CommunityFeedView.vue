@@ -44,19 +44,32 @@ const restore = (anchor?: { id: string; offset: number }) => {
   if (row && anchor) root.scrollTop += row.getBoundingClientRect().top - root.getBoundingClientRect().top - anchor.offset
   else root.scrollTop = feed.value?.scroll || 0
 }
+const revealPublished = () => {
+  const entry = feed.value, root = scrollRoot.value
+  if (!entry?.revealPostId || !root) return false
+  const row = [...(feedRoot.value?.querySelectorAll<HTMLElement>('[data-feed-id]') || [])].find((item) => item.dataset.feedId === entry.revealPostId)
+  if (!row) return false
+  const toolbar = feedRoot.value?.querySelector('.community-feed-sticky')?.getBoundingClientRect().height || 0
+  root.scrollTo({ top: Math.max(0, root.scrollTop + row.getBoundingClientRect().top - root.getBoundingClientRect().top - toolbar - 12), behavior: 'smooth' })
+  entry.revealPostId = undefined
+  return true
+}
 const pending = new Set<string>()
 const load = async (reset = false) => {
   const requestKey = key.value
   if (pending.has(requestKey) || !alive) return
   const anchor = reset ? undefined : feed.value?.evicted ? feed.value.anchor : visibleAnchor()
+  const newest = store.publishedPosts[0]
   pending.add(requestKey); loading.value = true; error.value = ''
   try {
     await store.loadFeed(mode.value, type.value, reset)
     if (!alive || key.value !== requestKey) return
     if (reset) { newCount.value = 0; since.value = new Date().toISOString() }
     await nextTick()
-    if (reset) scrollRoot.value?.scrollTo({ top: 0, behavior: 'smooth' })
-    else if (anchor) restore(anchor)
+    if (!revealPublished() && (newest === store.publishedPosts[0] || reset && !store.publishedPosts.length)) {
+      if (reset) scrollRoot.value?.scrollTo({ top: 0, behavior: 'smooth' })
+      else if (anchor) restore(anchor)
+    }
   } catch (cause) { if (alive && key.value === requestKey) error.value = cause instanceof Error ? cause.message : '信息流加载失败' }
   finally { pending.delete(requestKey); loading.value = pending.has(key.value) }
 }
@@ -68,24 +81,34 @@ watch(key, async (_next, previous) => {
   remember(previous); newCount.value = 0
   store.touchFeed(key.value)
   if (!feed.value?.loaded) await load()
-  await nextTick()
-  if (!alive) return
-  restore(feed.value?.anchor)
+  else { await nextTick(); if (alive && !revealPublished()) restore(feed.value?.anchor) }
 })
-watch(() => store.publishNotice?.id, async (id) => { if (id) { const anchor = visibleAnchor(); await nextTick(); if (anchor) restore(anchor) } }, { flush: 'pre' })
+watch(() => store.publishNotice, async (notice) => {
+  if (!notice) return
+  if (mode.value !== 'for_you' && feed.value && !feed.value.loaded) await load(true)
+  await nextTick()
+  if (alive) revealPublished()
+}, { flush: 'post' })
 watch(() => store.context?.needsInterests, async (needs) => { if (needs && canEditProfile.value) { try { await themes.load(); interestsOpen.value = true } catch (cause) { error.value = cause instanceof Error ? cause.message : '学习方向读取失败' } } }, { immediate: true })
 watch(canEditProfile, (allowed) => { if (!allowed) interestsOpen.value = false })
 const saveInterests = async () => { if (!requireWrite('profile')) return; const epoch = store.epoch; try { const context = await communityApi.interests(interests.value); if (epoch !== store.epoch) return; store.context = context; store.invalidateFollowing(); interestsOpen.value = false; await load(true) } catch (cause) { error.value = cause instanceof Error ? cause.message : '兴趣保存失败' } }
 const askQuestion = () => store.openComposer({ type: 'question' })
+const checkUpdates = async () => {
+  const requestKey = key.value, epoch = store.epoch
+  try {
+    const result = await communityApi.updates(since.value, mode.value, type.value, store.publishedPosts.map((item) => item.post.id))
+    if (alive && requestKey === key.value && epoch === store.epoch) { newCount.value = result.count; store.prunePublished(result.invalidPriorityIds) }
+  } catch { /* 保留当前列表，手动刷新仍可重试。 */ }
+}
 onMounted(async () => {
-  const restoredAnchor = feed.value?.anchor
   store.touchFeed(key.value)
   if (!feed.value?.loaded) await load()
+  else { if (store.publishedPosts.length) await checkUpdates(); await nextTick(); if (alive && !revealPublished()) restore(feed.value?.anchor) }
   if (!alive) return
-  await nextTick(); restore(restoredAnchor)
+  await nextTick()
   observer = new IntersectionObserver((entries) => { if (entries[0]?.isIntersecting && feed.value?.cursor && !loading.value && !error.value) void load() }, { rootMargin: '250px', root: scrollRoot.value })
   if (sentinel.value) observer.observe(sentinel.value)
-  polling = window.setInterval(async () => { if (document.visibilityState === 'visible') { const requestKey = key.value; try { const result = await communityApi.updates(since.value, mode.value, type.value); if (alive && requestKey === key.value) newCount.value = result.count } catch { /* 手动刷新仍可重试。 */ } } }, 60000)
+  polling = window.setInterval(() => { if (document.visibilityState === 'visible') void checkUpdates() }, 60000)
 })
 onBeforeUnmount(() => { alive = false; remember(); observer?.disconnect(); window.clearInterval(polling) })
 </script>

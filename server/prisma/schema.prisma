@@ -1820,6 +1820,10 @@ model CommunityProfile {
 }
 
 model CommunityPost {
+  inlineReferences Json                    @default("[]") @map("inline_references")
+  quotedPostId     String?                 @map("quoted_post_id")
+  quotedPost       CommunityPost?          @relation("CommunityPostQuote", fields: [quotedPostId], references: [id], onDelete: Restrict)
+  quotes           CommunityPost[]         @relation("CommunityPostQuote")
   contentReviews  ContentReview[]
   coverFileId     String?                 @map("cover_file_id")
   coverFile       FileRecord?             @relation("CommunityPostCover", fields: [coverFileId], references: [id], onDelete: Restrict)
@@ -1873,6 +1877,7 @@ model CommunityPost {
   @@index([schoolId, status, publishedAt, id])
   @@index([contentHash, authorId, status])
   @@index([deletedAt])
+  @@index([quotedPostId, status, deletedAt])
   @@map("community_posts")
 }
 
@@ -2119,6 +2124,7 @@ model CommunityUserFollow {
 }
 
 model CommunityTopic {
+  normalizedName String?                @unique @map("normalized_name")
   id            String                 @id @default(cuid())
   slug          String                 @unique
   name          String
@@ -2137,6 +2143,7 @@ model CommunityTopic {
 }
 
 model CommunityPostTopic {
+  manual  Boolean        @default(true)
   postId  String         @map("post_id")
   topicId String         @map("topic_id")
   post    CommunityPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -2370,6 +2377,8 @@ model UserNotification {
 }
 
 model CommunityPostRevision {
+  inlineReferencesSnapshot Json         @default("[]") @map("inline_references_snapshot")
+  quotedPostIdSnapshot     String?       @map("quoted_post_id_snapshot")
   coverFileIdSnapshot    String?       @map("cover_file_id_snapshot")
   id                    String        @id @default(cuid())
   postId                String        @map("post_id")

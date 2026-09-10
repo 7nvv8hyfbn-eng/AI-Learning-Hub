@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common'
 
-export const USERNAME_PATTERN = /^(?!_)(?!.*__)[a-z0-9_]{4,24}(?<!_)$/
+export { COMMUNITY_USERNAME_PATTERN as USERNAME_PATTERN } from '@ai-learning-hub/contracts'
+import { COMMUNITY_USERNAME_PATTERN as USERNAME_PATTERN } from '@ai-learning-hub/contracts'
 export const RESERVED_USERNAMES = ['admin', 'administrator', 'root', 'system', 'official', 'moderator', 'support', 'api', 'www']
 
 export function normalizeUsername(value: string) {

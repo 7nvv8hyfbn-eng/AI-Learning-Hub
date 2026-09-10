@@ -1,5 +1,5 @@
 import type { AdminUserDto, CampusIdentityVerificationDto, IdentityVerificationStatus } from './auth'
-import type { CommunityBindingInput, CommunityContentBlock, CommunityPostType, CommunityVisibility } from './community'
+import type { CommunityInlineReference, CommunityBindingInput, CommunityContentBlock, CommunityPostType, CommunityVisibility } from './community'
 
 export interface AdminUserQueryDto {
   page?: number; pageSize?: number; keyword?: string; status?: 'active' | 'disabled' | 'locked'
@@ -49,6 +49,7 @@ export interface AdminCommunityCommentQueryDto extends AdminCommunityPostQueryDt
 export interface CommunityPostRevisionDto {
   id: string; postId: string; revisionNo: number; editorId: string; editorType: string
   titleSnapshot: string | null; contentBlocksSnapshot: CommunityContentBlock[]
+  inlineReferencesSnapshot?: CommunityInlineReference[]; quotedPostIdSnapshot?: string | null
   bindingsSnapshot: CommunityBindingInput[]; topicIdsSnapshot: string[]
   visibilitySnapshot: string; statusSnapshot: string; reason: string; createdAt: string
 }

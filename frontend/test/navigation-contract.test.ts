@@ -1,8 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { communityNavigation, communityNavActive } from '../src/community/labels'
+import { iconRegistry } from '../../packages/catalog-assets/icons/registry'
 const source = (name: string) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 describe('声明式导航契约', () => {
+  it('手机第二项是教程中心，所有教程子页面高亮，通识仍保留在更多功能', () => {
+    expect(communityNavigation.filter((item) => item.mobile).sort((a, b) => a.mobileOrder - b.mobileOrder).map((item) => item.path)).toEqual(['/community', '/resources', '/notifications', '/profile'])
+    expect(communityNavigation.find((item) => item.path === '/topics')).toMatchObject({ desktop: true, mobile: false })
+    for (const path of ['/resources', '/resources/studio', '/resources/video/one', '/resources/article/two', '/resources/collections/three']) expect(communityNavActive(path, '/resources')).toBe(true)
+    expect(iconRegistry['tutorial-center']).toBe('c5045-2325926'); expect(iconRegistry['feed-refresh']).toBe('c5045-2325927')
+    expect(iconRegistry.folder).toBe('kabao'); expect(iconRegistry['feed-search']).toBe('c53651-search'); expect(iconRegistry['post-views']).toBe('post-views')
+    const sprite = readFileSync(new URL('../../packages/catalog-assets/icons/iconfont.js', import.meta.url), 'utf8')
+    for (const id of ['2325926', '2325927']) expect(sprite).toContain(`<symbol id="icon-c5045-${id}" viewBox="0 0 1024 1024">`)
+  })
   it('本人动态、话题和关注入口使用公开username路由，不把内部用户id作为用户名', () => {
     const profile = source('views/ProfileView.vue')
     const links = [...profile.matchAll(/:to="`(\/community\/user\/[^`]+)`"/g)].map((match) => match[1])

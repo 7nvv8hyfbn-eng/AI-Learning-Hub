@@ -74,7 +74,7 @@ const load = async () => {
   const epoch = ++loadEpoch
   loading.value = true; error.value = ''; profile.value = null; posts.value = []; replies.value = []; cursor.value = null; relationPeople.value = []
   try {
-    const next = await communityApi.profile(String(route.params.username))
+    const next = route.params.userId ? await communityApi.profileById(String(route.params.userId)) : await communityApi.profile(String(route.params.username))
     if (epoch !== loadEpoch) return
     profile.value = next
     tab.value = requestedTab()

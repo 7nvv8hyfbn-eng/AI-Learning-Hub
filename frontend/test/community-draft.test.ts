@@ -19,14 +19,14 @@ const account = reactive({ user: { id: 'owner-a', communityWriteEnabled: true } 
 vi.mock('../src/stores/auth', () => ({ useAuthStore: () => account }))
 vi.mock('../src/services/api/community', () => ({ communityApi: { topics: vi.fn(), drafts: vi.fn(), save: vi.fn(), saveDraft: vi.fn(), upload: vi.fn(), bindingContext: vi.fn(), post: vi.fn() } }))
 const storage = new Map<string, string>()
-const key = (id: string) => `community-draft:mock:${id}`
+const key = (id: string, intent = 'post') => `community-draft:mock:${id}:${intent}`
 const settle = async () => { await nextTick(); await Promise.resolve(); await nextTick() }
 const post = { id: 'saved-post', type: 'general', status: 'published', topics: [], viewerState: {} } as CommunityPostDetailDto
 beforeEach(() => {
   vi.useFakeTimers(); vi.resetAllMocks(); storage.clear(); setActivePinia(createPinia())
   account.user = { id: 'owner-a', communityWriteEnabled: true }
   account.dataMode = 'mock'
-  vi.stubGlobal('localStorage', { getItem: (name: string) => storage.get(name) || null, setItem: (name: string, value: string) => storage.set(name, value), removeItem: (name: string) => storage.delete(name) })
+  vi.stubGlobal('localStorage', { get length() { return storage.size }, key: (i: number) => Array.from(storage.keys())[i] ?? null, getItem: (name: string) => storage.get(name) || null, setItem: (name: string, value: string) => storage.set(name, value), removeItem: (name: string) => storage.delete(name) })
   vi.stubGlobal('window', new EventTarget())
   vi.mocked(communityApi.topics).mockResolvedValue([])
   vi.mocked(communityApi.drafts).mockResolvedValue([])
@@ -35,6 +35,27 @@ beforeEach(() => {
 })
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.unstubAllGlobals() })
 describe('共享发布器与草稿账号隔离', () => {
+  it('自动保存尚未返回时点击发布，等待草稿确认后继续同一帖发布', async () => {
+    const store = useCommunityStore(), editor = useCommunityDraft()
+    store.openComposer(); await settle(); editor.body = '自动保存中的明确发布请求'
+    let finish!: (value: CommunityPostDetailDto) => void
+    vi.mocked(communityApi.saveDraft).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    const autosave = editor.save(true); await settle()
+    const publish = editor.save(); finish({ ...post, id: 'autosaved', revision: 2, status: 'draft' })
+    await autosave; expect(await publish).toBe(true)
+    expect(communityApi.save).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 2, status: 'published' }), 'autosaved', expect.any(String))
+    expect(store.composerOpen).toBe(false)
+  })
+  it('等待自动保存期间切换账号，排队发布不能写入新会话', async () => {
+    const store = useCommunityStore(), editor = useCommunityDraft()
+    store.openComposer(); await settle(); editor.body = '旧账号尚未确认的发布'
+    let finish!: (value: CommunityPostDetailDto) => void
+    vi.mocked(communityApi.saveDraft).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    const autosave = editor.save(true); await settle(); const publish = editor.save()
+    account.user = { id: 'owner-b', communityWriteEnabled: true }; await settle()
+    finish({ ...post, status: 'draft' }); await autosave
+    expect(await publish).toBe(false); expect(communityApi.save).not.toHaveBeenCalled()
+  })
   it('多选逐张确认，预留四张名额；取消不上传，成功后的顺序稳定', async () => {
     const editor = useCommunityDraft(), store = useCommunityStore()
     store.openComposer(); await settle()
@@ -95,7 +116,7 @@ describe('共享发布器与草稿账号隔离', () => {
     expect(copy.pendingImages).toBe(true)
     expect(copy.input.contentBlocks).toEqual([{ type: 'paragraph', text: '可恢复正文' }, { type: 'image', fileId: 'uploaded', alt: '已上传说明' }])
     expect(storage.get(key('owner-a'))).not.toMatch(/blob:|local\.png|pixels/)
-    store.composerOpen = false; store.openComposer(); await settle()
+    store.composerOpen = false; editor.restoreLocal(key('owner-a')); await settle()
     expect(editor.pendingImages).toBe(0); expect(editor.imageNotice).toContain('重新选择')
     expect(editor.body).toBe('可恢复正文'); expect(editor.images).toEqual([{ fileId: 'uploaded', alt: '已上传说明' }])
     view.unmount()
@@ -135,7 +156,7 @@ describe('共享发布器与草稿账号隔离', () => {
     expect(communityApi.save).not.toHaveBeenCalled(); expect(communityApi.saveDraft).not.toHaveBeenCalled()
     account.user = { id: 'owner-b', communityWriteEnabled: true }; store.openComposer(); await settle()
     expect(editor.body).toBe(''); expect(storage.has(key('owner-b'))).toBe(false)
-    store.clear(); account.user = { id: 'owner-a', communityWriteEnabled: true }; store.openComposer(); await settle()
+    store.clear(); account.user = { id: 'owner-a', communityWriteEnabled: true }; editor.restoreLocal(key('owner-a')); await settle()
     expect(editor.body).toBe('刚输入尚未来得及自动保存的正文'); expect(editor.savedAt).toContain('尚未同步')
   })
   it('关闭编辑器后草稿箱刷新，继续编辑使用最新封面及版本', async () => {
@@ -174,12 +195,12 @@ describe('共享发布器与草稿账号隔离', () => {
     expect(await editor.save()).toBe(false)
     expect(store.composerOpen).toBe(true)
     expect(editor.blocks).toEqual(blocks)
-    expect(JSON.parse(storage.get(key('owner-a'))!).input.contentBlocks).toEqual(blocks)
+    expect(JSON.parse(storage.get(key('owner-a', 'article'))!).input.contentBlocks).toEqual(blocks)
     expect(await editor.save()).toBe(true)
     const calls = vi.mocked(communityApi.save).mock.calls
     expect(calls[0][2]).toBe(calls[1][2])
     expect(calls[1][0]).toMatchObject({ visibility: 'school', contentBlocks: blocks, contribution: { kind: 'article' } })
-    expect(storage.has(key('owner-a'))).toBe(false)
+    expect(storage.has(key('owner-a', 'article'))).toBe(false)
     expect(store.publishNotice?.text).toContain('尚未公开')
     expect(store.publishNotice?.text).not.toContain('发布成功')
   })
@@ -321,7 +342,7 @@ describe('共享发布器与草稿账号隔离', () => {
   })
   it('存储拒绝不阻断真实保存，成功后的同文新发布使用新幂等键', async () => {
     const editor = useCommunityDraft(), store = useCommunityStore()
-    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => { throw new Error('quota') }, removeItem: () => { throw new Error('storage disabled') } })
+    vi.stubGlobal('localStorage', { get length() { return storage.size }, key: (i: number) => Array.from(storage.keys())[i] ?? null, getItem: () => null, setItem: () => { throw new Error('quota') }, removeItem: () => { throw new Error('storage disabled') } })
     store.openComposer(); await settle(); editor.body = '同文两次独立发布'; await settle()
     expect(await editor.save()).toBe(true)
     const first = vi.mocked(communityApi.save).mock.calls[0][2]
@@ -429,11 +450,10 @@ describe('共享发布器与草稿账号隔离', () => {
     expect(storage.get(key('owner-b'))).toContain('账号B')
   })
   it('已打开A时打开B会明确拦截，关闭后正文和目标一起切换', async () => {
-    const editor = useCommunityDraft(), store = useCommunityStore(), notice = vi.fn()
-    window.addEventListener('api-error', notice)
+    const editor = useCommunityDraft(), store = useCommunityStore()
     store.openComposer({ contentBlocks: [{ type: 'paragraph', text: '正文A' }] }, 'post-a'); await settle()
     store.openComposer({ contentBlocks: [{ type: 'paragraph', text: '正文B' }] }, 'post-b'); await settle()
-    expect(store.editingId).toBe('post-a'); expect(editor.body).toBe('正文A'); expect(notice).toHaveBeenCalled()
+    expect(store.editingId).toBe('post-a'); expect(editor.body).toBe('正文A'); expect(editor.closePrompt).toBe(true); expect(store.composerRequest?.id).toBe('post-b')
     editor.discard()
     store.openComposer({ contentBlocks: [{ type: 'paragraph', text: '正文B' }] }, 'post-b'); await settle()
     expect(store.editingId).toBe('post-b'); expect(editor.body).toBe('正文B')
@@ -443,7 +463,7 @@ describe('共享发布器与草稿账号隔离', () => {
     store.openComposer({ contentBlocks: [{ type: 'paragraph', text: '旧正文' }] }, 'original-id'); await settle()
     editor.body = '恢复后应编辑原帖'; await settle(); await editor.save(true)
     store.composerOpen = false; store.editingId = undefined
-    store.openComposer(); await settle()
+    editor.restoreLocal(key('owner-a', 'edit:original-id')); await settle()
     expect(store.editingId).toBe('original-id'); expect(editor.body).toBe('恢复后应编辑原帖')
     await editor.save()
     expect(communityApi.save).toHaveBeenLastCalledWith(expect.anything(), 'original-id', expect.any(String))
@@ -592,13 +612,15 @@ describe('发布器到草稿箱的真实路由生命周期', () => {
     return { router, editor, store, composer: composer.state, clickDrafts }
   }
   it.each(['quick', 'advanced'] as const)('%s 已保存草稿点击链接后到达草稿箱并关闭全局面板', async (mode) => {
-    const { router, editor, store, clickDrafts } = await setupNavigation('/community', mode)
+    const { router, editor, store, composer, clickDrafts } = await setupNavigation('/community', mode)
     editor.body = '保留同一条草稿'; await settle(); expect(await editor.save(true)).toBe(true)
     await clickDrafts(); await settle()
+    expect(editor.closePrompt).toBe(true); expect(router.currentRoute.value.path).toBe('/community')
+    await composer.finish(true); for (let i = 0; i < 10; i++) await settle()
     expect(router.currentRoute.value.path).toBe('/community/drafts')
     expect(store.composerOpen).toBe(false); expect(editor.closePrompt).toBe(false)
     expect(editor.draftId).toBe('server-draft'); expect(storage.get(key('owner-a'))).toContain('保留同一条草稿')
-    expect(communityApi.saveDraft).toHaveBeenCalledTimes(1)
+    expect(communityApi.saveDraft).toHaveBeenCalledTimes(2)
   })
   it('未保存选择继续编辑取消导航，后续关闭也不会恢复被取消的跳转', async () => {
     const { router, editor, store, composer, clickDrafts } = await setupNavigation()
@@ -631,8 +653,9 @@ describe('发布器到草稿箱的真实路由生命周期', () => {
     const { router, editor, store, composer, clickDrafts } = await setupNavigation('/community/drafts')
     editor.body = '同路由已保存稿'; await settle(); await editor.save(true)
     expect(isNavigationFailure(await clickDrafts(), NavigationFailureType.duplicated)).toBe(true)
+    expect(editor.closePrompt).toBe(true); await composer.finish(true); await settle()
     expect(store.composerOpen).toBe(false); expect(editor.draftId).toBe('server-draft')
-    store.openComposer(); await settle(); editor.body = '同路由尚未保存的修改'; await settle()
+    editor.restoreLocal(key('owner-a')); await settle(); editor.body = '同路由尚未保存的修改'; await settle()
     await clickDrafts(); expect(editor.closePrompt).toBe(true); expect(store.composerOpen).toBe(true)
     composer.cancel(); expect(editor.body).toBe('同路由尚未保存的修改')
     expect(router.currentRoute.value.path).toBe('/community/drafts'); expect(store.composerOpen).toBe(true)
@@ -647,7 +670,67 @@ describe('发布器到草稿箱的真实路由生命周期', () => {
     const remove = router.beforeEach(() => false)
     expect(isNavigationFailure(await clickDrafts(), NavigationFailureType.aborted)).toBe(true)
     expect(router.currentRoute.value.path).toBe('/community'); expect(store.composerOpen).toBe(true)
-    expect(editor.body).toBe('其他守卫取消也不关闭'); expect(editor.closePrompt).toBe(false)
+    expect(editor.body).toBe('其他守卫取消也不关闭'); expect(editor.closePrompt).toBe(true)
     remove()
+  })
+  it.each(['video', 'article', 'document', 'quote'] as const)('空编辑器直接进入 %s，不恢复其他意图的本地草稿', async (kind) => {
+    const { editor, store } = await setupNavigation()
+    storage.set(key('owner-a'), JSON.stringify({ input: { ...editor.form, contentBlocks: [{ type: 'paragraph', text: '旧社区草稿' }] } }))
+    store.openComposer(kind === 'quote' ? { quotedPostId: 'quoted-target' } : { contribution: { kind, tags: [], teachingReuseConsent: false } })
+    await settle()
+    expect(editor.closePrompt).toBe(false); expect(editor.body).toBe('')
+    expect(kind === 'quote' ? editor.form.quotedPostId : editor.form.contribution?.kind).toBe(kind === 'quote' ? 'quoted-target' : kind); expect(store.composerIntent).toBe(kind)
+    expect(store.composerInline).toBe(false); expect(store.composerMode).toBe(kind === 'article' ? 'rich' : kind === 'quote' ? 'quick' : 'advanced')
+    expect(editor.hasWork).toBe(kind === 'quote'); expect(communityApi.saveDraft).not.toHaveBeenCalled()
+    expect(editor.localCopies()).toHaveLength(1)
+  })
+  it.each(['video', 'article', 'document', 'quote'] as const)('所有非空状态切换 %s 必须确认，保存后自动执行最新目标', async (kind) => {
+    const { editor, store, composer } = await setupNavigation()
+    for (const state of ['unsaved', 'autosaved', 'image-edit', 'upload', 'public-edit']) {
+      if (store.composerOpen) editor.discard()
+      store.openComposer(undefined, state === 'public-edit' ? 'original-public' : undefined)
+      await settle(); editor.body = `保留-${state}`; await settle()
+      if (state === 'autosaved') { await editor.save(true); expect(editor.dirty).toBe(false) }
+      if (state === 'image-edit') await editor.uploadFiles([new File(['x'], 'edit.png', { type: 'image/png' })])
+      const cancel = vi.fn(), release = state === 'upload' ? editor.registerUpload(cancel) : () => {}
+      expect(editor.hasWork, JSON.stringify({ before: state, kind, body: editor.body, blocks: editor.blocks, form: editor.form, mode: store.composerMode })).toBe(true)
+      const oldSession = store.composerSession
+      store.openComposer(kind === 'quote' ? { quotedPostId: 'quoted-target' } : { contribution: { kind, tags: [], teachingReuseConsent: false } })
+      await settle()
+      expect(editor.closePrompt, JSON.stringify({ state, mode: store.composerMode, body: editor.body, blocks: editor.blocks, saving: editor.saving, request: store.composerRequest })).toBe(true); expect(store.composerSession).toBe(oldSession)
+      expect(editor.body).toBe(`保留-${state}`)
+      composer.cancel(); expect(editor.body).toBe(`保留-${state}`); expect(store.composerOpen).toBe(true)
+      store.openComposer(kind === 'quote' ? { quotedPostId: 'quoted-target' } : { contribution: { kind, tags: [], teachingReuseConsent: false } })
+      const count = vi.mocked(communityApi.saveDraft).mock.calls.length
+      await composer.finish(true); await settle()
+      if (state === 'upload') expect(cancel).toHaveBeenCalledOnce()
+      if (state === 'public-edit') expect(vi.mocked(communityApi.saveDraft).mock.calls.length).toBe(count)
+      expect(store.composerOpen).toBe(true); expect(editor.closePrompt).toBe(false)
+      expect(kind === 'quote' ? editor.form.quotedPostId : editor.form.contribution?.kind).toBe(kind === 'quote' ? 'quoted-target' : kind); expect(editor.body).toBe('')
+      expect(editor.pendingImages).toBe(0); expect(editor.pendingUploads).toBe(0); expect(store.editingId).toBeUndefined()
+      release()
+    }
+  })
+  it('快速连续目标只保留最后一个，revision 冲突保稿，放弃后才切换', async () => {
+    const { editor, store, composer } = await setupNavigation()
+    editor.body = '发生冲突的当前稿'; await settle()
+    for (const kind of ['video', 'article', 'document'] as const) store.openComposer(kind === 'quote' ? { quotedPostId: 'quoted-target' } : { contribution: { kind, tags: [], teachingReuseConsent: false } })
+    vi.mocked(communityApi.saveDraft).mockRejectedValueOnce(new ApiError('revision 冲突', 409))
+    await composer.finish(true)
+    expect(editor.body).toBe('发生冲突的当前稿'); expect(editor.closePrompt).toBe(true); expect(editor.conflict).toBe(true)
+    expect(store.composerRequest?.intent).toBe('document')
+    await composer.finish(false)
+    expect(editor.form.contribution?.kind).toBe('document'); expect(editor.conflict).toBe(false)
+  })
+  it('确认保存期间返回编辑，迟到成功不能自动关闭或执行已取消的目标', async () => {
+    const { editor, store, composer } = await setupNavigation()
+    editor.body = '保存期间取消切换'; await settle()
+    let resolve!: (value: CommunityPostDetailDto) => void
+    vi.mocked(communityApi.saveDraft).mockReturnValueOnce(new Promise((done) => { resolve = done }))
+    store.openComposer({ contribution: { kind: 'article', tags: [], teachingReuseConsent: false } })
+    const saving = composer.finish(true); await settle(); composer.cancel()
+    resolve({ ...post, id: 'safe-draft', revision: 1 }); await saving
+    expect(store.composerOpen).toBe(true); expect(store.composerIntent).toBe('post')
+    expect(editor.body).toBe('保存期间取消切换'); expect(editor.draftId).toBe('safe-draft')
   })
 })

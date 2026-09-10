@@ -14,13 +14,23 @@ beforeEach(() => {
 const postFixture = () => mockCommunity<CommunityPostDetailDto>('/posts/community-note-1', 'GET')
 const page = (posts: CommunityPostDetailDto[], cursor = 'stable-cursor'): CommunityFeedDto => ({ requestId: 'stable-session', policyVersion: 'v1', items: posts.map((post) => ({ type: 'post', id: post.id, post })), nextCursor: cursor, degraded: false })
 describe('社区账号状态隔离', () => {
+  it('原帖撤下或作者被屏蔽时，同步清除缓存引用卡的原文和作者信息', async () => {
+    const store = useCommunityStore(), post = await postFixture()
+    for (const author of [undefined, 'original-author']) {
+      store.clear()
+      store.published({ ...post, id: 'quote-copy', quotedPostId: 'original-post', quotedPost: { id: 'original-post', available: true, author: { ...post.author, id: 'original-author' }, publishedAt: post.publishedAt, title: '应撤下的原文', contentBlocks: post.contentBlocks, inlineReferences: [] } })
+      store.removePost(author ? 'another-post' : 'original-post', author)
+      expect(store.publishedPosts[0]?.post.quotedPost).toEqual({ id: 'original-post', available: false })
+      expect(store.publishedPosts[0]?.post.contentBlocks).toEqual(post.contentBlocks)
+    }
+  })
   it('待复核投稿不插入公开流，旧公开缓存撤出且不伪造发布成功', async () => {
     const store = useCommunityStore(), post = await postFixture()
     vi.mocked(communityApi.feed).mockResolvedValue(page([post]))
     await store.loadFeed('latest', 'all'); await store.loadFeed('for_you', 'all')
     store.openComposer()
     store.published({ ...post, status: 'pending_review' })
-    expect(Object.values(store.feeds).every((feed) => !feed.items.some((item) => item.id === post.id) && !feed.publishedPosts.some((item) => item.id === post.id))).toBe(true)
+    expect(Object.values(store.feeds).every((feed) => !feed.items.some((item) => item.id === post.id) && !store.publishedPosts.some((item) => item.id === post.id))).toBe(true)
     expect(store.publishNotice?.text).toContain('尚未公开')
     expect(store.publishNotice?.text).not.toContain('发布成功')
   })
@@ -43,7 +53,7 @@ describe('社区账号状态隔离', () => {
     expect(store.feeds).toEqual({}); expect(store.draft).toBeNull(); expect(store.unread).toBe(0)
     expect(store.composerOpen).toBe(false); expect(store.context).toBeNull(); expect(store.publishNotice).toBeNull(); expect(store.lastFeedLocation).toBe('/community')
   })
-  it('发布返回DTO置顶去重，保留会话游标和滚动位置，其余缓存失效', async () => {
+  it('发布返回DTO置顶去重，保留会话游标并清除旧锚点，其他模式缓存失效', async () => {
     const store = useCommunityStore(), post = await postFixture(), old = { ...post, id: 'old-post' }
     vi.mocked(communityApi.feed).mockResolvedValue(page([old, post]))
     await store.loadFeed('latest', 'all')
@@ -53,25 +63,25 @@ describe('社区账号状态隔离', () => {
     store.published({ ...post, title: '刚刚发布的已确认内容' })
     expect(current.items.map((item) => item.id)).toEqual([post.id, old.id])
     expect(current.items[0]).toMatchObject({ post: { title: '刚刚发布的已确认内容' } })
-    expect(current.cursor).toBe('stable-cursor'); expect(current.requestId).toBe('stable-session'); expect(current.scroll).toBe(800)
+    expect(current.cursor).toBe('stable-cursor'); expect(current.requestId).toBe('stable-session'); expect(current.scroll).toBe(0); expect(current.revealPostId).toBe(post.id)
     expect(store.feeds['latest:all'].loaded).toBe(false); expect(store.composerOpen).toBe(false)
     expect(store.publishNotice?.text).toContain('发布成功，已插入当前列表顶部')
     expect(communityApi.feed).toHaveBeenCalledTimes(2)
     vi.mocked(communityApi.feed).mockResolvedValue(page([post, { ...post, id: 'next-post' }], 'next-cursor'))
     await store.loadFeed('for_you', 'all')
-    expect(communityApi.feed).toHaveBeenLastCalledWith('for_you', 'all', 'stable-cursor')
+    expect(communityApi.feed).toHaveBeenLastCalledWith('for_you', 'all', 'stable-cursor', [post.id])
     expect(current.items.map((item) => item.id)).toEqual([post.id, old.id, 'next-post'])
   })
-  it('当前类型及关注语义不匹配时不硬插，匹配的最新和关注流可置顶', async () => {
+  it('只匹配推荐类型，最新和关注流由服务端排序', async () => {
     const store = useCommunityStore(), post = await postFixture()
     expect(post.topics.length).toBeGreaterThan(0)
-    for (const [mode, type, followsTopic, inserted] of [['for_you', 'question', false, false], ['following', 'note', false, false], ['following', 'note', true, true], ['latest', 'note', false, true]] as const) {
+    for (const [mode, type, followsTopic, inserted] of [['for_you', 'question', false, false], ['following', 'note', false, false], ['following', 'note', true, false], ['latest', 'note', false, false], ['for_you', 'note', false, true]] as const) {
       store.clear()
       vi.mocked(communityApi.feed).mockResolvedValue(page([]))
       await store.loadFeed(mode, type)
       store.published({ ...post, viewerState: { ...post.viewerState, followingAuthor: false }, topics: post.topics.map((topic) => ({ ...topic, following: followsTopic })) })
       expect(store.feeds[`${mode}:${type}`].items.some((item) => item.id === post.id)).toBe(inserted)
-      expect(store.publishNotice?.text).toContain(inserted ? '插入当前列表顶部' : '当前筛选未展示')
+      expect(store.publishNotice?.text).toContain(inserted ? '插入当前列表顶部' : '可在推荐列表查看')
     }
   })
   it('发布期间的刷新响应不会覆盖新帖，其他模式迟到响应不能恢复失效缓存', async () => {
@@ -122,6 +132,84 @@ describe('社区账号状态隔离', () => {
   })
 })
 describe('有界信息流与乐观互动', () => {
+  it('推荐尚未初始化时连续发布，进入任意匹配筛选仍按新帖优先且按 post.id 去重', async () => {
+    const store = useCommunityStore(), base = await postFixture()
+    store.published({ ...base, id: 'one' }); store.published({ ...base, id: 'two' })
+    expect(store.feeds).toEqual({})
+    const response = page([{ ...base, id: 'ranked' }, { ...base, id: 'one' }])
+    response.items.push({ type: 'post', id: 'alternate-unit-id', post: { ...base, id: 'one' } })
+    vi.mocked(communityApi.feed).mockResolvedValue(response)
+    await store.loadFeed('for_you', 'all')
+    expect(store.feeds['for_you:all'].items.map((row) => row.id)).toEqual(['two', 'one', 'ranked'])
+    await store.loadFeed('for_you', 'question')
+    expect(store.feeds['for_you:question'].items.some((row) => row.id === 'two')).toBe(false)
+    expect(store.publishedPosts.map((row) => row.post.id)).toEqual(['two', 'one'])
+  })
+  it('分页裁剪保留优先项且两种缓存有界，LRU逐出后重新进入仍保留', async () => {
+    const store = useCommunityStore(), base = await postFixture()
+    store.published({ ...base, id: 'fresh' })
+    vi.mocked(communityApi.feed).mockResolvedValueOnce(page(Array.from({ length: 100 }, (_, i) => ({ ...base, id: `a${i}` }))))
+    await store.loadFeed('for_you', 'all')
+    vi.mocked(communityApi.feed).mockResolvedValueOnce(page(Array.from({ length: 100 }, (_, i) => ({ ...base, id: `b${i}` }))))
+    await store.loadFeed('for_you', 'all')
+    expect(store.feeds['for_you:all'].items).toHaveLength(150)
+    expect(store.feeds['for_you:all'].items[0].id).toBe('fresh')
+    vi.mocked(communityApi.feed).mockResolvedValue(page([]))
+    for (const type of ['question', 'note', 'lab_result', 'project', 'frontier_discussion', 'achievement'] as const) await store.loadFeed('latest', type)
+    expect(store.feeds['for_you:all'].evicted).toBe(true)
+    await store.loadFeed('for_you', 'all')
+    expect(store.feeds['for_you:all'].items[0].id).toBe('fresh')
+    for (let i = 0; i < 160; i++) store.published({ ...base, id: `new${i}` })
+    expect(store.publishedPosts).toHaveLength(150); expect(store.feeds['for_you:all'].items).toHaveLength(150)
+    expect(store.publishedPosts[0].id).toBe('new159')
+  })
+  it('刷新失败不修改列表与锚点，成功按服务端顺序但保留刷新中发布的新帖', async () => {
+    const store = useCommunityStore(), base = await postFixture()
+    store.published({ ...base, id: 'before-refresh' })
+    vi.mocked(communityApi.feed).mockResolvedValue(page([{ ...base, id: 'ranked' }]))
+    await store.loadFeed('for_you', 'all')
+    const feed = store.feeds['for_you:all']; feed.revealPostId = undefined
+    store.rememberFeed('for_you:all', 800, { id: 'ranked', offset: 20 })
+    const items = feed.items
+    vi.mocked(communityApi.feed).mockRejectedValueOnce(new Error('断网'))
+    await expect(store.loadFeed('for_you', 'all', true)).rejects.toThrow('断网')
+    expect(feed.items).toBe(items); expect(feed.scroll).toBe(800); expect(feed.anchor?.id).toBe('ranked')
+    let resolve!: (value: CommunityFeedDto) => void
+    vi.mocked(communityApi.feed).mockReturnValueOnce(new Promise((done) => { resolve = done }))
+    const refresh = store.loadFeed('for_you', 'all', true)
+    store.published({ ...base, id: 'during-refresh' })
+    resolve(page([{ ...base, id: 'algorithm-first' }, { ...base, id: 'before-refresh' }]))
+    await refresh
+    expect(feed.items.map((item) => item.id)).toEqual(['during-refresh', 'algorithm-first', 'before-refresh'])
+    expect(store.publishedPosts.map((item) => item.id)).toEqual(['during-refresh'])
+    vi.mocked(communityApi.feed).mockResolvedValueOnce(page([{ ...base, id: 'algorithm-first' }, { ...base, id: 'during-refresh' }]))
+    await store.loadFeed('for_you', 'all', true)
+    expect(feed.items.map((item) => item.id)).toEqual(['algorithm-first', 'during-refresh']); expect(store.publishedPosts).toEqual([])
+  })
+  it('新发布草稿进入优先，旧帖编辑只原位更新，待审和草稿均不冒充公开发布', async () => {
+    const store = useCommunityStore(), base = await postFixture()
+    vi.mocked(communityApi.feed).mockResolvedValue(page([{ ...base, id: 'ranked' }, base]))
+    await store.loadFeed('for_you', 'all')
+    store.openComposer({ status: 'published' }, base.id)
+    store.published({ ...base, title: '编辑旧帖' })
+    expect(store.publishedPosts).toEqual([])
+    expect(store.feeds['for_you:all'].items.map((item) => item.id)).toEqual(['ranked', base.id])
+    store.openComposer({ status: 'draft' }, 'draft-to-public')
+    store.published({ ...base, id: 'draft-to-public' })
+    expect(store.publishedPosts[0].id).toBe('draft-to-public')
+    for (const status of ['draft', 'pending_review'] as const) store.published({ ...base, id: 'not-public', status })
+    expect(store.publishedPosts).toHaveLength(1)
+  })
+  it('删除、批量可见性撤销和切号清除优先项；迟到分页不能恢复删除内容', async () => {
+    const store = useCommunityStore(), base = await postFixture()
+    store.published({ ...base, id: 'removed' }); store.published({ ...base, id: 'kept' })
+    vi.mocked(communityApi.feed).mockResolvedValue({ ...page([{ ...base, id: 'removed' }]), invalidPriorityIds: ['removed'] })
+    await store.loadFeed('for_you', 'all')
+    expect(store.publishedPosts.map((item) => item.id)).toEqual(['kept'])
+    expect(store.feeds['for_you:all'].items.map((item) => item.id)).toEqual(['kept'])
+    store.removePost('kept'); expect(store.publishedPosts).toEqual([])
+    store.published(base); store.clear(); expect(store.publishedPosts).toEqual([])
+  })
   it('右栏冷加载从既有关注接口获得真实状态，迟到上下文不覆盖用户刚执行的关注', async () => {
     const store = useCommunityStore(), post = await postFixture()
     vi.mocked(communityApi.context).mockResolvedValue({ trendingTopics: [], suggestedUsers: [post.author], todayPlan: null, continueCourse: null, continueLab: null, currentChallenge: null, needsInterests: false })
@@ -147,7 +235,7 @@ describe('有界信息流与乐观互动', () => {
     expect(Object.values(store.feeds).filter((feed) => feed.items.length)).toHaveLength(MAX_FEED_CACHES)
     expect(store.feeds['for_you:all']).toMatchObject({ evicted: true, items: [], cursor: 'page-3', scroll: 4500, resumeCursor: 'page-2', anchor: { id: 'second-20', offset: 115 } })
     await store.loadFeed('for_you', 'all')
-    expect(communityApi.feed).toHaveBeenLastCalledWith('for_you', 'all', 'page-2')
+    expect(communityApi.feed).toHaveBeenLastCalledWith('for_you', 'all', 'page-2', [])
   })
   it.each(['follow', 'publish', 'remove'] as const)('业务失效%s优先于LRU检查点，下次从首段重建而非旧游标追加', async (action) => {
     const store = useCommunityStore(), post = await postFixture()
@@ -160,7 +248,7 @@ describe('有界信息流与乐观互动', () => {
     if (action === 'remove') store.removePost(post.id)
     vi.mocked(communityApi.feed).mockResolvedValue(page([], 'fresh-next'))
     await store.loadFeed('following', 'all')
-    expect(communityApi.feed).toHaveBeenLastCalledWith('following', 'all', undefined)
+    expect(communityApi.feed).toHaveBeenLastCalledWith('following', 'all', undefined, expect.any(Array))
     expect(store.feeds['following:all']).toMatchObject({ evicted: false, items: [], cursor: 'fresh-next', loaded: true })
   })
   it('点赞立即跨缓存回写，同操作锁定，失败只回滚自身字段不覆盖并发收藏', async () => {

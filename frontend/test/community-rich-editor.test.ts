@@ -6,11 +6,13 @@ import BaseRichEditor from '../src/community/coop/BaseRichEditor.vue'
 import { setupComponent, flushRender } from '../src/community/test-renderer'
 import { communityApi } from '../src/services/api/community'
 
-const draft = reactive({ richBlocks: [] as CommunityContentBlock[], richError: '', error: '', saving: false })
+const draft = reactive({ richBlocks: [] as CommunityContentBlock[], richError: '', error: '', saving: false, registerUpload: () => () => {} })
 vi.mock('../src/community/composables/useCommunityDraft', () => ({ useCommunityDraft: () => draft }))
+vi.mock('../src/stores/community', () => ({ useCommunityStore: () => ({ composerOpen: true, composerSession: 1, epoch: 1 }) }))
 vi.mock('../src/stores/auth', () => ({ useAuthStore: () => ({ user: { id: 'owner' } }) }))
 vi.mock('../src/community/composables/useCommunityAccess', () => ({ useCommunityAccess: () => ({ requireWrite: () => true }) }))
 vi.mock('../src/services/api/community', () => ({ communityApi: { image: vi.fn(), upload: vi.fn() } }))
+vi.mock('@wangeditor/editor', () => ({ DomEditor: {}, SlateEditor: {}, SlateElement: {}, SlateNode: {}, SlateRange: {}, SlateTransforms: {} }))
 vi.mock('@wangeditor/editor-for-vue', () => ({ Editor: {}, Toolbar: {} }))
 vi.mock('../src/community/coop/sanitize', () => ({ sanitizeRichHtml: (html: string) => html }))
 vi.mock('../src/community/coop/rich-blocks', () => ({

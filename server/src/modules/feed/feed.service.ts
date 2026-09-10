@@ -210,7 +210,13 @@ export class LearningFeedPipeline {
     })
     await this.prisma.communityFeedImpression.createMany({ data: selected.filter((entry): entry is SessionEntry => entry.type === 'post' && mapped.has(entry.id)).map((entry) => ({ requestId: session.id, viewerId: userId, postId: entry.id, position: entries.indexOf(entry), candidateSource: entry.score.source, policyVersion: session.policyVersion, reasonCodes: entry.score.reasonCodes, scoreBucket: Math.round(entry.score.total * 100) })), skipDuplicates: true })
     const nextOffset = offset + selected.length
-    return { requestId: session.id, policyVersion: session.policyVersion, items, degraded: session.degraded, nextCursor: nextOffset < entries.length ? this.encode({ session: session.id, offset: nextOffset, viewer: userId, mode: query.mode, type: query.type, policy: session.policyVersion }) : null }
+    return { requestId: session.id, policyVersion: session.policyVersion, items, degraded: session.degraded, invalidPriorityIds: await this.invalidPriorities(userId, query.priorityIds), nextCursor: nextOffset < entries.length ? this.encode({ session: session.id, offset: nextOffset, viewer: userId, mode: query.mode, type: query.type, policy: session.policyVersion }) : null }
+  }
+  async invalidPriorities(userId: string, ids: string[] = []): Promise<string[]> {
+    if (!ids.length) return []
+    const rows = await this.prisma.communityPost.findMany({ where: { AND: [await this.visibility.where(userId), { id: { in: ids }, authorId: userId, status: 'published' }] }, select: { id: true } })
+    const visible = new Set(rows.map((row) => row.id))
+    return ids.filter((id) => !visible.has(id))
   }
   async viewContext(userId: string): Promise<CommunityViewContextDto> {
     await this.visibility.viewer(userId)

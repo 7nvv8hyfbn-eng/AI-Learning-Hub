@@ -51,7 +51,6 @@ const legacyPreviewOpen = computed({
 })
 const publish = (value: ResourceContributionKind) => {
   if (!auth.user) { useAuthUiStore().open({ redirect: '/resources', reason: '登录后可发布教程与学习资料' }); return }
-  if (community.composerOpen) { community.openComposer(); return }
   community.openComposer({
     type: value === 'video' ? 'lab_result' : value === 'article' ? 'frontier_discussion' : 'note',
     title: '',
@@ -62,8 +61,6 @@ const publish = (value: ResourceContributionKind) => {
     status: 'published',
     contribution: { kind: value, tags: [], teachingReuseConsent: false },
   })
-  if (value !== 'article' && community.composerMode !== 'rich') community.composerMode = 'advanced'
-  community.composerInline = false
 }
 const load = async () => {
   loading.value = true; error.value = ''

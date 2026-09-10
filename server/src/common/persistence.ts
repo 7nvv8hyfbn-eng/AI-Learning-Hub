@@ -102,6 +102,7 @@ export async function postRevision(tx: Prisma.TransactionClient, postId: string,
   await tx.communityPostRevision.createMany({ skipDuplicates: true, data: [{
     postId, revisionNo: post.revision, editorId, editorType, reason,
     titleSnapshot: post.title, contentBlocksSnapshot: post.contentBlocks as Prisma.InputJsonValue, coverFileIdSnapshot: post.coverFileId,
+    inlineReferencesSnapshot: post.inlineReferences as Prisma.InputJsonValue, quotedPostIdSnapshot: post.quotedPostId,
     bindingsSnapshot: post.bindings.map((ref) => ({ type: ref.targetType, id: ref.targetId })),
     topicIdsSnapshot: post.topics.map((ref) => ref.topicId), visibilitySnapshot: post.visibility, statusSnapshot: post.status,
   }] })

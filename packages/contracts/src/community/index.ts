@@ -1,5 +1,7 @@
 import type { ResourceContributionDto, ResourceContributionInput } from '../resource-hub'
 import type { ContentDetectionResult } from '../content-detection'
+export * from './inline'
+import type { CommunityInlineReference, CommunityInlineReferenceDto } from './inline'
 
 export const communityPostTypes = ['question', 'note', 'lab_result', 'project', 'frontier_discussion', 'achievement', 'general'] as const
 export type CommunityPostType = typeof communityPostTypes[number]
@@ -99,6 +101,10 @@ export interface CommunityViewerStateDto {
   liked: boolean; markedUseful: boolean; bookmarked: boolean; followingAuthor: boolean
 }
 export interface CommunityPostSummaryDto {
+  inlineReferences?: CommunityInlineReferenceDto[]
+  manualTopicIds?: string[]
+  quotedPostId?: string | null
+  quotedPost?: CommunityQuotedPostDto | null
   portalConsent?: boolean
   coverFileId?: string | null
   detection?: ContentDetectionResult
@@ -108,18 +114,24 @@ export interface CommunityPostSummaryDto {
   id: string; type: CommunityPostType; status: CommunityPostStatus; visibility: CommunityVisibility
   title: string | null; bodyPreview: string; contentBlocks: CommunityContentBlock[]
   author: CommunityAuthorDto; bindings: CommunityBindingDto[]; topics: CommunityTopicDto[]
-  stats: { likes: number; useful: number; comments: number; bookmarks: number; views: number }
+  stats: { likes: number; useful: number; comments: number; bookmarks: number; views: number; quotes?: number }
   viewerState: CommunityViewerStateDto; recommendationReasons: string[]; labels: string[]
   question: { status: 'open' | 'solved' | 'closed'; acceptedCommentId: string | null; teacherAnswered: boolean } | null
   publishedAt: string; editedAt: string | null
   contribution?: ResourceContributionDto | null
 }
 export interface CommunityPostDetailDto extends CommunityPostSummaryDto { body: string }
+export type CommunityQuotedPostDto = { id: string; available: false } | {
+  id: string; available: true; author: CommunityAuthorDto; publishedAt: string; title: string | null
+  contentBlocks: CommunityContentBlock[]; inlineReferences: CommunityInlineReferenceDto[]; thumbnailFileId?: string
+}
 /** 浏览量是实际展示次数，沿用 impressionCount；不是独立访客或完整阅读次数。 */
 export interface CommunityImpressionInput { requestId: string; postId: string; dwellMs?: number }
 export interface CommunityImpressionsDto { received: true; items: Array<{ requestId: string; postId: string; views: number }> }
 export interface CommunityViewContextDto { requestId: string; expiresAt: string }
 export interface CommunityPostInput {
+  inlineReferences?: CommunityInlineReference[]
+  quotedPostId?: string | null
   portalConsent?: boolean
   coverFileId?: string | null
   expectedRevision?: number
@@ -153,9 +165,10 @@ export type FeedUnitDto =
   | { type: 'topic_suggestion'; id: string; topics: CommunityTopicDto[] }
 export interface CommunityFeedDto {
   requestId: string; policyVersion: string; items: FeedUnitDto[]; nextCursor: string | null; degraded: boolean
+  invalidPriorityIds?: string[]
 }
 export interface CommunityNotificationDto {
-  id: string; type: 'comment' | 'reply' | 'like' | 'useful' | 'answer_accepted' | 'follow' | 'mention' | 'official' | 'moderation'
+  id: string; type: 'comment' | 'reply' | 'like' | 'useful' | 'answer_accepted' | 'follow' | 'mention' | 'quote' | 'official' | 'moderation'
   actor: CommunityAuthorDto | null; entityType: string; entityId: string; text: string
   count: number; readAt: string | null; createdAt: string; source: 'community' | 'platform'
 }

@@ -60,7 +60,7 @@ describe('后台隐藏后恢复的增量检测', () => {
     }
     const prisma = { ...tx, $transaction: (fn: (client: typeof tx) => unknown) => fn(tx) }
     const notifications = { send: vi.fn() }
-    const detection = new ContentDetectionService(prisma as never, notifications as never, {} as never)
+    const detection = new ContentDetectionService(prisma as never, notifications as never, {} as never, {} as never)
     const controller = new CommunityAdminController(prisma as never, {} as never, {} as never, notifications as never, {} as never, {} as never, {} as never, { adminWhere: vi.fn(async () => ({ status: { not: 'draft' } })) } as never, detection, {} as never)
     const user = { id: 'synthetic-reviewer', permissions: ['community.moderate'] } as never
     await expect(controller.moderate(user, target, row.id, { action: 'hide', reason: '旧路径不能绕过治理' })).rejects.toThrow('治理工作台')

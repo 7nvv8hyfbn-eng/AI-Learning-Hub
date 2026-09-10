@@ -392,7 +392,7 @@ describe('资源持久化边界', () => {
       $transaction: vi.fn(async (operation: (client: typeof tx) => Promise<unknown>) => operation(tx)),
     }
     const visibility = { viewer: vi.fn() }
-    const service = new CommunityPostService(prisma as never, {} as never, visibility as never, {} as never, {} as never)
+    const service = new CommunityPostService(prisma as never, {} as never, visibility as never, {} as never, {} as never, {} as never)
     expect(await service.unpublish('student-a', 'post-a')).toEqual({ unpublished: true })
     expect(tx.communityPost.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'post-a', authorId: 'student-a', status: 'published', deletedAt: null }, data: expect.objectContaining({ status: 'draft', publishedAt: null }) }))
     expect(tx.communityProfile.updateMany).toHaveBeenCalledWith({ where: { pinnedPostId: 'post-a' }, data: { pinnedPostId: null, revision: { increment: 1 } } })
