@@ -165,6 +165,7 @@ defineExpose({ getSanitizedHtml, replaceWithHtml })
 .rich-toolbar :deep(.w-e-toolbar) { background: #fff; padding: 4px 6px; }
 .rich-content { min-height: 430px; }
 .rich-content :deep(.w-e-text-container) { background: #fff; }
+.rich-content :deep(.w-e-modal .btn-close svg) { width: 20px; height: 20px; }
 .rich-content :deep(.w-e-text-placeholder) { color: #a8a29b; font-style: normal; }
 .rich-content :deep(.w-e-text-container [data-slate-editor]) { padding: 16px 18px; font-size: 14px; line-height: 1.8; color: #3d3a35; }
 .rich-content :deep(img) { max-width: 100%; border-radius: 8px; margin: 6px 0; }
