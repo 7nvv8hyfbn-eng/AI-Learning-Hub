@@ -1,5 +1,5 @@
 import { BadRequestException, CanActivate, ConflictException, ExecutionContext, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import { Prisma } from '@prisma/client'
+import { Prisma, type User } from '@prisma/client'
 import { communityOperations, type CommunityEligibilityDecisionDto, type CommunityEligibilityDto, type CommunityEligibilityPolicyDto, type CommunityOperation, type CommunityOperationRestrictionDto } from '@ai-learning-hub/contracts'
 import { PrismaService } from '../../prisma/prisma.service'
 import { idempotency, rateLimit } from '../../common/persistence'
@@ -18,6 +18,22 @@ const quotaBounds: Record<keyof CommunityEligibilityPolicyDto['quotas'], { limit
 }
 const allowed = (): CommunityEligibilityDecisionDto => ({ allowed: true, reasonCode: null, message: null, availableAt: null, nextAction: null })
 const denied = (reasonCode: NonNullable<CommunityEligibilityDecisionDto['reasonCode']>, message: string, nextAction: CommunityEligibilityDecisionDto['nextAction'] = null, availableAt: string | null = null): CommunityEligibilityDecisionDto => ({ allowed: false, reasonCode, message, availableAt, nextAction })
+
+type ParticipationUser = Pick<User, 'status' | 'profile' | 'emailVerifiedAt' | 'agreementVersion'> & {
+  communityProfile: { verifiedType: string } | null
+  userRoles: Array<{ role: { code: string } }>
+  identityVerification: { status: string } | null
+}
+// 公开标签和实际前台操作共用资格判断；显示设置不参与任何授权。
+export function communityAccountDecision(user: ParticipationUser | null, configuredAgreement: unknown): CommunityEligibilityDecisionDto | null {
+  if (!user || user.status !== 'active') return denied('ACCOUNT_UNAVAILABLE', '账号当前不可使用社区。')
+  const profile = user.profile as Record<string, unknown>
+  const trusted = (!!user.communityProfile?.verifiedType && user.communityProfile.verifiedType !== 'none') || user.userRoles.some((entry) => trustedRoles.has(entry.role.code))
+  if (profile?.emailVerificationRequired === true && !user.emailVerifiedAt) return denied('EMAIL_VERIFICATION_REQUIRED', '请先完成邮箱验证后再参与社区公开操作。', { label: '前往账号中心', route: '/profile' })
+  if (user.agreementVersion && typeof configuredAgreement === 'string' && user.agreementVersion !== configuredAgreement) return denied('AGREEMENT_UPDATE_REQUIRED', '用户协议已更新，请确认后再参与社区公开操作。', { label: '查看并确认', route: '/welcome' })
+  if (!trusted && user.identityVerification?.status !== 'approved') return denied('COMMUNITY_VERIFICATION_REQUIRED', '需要完成校园实名认证后才能参与社区公开操作。', { label: '前往认证', route: '/community/verification' })
+  return null
+}
 
 function normalizedQuota(value: unknown, fallback: { limit: number; windowSeconds: number }, bounds: { limit: [number, number]; windowSeconds: [number, number] }) {
   const input = value && typeof value === 'object' ? value as Record<string, unknown> : {}
@@ -58,19 +74,8 @@ export class CommunityVisibilityPolicyService {
       tx.communityOperationRestriction.findMany({ where: { userId, revokedAt: null, startsAt: { lte: now }, endsAt: { gt: now } }, orderBy: [{ endsAt: 'desc' }, { id: 'desc' }] }),
     ])
     const decisions = Object.fromEntries(communityOperations.map((operation) => [operation, allowed()])) as CommunityEligibilityDto['operations']
-    let base: CommunityEligibilityDecisionDto | null = null
-    if (!user || user.status !== 'active') base = denied('ACCOUNT_UNAVAILABLE', '账号当前不可使用社区。')
-    else {
-      const profile = user.profile as Record<string, unknown>
-      const trusted = (!!user.communityProfile?.verifiedType && user.communityProfile.verifiedType !== 'none') || user.userRoles.some((entry) => trustedRoles.has(entry.role.code))
-      if (profile.emailVerificationRequired === true && !user.emailVerifiedAt) base = denied('EMAIL_VERIFICATION_REQUIRED', '请先完成邮箱验证后再参与社区公开操作。', { label: '前往账号中心', route: '/profile' })
-      else {
-        const configuredAgreement = registration?.value && typeof registration.value === 'object' && !Array.isArray(registration.value) ? (registration.value as Record<string, unknown>).agreementVersion : null
-        // 历史和引导账号没有协议版本，继续沿用既有资格；新注册账号才要求跟随当前协议版本。
-        if (user.agreementVersion && typeof configuredAgreement === 'string' && user.agreementVersion !== configuredAgreement) base = denied('AGREEMENT_UPDATE_REQUIRED', '用户协议已更新，请确认后再参与社区公开操作。', { label: '查看并确认', route: '/welcome' })
-        else if (!trusted && user.identityVerification?.status !== 'approved') base = denied('COMMUNITY_VERIFICATION_REQUIRED', '需要完成校园实名认证后才能参与社区公开操作。', { label: '前往认证', route: '/community/verification' })
-      }
-    }
+    const configuredAgreement = registration?.value && typeof registration.value === 'object' && !Array.isArray(registration.value) ? (registration.value as Record<string, unknown>).agreementVersion : null
+    const base = communityAccountDecision(user, configuredAgreement)
     for (const operation of protectedOperations) {
       if (base) decisions[operation] = { ...base }
       else {

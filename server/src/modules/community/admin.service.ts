@@ -1,3 +1,4 @@
+import { loadBadgeContext } from './user-badges'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
@@ -82,6 +83,7 @@ export class CommunityAdminService {
     if (q.status && !['active', 'disabled', 'locked'].includes(q.status)) throw new BadRequestException('用户状态无效')
     const where: Prisma.UserWhereInput = { ...(q.keyword ? { OR: [{ displayName: { contains: q.keyword, mode: 'insensitive' } }, { username: { contains: q.keyword, mode: 'insensitive' } }] } : {}), ...(q.schoolId ? { schoolId: q.schoolId } : {}), ...(q.status ? { status: q.status as 'active' | 'disabled' | 'locked' } : {}), createdAt: dateRange(q.createdFrom, q.createdTo) }
     const [items, total] = await this.prisma.$transaction([this.prisma.user.findMany({ where, include: authorInclude, orderBy: [{ createdAt: q.sortOrder }, { id: q.sortOrder }], ...this.paging(q) }), this.prisma.user.count({ where })])
-    return this.result(q, items.map((r) => ({ ...authorDto(r), revision: r.communityProfile?.revision || 1, expertiseTopics: r.communityProfile?.expertiseTopics || [] })), total)
+    const badgeContext = await loadBadgeContext(this.prisma)
+    return this.result(q, items.map((r) => ({ ...authorDto(r, badgeContext), revision: r.communityProfile?.revision || 1, expertiseTopics: r.communityProfile?.expertiseTopics || [] })), total)
   }
 }

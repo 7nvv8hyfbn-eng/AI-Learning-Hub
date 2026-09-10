@@ -1,3 +1,4 @@
+import { loadBadgeContext } from '../community/user-badges'
 import { BadRequestException, ConflictException, ForbiddenException, HttpException, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
@@ -94,7 +95,7 @@ export class AuthService {
       const fresh = await tx.user.update({ where: { id: user.id, status: 'active' }, data: { lastLoginAt: new Date() }, include: authUserInclude })
       await tx.loginLog.create({ data: { userId: user.id, identifier: hashToken(normalizedIdentifier), ipHash: hashToken(ip), result: client === 'admin' ? 'mfa_pending' : 'success' } })
       await actionEvent(tx, user.id, 'user_logged_in', 'user', user.id)
-      const profile = authUserDto(fresh)
+      const profile = authUserDto(fresh, await loadBadgeContext(tx))
       if (client === 'admin') {
         if (!profile.permissions.length) throw new ForbiddenException('该账号没有管理后台权限')
         return this.beginMfa(fresh, tx)
@@ -256,7 +257,7 @@ export class AuthService {
       await tx.user.update({ where: { id: user.id }, data: { mfaChallengeHash: null, mfaEnabledAt: user.mfaEnabledAt || new Date(), ...(recoveryCodes ? { mfaRecoveryHashes: recoveryCodes.map(hashToken) } : {}) } })
       await actionEvent(tx, user.id, 'admin_mfa_verified', 'user', user.id)
       const existing = existingToken ? await tx.refreshToken.findFirst({ where: { userId: user.id, client: 'admin', tokenHash: hashToken(existingToken), revokedAt: null, expiresAt: { gt: new Date() } } }) : null
-      return { user: authUserDto(user), ...await this.createSession(authUserDto(user), tx, { client: 'admin', mfaVerified: true, device, sessionId: existing?.id }), ...(recoveryCodes ? { recoveryCodes } : {}) }
+      return { user: authUserDto(user, await loadBadgeContext(tx)), ...await this.createSession(authUserDto(user), tx, { client: 'admin', mfaVerified: true, device, sessionId: existing?.id }), ...(recoveryCodes ? { recoveryCodes } : {}) }
     })
   }
 
@@ -308,7 +309,7 @@ export class AuthService {
     })
     if (identity) {
       if (identity.user.status !== 'active') throw new UnauthorizedException('账号已禁用')
-      const profile = authUserDto(identity.user)
+      const profile = authUserDto(identity.user, await loadBadgeContext(this.prisma))
       return { user: profile, ...(await this.createSession(profile)) }
     }
     const role = await this.prisma.role.findUnique({ where: { code: 'student' } })
@@ -325,7 +326,7 @@ export class AuthService {
       },
       include: authUserInclude,
     })
-    const profile = authUserDto(user)
+    const profile = authUserDto(user, await loadBadgeContext(this.prisma))
     return { user: profile, ...(await this.createSession(profile)) }
   }
 

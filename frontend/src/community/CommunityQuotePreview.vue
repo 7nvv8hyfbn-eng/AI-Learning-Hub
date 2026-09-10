@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CommunityUserBadges from './CommunityUserBadges.vue'
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { CommunityQuotedPostDto } from '@ai-learning-hub/contracts'
@@ -26,7 +27,7 @@ watch(() => [props.post, props.id, store.epoch], async () => {
 const open = (event: Event) => { event.stopPropagation(); if (!(event.target as HTMLElement).closest('a') && shown.value?.available) void router.push(`/community/post/${shown.value.id}`) }
 onBeforeUnmount(() => { version++; clearImage() })
 </script>
-<template><div class="community-quote-preview" :class="{ available: shown?.available }" :role="shown?.available ? 'link' : undefined" :tabindex="shown?.available ? 0 : undefined" @click="open" @keydown.enter.prevent.stop="open"><template v-if="shown?.available"><header><CommunityAvatar :src="shown.author.avatar" :name="shown.author.displayName" :username="shown.author.username" size="sm" /><strong>{{ shown.author.displayName }}</strong><small>{{ relativeTime(shown.publishedAt) }}</small></header><img v-if="image" :src="image" alt="原帖缩略图" /><strong v-if="shown.title">{{ shown.title }}</strong><CommunityBlocks :blocks="shown.contentBlocks" :references="shown.inlineReferences" compact post /></template><span v-else>{{ shown ? '原内容已不可用' : '正在读取引用原帖…' }}</span></div></template>
+<template><div class="community-quote-preview" :class="{ available: shown?.available }" :role="shown?.available ? 'link' : undefined" :tabindex="shown?.available ? 0 : undefined" @click="open" @keydown.enter.prevent.stop="open"><template v-if="shown?.available"><header><CommunityAvatar :src="shown.author.avatar" :name="shown.author.displayName" :username="shown.author.username" size="sm" /><strong>{{ shown.author.displayName }}</strong><CommunityUserBadges :badges="shown.author.badges" :verified-type="shown.author.verifiedType" /><small>{{ relativeTime(shown.publishedAt) }}</small></header><img v-if="image" :src="image" alt="原帖缩略图" /><strong v-if="shown.title">{{ shown.title }}</strong><CommunityBlocks :blocks="shown.contentBlocks" :references="shown.inlineReferences" compact post /></template><span v-else>{{ shown ? '原内容已不可用' : '正在读取引用原帖…' }}</span></div></template>
 <style scoped>
 .community-quote-preview { border: 1px solid var(--amc-border); border-radius: 10px; padding: 12px; margin: 10px 0; overflow: hidden; color: var(--amc-text-secondary); }
 .available { cursor: pointer; } header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; } small { margin-left: auto; font-size: 11px; } img { width: 76px; height: 64px; object-fit: cover; float: right; margin-left: 8px; border-radius: 6px; }

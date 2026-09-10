@@ -1,3 +1,4 @@
+import { loadBadgeContext, type BadgeContext } from '../community/user-badges'
 import { activeSanction, availableAccount, visibleCollection, visibleComment } from '../community/governance-policy'
 import { assertNotReplaced } from '../auth/session-revocation'
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common'
@@ -798,7 +799,8 @@ export class ResourceHubService {
       legacyIds.length ? this.resources.list({ page: 1, pageSize: legacyIds.length, keyword: '' }, true, legacyIds) : { items: [] },
     ])
     const commentCounts = !userId && rows.length ? await this.prisma.communityComment.groupBy({ by: ['postId'], where: { postId: { in: rows.map(row => row.id) }, status: 'published', deletedAt: null, ...visibleComment() }, _count: { _all: true } }) : []
-    const summaries = !rows.length ? [] : userId ? await this.posts.mapMany(userId, rows) : rows.map(row => ({ id: row.id, author: authorDto(row.author), publishedAt: (row.publishedAt || row.createdAt).toISOString(), stats: { comments: commentCounts.find(count => count.postId === row.id)?._count._all || 0 } }))
+    const badgeContext = await loadBadgeContext(this.prisma)
+    const summaries = !rows.length ? [] : userId ? await this.posts.mapMany(userId, rows) : rows.map(row => ({ id: row.id, author: authorDto(row.author, badgeContext), publishedAt: (row.publishedAt || row.createdAt).toISOString(), stats: { comments: commentCounts.find(count => count.postId === row.id)?._count._all || 0 } }))
     const contributions = rows.length ? await this.mapContributions(userId, rows, summaries, asOf) : []
     const mapped = new Map<string, ResourceHubItemDto>(contributions.map((item) => [`contribution:${item.id}`, item]))
     for (const item of legacy.items) mapped.set(`legacy_resource:${item.slug}`, {
@@ -857,14 +859,15 @@ export class ResourceHubService {
       LEFT JOIN video_assets v ON v.id = c.video_asset_id
       WHERE item.collection_id IN (${Prisma.join(rows.map((row) => row.id))}) AND ${scope}
       GROUP BY item.collection_id`)
+    const badgeContext = await loadBadgeContext(this.prisma)
     const byId = new Map(counts.map((row) => [row.id, row]))
-    return rows.map((row) => this.collectionSummary(row, userId, byId.get(row.id) || { itemCount: 0, videoCount: 0, durationSeconds: 0 }))
+    return rows.map((row) => this.collectionSummary(row, userId, byId.get(row.id) || { itemCount: 0, videoCount: 0, durationSeconds: 0 }, badgeContext))
   }
 
   private collectionSummary(row: {
     id: string; name: string; description: string; learningGoal: string; visibility: 'private' | 'community'; contentStatus: string; systemKind: string | null; revision: number; updatedAt: Date
     ownerId: string; owner: Parameters<typeof authorDto>[0]
-  }, userId: string, counts: Pick<LearningCollectionSummaryDto, 'itemCount' | 'videoCount' | 'durationSeconds'>): LearningCollectionSummaryDto {
+  }, userId: string, counts: Pick<LearningCollectionSummaryDto, 'itemCount' | 'videoCount' | 'durationSeconds'>, badgeContext: BadgeContext): LearningCollectionSummaryDto {
     return {
       id: row.id,
       name: row.name,
@@ -874,7 +877,7 @@ export class ResourceHubService {
       systemKind: row.systemKind === 'watch_later' ? 'watch_later' : null,
       learningGoal: row.learningGoal,
       ...counts,
-      owner: authorDto(row.owner),
+      owner: authorDto(row.owner, badgeContext),
       isOwner: row.ownerId === userId,
       revision: row.revision,
       updatedAt: row.updatedAt.toISOString(),

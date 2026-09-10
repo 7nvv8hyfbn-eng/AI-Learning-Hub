@@ -21,7 +21,7 @@ interface State {
 }
 beforeEach(() => {
   vi.resetAllMocks()
-  vi.mocked(communityApi.post).mockResolvedValue({ id: 'post', status: 'published', stats: { comments: 1041 } } as CommunityPostDetailDto)
+  vi.mocked(communityApi.post).mockResolvedValue({ id: 'post', author: comment('root-a').author, status: 'published', stats: { comments: 1041 } } as CommunityPostDetailDto)
   vi.mocked(communityApi.comments).mockResolvedValue({ items: [comment('root-a')], nextCursor: 'root-a' })
 })
 
@@ -62,7 +62,7 @@ describe('评论和回复分开翻页', () => {
   })
 
   it('采纳的后续回复定向加载父项和回答，不遍历前面的评论页', async () => {
-    vi.mocked(communityApi.post).mockResolvedValue({ id: 'post', status: 'published', question: { acceptedCommentId: 'reply-521' } } as CommunityPostDetailDto)
+    vi.mocked(communityApi.post).mockResolvedValue({ id: 'post', author: comment('root-a').author, status: 'published', question: { acceptedCommentId: 'reply-521' } } as CommunityPostDetailDto)
     vi.mocked(communityApi.commentDetail).mockResolvedValueOnce(comment('reply-521', 'root-z')).mockResolvedValueOnce(comment('root-z'))
     const view = setupComponent<State>(CommunityPostView)
     await flushRender()

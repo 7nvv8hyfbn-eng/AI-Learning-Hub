@@ -1,3 +1,4 @@
+import { loadBadgeContext } from './user-badges'
 import { normalizeTopicName } from '@ai-learning-hub/contracts'
 import { CommunityGovernanceService } from './governance.service'
 import { GovernanceDecisionDto } from './governance.dto'
@@ -189,7 +190,8 @@ export class CommunityAdminController {
   @Get('official') @Permissions('community.official.publish')
   async official() {
     const users = await this.prisma.user.findMany({ where: { status: 'active' }, include: authorInclude, take: 100 })
-    return users.map((row) => ({ ...authorDto(row), expertiseTopics: row.communityProfile?.expertiseTopics || [] }))
+    const badgeContext = await loadBadgeContext(this.prisma)
+    return users.map((row) => ({ ...authorDto(row, badgeContext), expertiseTopics: row.communityProfile?.expertiseTopics || [] }))
   }
   @Patch('official/:id') @Permissions('community.official.publish', 'platform.manage')
   async verify(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() input: OfficialDto) {

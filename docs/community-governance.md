@@ -52,6 +52,16 @@
 
 前台版主增量迁移为 `20260909130000_frontend_moderators`；迁移后执行现有 `bootstrap` 注册专门权限，不重新导入演示数据。已有帖子、教程、文件及后台角色保持。
 
+## 公开用户标签
+
+用户详情的“公开标签”只控制展示，不修改身份、学校、会话、角色或版主授权。`GET/PUT /api/v1/admin/users/:id/badges` 要求 `user.read` 和 `user.badge.manage`；修改须携带公开资料的 `expectedRevision` 与操作原因，冲突返回 409，审计保留前后设置。
+
+`CommunityProfile.customBadges` 保存最多 3 个普通文字标签，`hiddenAutomaticBadges` 保存自动身份标签的隐藏代码，复用资料 `revision`。迁移 `20260910140000_public_user_badges` 将两字段初始化为空；随后执行 `bootstrap` 注册管理员专用权限，不运行 Seed。
+
+服务端通过可信身份、当前有效前台版主授权与显示覆盖统一计算 `badges`。两个范围只显示一个版主标签；隐藏设置跨刷新、登录和重启保留，撤销授权后不能恢复失效身份。官方、教师、导师和版主名称不能作为普通标签添加。展示标签不参与业务权限判断，`verifiedType` 保持原有语义。
+
+作者、评论、引用、教程、个人主页和用户检索共用前台标签组件，默认显示两个，其余可通过提示读取。普通读取和已有窗口恢复机制更新作者副本，无新增轮询或 WebSocket。
+
 ## 验证
 
 本地分别在 `server`、`admin-web` 执行 `npm run check`，在 `frontend` 执行 `VITE_DATA_MODE=api npm run check`。治理集成测试为 `server/test/governance.e2e.spec.ts`，只允许专属隔离 PostgreSQL `127.0.0.1:55439/community_governance`。内容检测回归使用另一个专属空库 `community_content_detection`。运行前先迁移空库，测试仅创建合成账号与数据；不得指向现行业务库。

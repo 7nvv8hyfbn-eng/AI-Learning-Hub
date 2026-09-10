@@ -1791,6 +1791,8 @@ enum LearningCollectionVisibility {
 }
 
 model CommunityProfile {
+  customBadges           Json           @default("[]") @map("custom_badges")
+  hiddenAutomaticBadges  String[]       @default([]) @map("hidden_automatic_badges")
   userId                 String         @id @map("user_id")
   revision               Int            @default(1)
   bio                    String         @default("")

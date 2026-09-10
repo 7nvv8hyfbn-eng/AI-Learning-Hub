@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { CommunityContextDto, CommunityEligibilityDto, CommunityFeedMode, CommunityPostDetailDto, CommunityPostInput, CommunityPostSummaryDto, CommunityPostType, FeedUnitDto } from '@ai-learning-hub/contracts'
+import type { CommunityAuthorDto, CommunityContextDto, CommunityEligibilityDto, CommunityFeedMode, CommunityPostDetailDto, CommunityPostInput, CommunityPostSummaryDto, CommunityPostType, FeedUnitDto } from '@ai-learning-hub/contracts'
 import { communityApi } from '../services/api/community'
 import { contentDetectionNotice } from '../community/labels'
 import { ApiError } from '../services/api/client'
@@ -39,6 +39,7 @@ export const useCommunityStore = defineStore('community', {
       const followedIds = new Set(following.map((user) => user.id))
       for (const user of context.suggestedUsers) if (!(user.id in this.authorFollowing)) this.authorFollowing[user.id] = followedIds.has(user.id)
       this.context = context
+      this.syncAuthors([...following, ...context.suggestedUsers])
       this.eligibility = eligibility
     },
     touchFeed(key: string) {
@@ -90,6 +91,7 @@ export const useCommunityStore = defineStore('community', {
         for (const [otherKey, other] of Object.entries(this.feeds)) if (refreshed.size && otherKey !== key && otherKey.startsWith('for_you:')) this.feeds[otherKey] = { ...other, loaded: false, evicted: false, cursor: null }
       }
       entry.items = this.prioritizeFeed(key, [...(reload ? [] : entry.items), ...result.items])
+      this.syncAuthors(result.items.flatMap(item => item.type === 'post' ? [item.post.author, ...(item.post.quotedPost?.available ? [item.post.quotedPost.author] : [])] : []))
       this.prunePublished(result.invalidPriorityIds)
       const kept = new Set(entry.items.map((item) => item.id))
       entry.pageCursors = Object.fromEntries(Object.entries(entry.pageCursors).filter(([id]) => kept.has(id)))
@@ -104,6 +106,7 @@ export const useCommunityStore = defineStore('community', {
       try { post = await communityApi.post(id) }
       catch (cause) { if (epoch === this.epoch && cause instanceof ApiError && [403, 404].includes(cause.status)) this.removePost(id); throw cause }
       if (epoch !== this.epoch) return post
+      this.syncAuthors([post.author, ...(post.quotedPost?.available ? [post.quotedPost.author] : [])])
       if (post.status !== 'published') { this.removePost(id); return post }
       if (post.visibility !== 'public') this.unavailableQuotes([id])
       for (const item of this.publishedPosts) if (item.post.id === id) item.post = post
@@ -115,6 +118,14 @@ export const useCommunityStore = defineStore('community', {
     },
     postCopies(post?: CommunityPostSummaryDto) {
       return [...new Set([...(post ? [post] : []), ...this.publishedPosts.map((item) => item.post), ...Object.values(this.feeds).flatMap((feed) => feed.items.flatMap((item) => item.type === 'post' ? [item.post] : []))])]
+    },
+    syncAuthors(authors: Array<Pick<CommunityAuthorDto, 'id'> & Partial<CommunityAuthorDto>>) {
+      const latest = new Map(authors.map(author => [author.id, author]))
+      const copies = [...(this.context?.suggestedUsers || []), ...this.postCopies().flatMap(post => [post.author, ...(post.quotedPost?.available ? [post.quotedPost.author] : [])])]
+      for (const author of copies) {
+        const updated = latest.get(author.id)
+        if (updated) Object.assign(author, Object.fromEntries(Object.entries(updated).filter(([key, value]) => ['username', 'displayName', 'avatar', 'school', 'major', 'verifiedType', 'badges'].includes(key) && value !== undefined)))
+      }
     },
     async react(post: CommunityPostSummaryDto, kind: 'like' | 'useful' | 'bookmark') {
       const key = `${post.id}:${kind}`, epoch = this.epoch
@@ -161,6 +172,7 @@ export const useCommunityStore = defineStore('community', {
       for (const [key, feed] of Object.entries(this.feeds)) this.feeds[key] = { ...feed, loaded: false, evicted: false, cursor: null, resumeCursor: undefined, items: feed.items.filter(keep) }
     },
     published(post: CommunityPostDetailDto, keepComposer = false, newlyCreated?: boolean) {
+      this.syncAuthors([post.author])
       const isNew = newlyCreated ?? (!this.editingId || this.draft?.status === 'draft')
       const query = new URLSearchParams(this.lastFeedLocation.split('?')[1]), mode = query.get('mode') || 'for_you', type = query.get('type') || 'all'
       const key = `${mode}:${type}`, entry = this.feeds[key]

@@ -22,7 +22,7 @@ const routing = vi.hoisted(() => ({
 const auth = vi.hoisted(() => ({ user: { id: 'student', username: 'student', communityWriteEnabled: true } as AuthUser }))
 vi.mock('vue-router', () => ({ useRoute: () => routing.route, useRouter: () => ({ replace: routing.replace }) }))
 vi.mock('../stores/auth', () => ({ useAuthStore: () => auth }))
-vi.mock('../stores/community', () => ({ useCommunityStore: () => ({ operations: {}, postCopies: () => [], follow: vi.fn() }) }))
+vi.mock('../stores/community', () => ({ useCommunityStore: () => ({ operations: {}, syncAuthors: vi.fn(), postCopies: () => [], follow: vi.fn() }) }))
 vi.mock('../services/api/community', () => ({ communityApi: { profile: vi.fn(), timeline: vi.fn(), relations: vi.fn(), signals: vi.fn(), feedback: vi.fn(), updateProfile: vi.fn(), profileImage: vi.fn(), removeProfileImage: vi.fn(), username: vi.fn(), pin: vi.fn() } }))
 
 const profile = (isSelf = true): CommunityProfileDto => ({

@@ -1,3 +1,4 @@
+import { loadBadgeContext } from './user-badges'
 import { normalizeTopicName } from '@ai-learning-hub/contracts'
 import { availableAccount, visibleProfile, visibleComment } from './governance-policy'
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common'
@@ -58,7 +59,7 @@ export class CommunityContextService {
         if (!changed.count) throw new BadRequestException('公开用户名只能修改一次')
         const contentDetection = await this.detection.saveProfile(tx, userId, { username: normalized })
         await actionEvent(tx, userId, 'profile_updated', 'user', userId)
-        return { ...authUserDto(await tx.user.findUniqueOrThrow({ where: { id: userId }, include: authUserInclude })), contentDetection }
+        return { ...authUserDto(await tx.user.findUniqueOrThrow({ where: { id: userId }, include: authUserInclude }), await loadBadgeContext(tx)), contentDetection }
       })
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('此用户名已被使用')
@@ -83,7 +84,7 @@ export class CommunityContextService {
       await this.detection.saveProfile(tx, userId, { headline: input.headline }, userId, input.expectedProfileRevision)
       await actionEvent(tx, userId, 'onboarding_completed', 'user', userId)
     })
-    return authUserDto(await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, include: authUserInclude }))
+    return authUserDto(await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, include: authUserInclude }), await loadBadgeContext(this.prisma))
   }
   async bindingContext(userId: string, input: CommunityBindingInput): Promise<CommunityBindingContextDto> {
     await this.visibility.viewer(userId)
@@ -138,7 +139,7 @@ export class CommunityContextService {
     const detection = submission ? await this.detection.result('profile', userId, submission.contentRevision) : undefined
     const held = submission && ['pending', 'rejected'].includes(submission.status) ? submission : null
     return {
-      ...authorDto(user),
+      ...authorDto(user, await loadBadgeContext(this.prisma)),
       ...(user.id === userId ? { detection, ...(held ? { pendingChanges: (held.payload as unknown as { changes: CommunityProfileDto['pendingChanges'] }).changes } : {}) } : {}),
       revision: user.communityProfile?.revision || 1,
       userRevision: user.revision,
@@ -192,7 +193,7 @@ export class CommunityContextService {
       this.prisma.user.findUniqueOrThrow({ where: { id: userId }, include: authUserInclude }),
       this.profile(userId, userId),
     ])
-    return { user: authUserDto(user), profile }
+    return { user: authUserDto(user, await loadBadgeContext(this.prisma)), profile }
   }
   async uploadProfileImage(userId: string, kind: 'avatar' | 'banner', file: Express.Multer.File, input: ProfileMediaDto, key?: string) {
     await this.visibility.assertOperation(userId, 'upload')
@@ -320,9 +321,10 @@ export class CommunityContextService {
     const page = rows.slice(0, query.limit)
     const users = page.map((row) => kind === 'followers' ? row.follower : row.followee)
     const viewerFollows = await this.prisma.communityUserFollow.findMany({ where: { followerId: userId, followeeId: { in: users.map((user) => user.id) } }, select: { followeeId: true } })
+    const badgeContext = await loadBadgeContext(this.prisma)
     const followed = new Set(viewerFollows.map((row) => row.followeeId)), last = page.at(-1)
     return {
-      items: users.map((user) => ({ ...authorDto(user), following: followed.has(user.id) })),
+      items: users.map((user) => ({ ...authorDto(user, badgeContext), following: followed.has(user.id) })),
       nextCursor: rows.length > query.limit && last ? encodeCursor(scope, last.createdAt, kind === 'followers' ? last.followerId : last.followeeId) : null,
     }
   }
@@ -363,7 +365,8 @@ export class CommunityContextService {
     const refs = await this.references.resolveMany([...(progress ? [{ type: 'course' as const, id: progress.courseId }] : []), ...(run ? [{ type: 'lab' as const, id: run.labId }] : []), ...(challenge ? [{ type: 'challenge' as const, id: challenge.id }] : [])], userId)
     const courseRef = progress ? refs.get(`course:${progress.courseId}`) : null
     const labRef = run ? refs.get(`lab:${run.labId}`) : null
+    const badgeContext = await loadBadgeContext(this.prisma)
     const challengeRef = challenge ? refs.get(`challenge:${challenge.id}`) : null
-    return { todayPlan: plan ? { id: plan.id, title: plan.title, route: '/profile', progress: plan.progress } : null, continueCourse: courseRef ? { ...courseRef, progress: progress!.progress } : null, continueLab: labRef ? { ...labRef, progress: run!.progress } : null, currentChallenge: challengeRef || null, trendingTopics: topics.slice(0, 6), suggestedUsers: users.map(authorDto), needsInterests: count < 3 && !viewer.communityProfile?.postCount, officialNotice: notice ? { id: notice.id, title: notice.title, summary: notice.content, route: '/notifications' } : null }
+    return { todayPlan: plan ? { id: plan.id, title: plan.title, route: '/profile', progress: plan.progress } : null, continueCourse: courseRef ? { ...courseRef, progress: progress!.progress } : null, continueLab: labRef ? { ...labRef, progress: run!.progress } : null, currentChallenge: challengeRef || null, trendingTopics: topics.slice(0, 6), suggestedUsers: users.map((user) => authorDto(user, badgeContext)), needsInterests: count < 3 && !viewer.communityProfile?.postCount, officialNotice: notice ? { id: notice.id, title: notice.title, summary: notice.content, route: '/notifications' } : null }
   }
 }

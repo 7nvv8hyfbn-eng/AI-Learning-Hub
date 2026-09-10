@@ -20,7 +20,7 @@ describe('资源查询边界与分页', () => {
       { sourceType: 'contribution', id: 'shared-id', databaseId: 'shared-id', publishedAt, views: 3, featured: false },
       { sourceType: 'contribution', id: 'next-post', databaseId: 'next-post', publishedAt, views: 2, featured: false },
     ]
-    const prisma = { $queryRaw: vi.fn().mockResolvedValueOnce(candidates).mockResolvedValue([]), communityPost: { findMany: vi.fn(async () => []) } }
+    const prisma = { systemSetting: { findUnique: vi.fn(async () => null) }, $queryRaw: vi.fn().mockResolvedValueOnce(candidates).mockResolvedValue([]), communityPost: { findMany: vi.fn(async () => []) } }
     const resources = { list: vi.fn(async () => ({ items: [{ slug: 'shared-id', title: '已发布旧资源', summary: '', data: {}, views: 3, downloads: 0 }] })) }
     const service = makeHub(prisma, {}, resources)
     const query = { ...new ResourceHubQueryDto(), limit: 2, sort: 'popular' as const }
@@ -47,7 +47,7 @@ describe('资源查询边界与分页', () => {
   })
 
   it('搜索文本只作为参数，最新排序无需聚合观看事件', async () => {
-    const prisma = { $queryRaw: vi.fn(async (_sql: Prisma.Sql) => []) }
+    const prisma = { systemSetting: { findUnique: vi.fn(async () => null) }, $queryRaw: vi.fn(async (_sql: Prisma.Sql) => []) }
     const keyword = "%' OR 1=1 -- 中文"
     await makeHub(prisma).list('viewer', { ...new ResourceHubQueryDto(), keyword })
     const sql = prisma.$queryRaw.mock.calls[0][0] as Prisma.Sql
@@ -60,7 +60,7 @@ describe('资源查询边界与分页', () => {
 
   it('首页各入口限制读取数量，周期榜独立使用近7天与近30天窗口', async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-08T00:00:00Z'))
-    const prisma = { $queryRaw: vi.fn(async (_sql: Prisma.Sql) => []) }
+    const prisma = { systemSetting: { findUnique: vi.fn(async () => null) }, $queryRaw: vi.fn(async (_sql: Prisma.Sql) => []) }
     const service = makeHub(prisma)
     Object.assign(service, {
       categories: async () => [{ code: 'ai', name: 'AI' }],
@@ -77,9 +77,9 @@ describe('资源查询边界与分页', () => {
   })
 
   it('合集摘要只读取数据库聚合结果，不载入合集的全部条目', async () => {
-    const owner = { id: 'viewer', userRoles: [], displayName: '合成作者' }
+    const owner = { status: 'active', profile: {}, receivedModeration: [], identityVerification: null, id: 'viewer', userRoles: [], displayName: '合成作者' }
     const rows = ['first', 'empty'].map((id) => ({ id, ownerId: 'viewer', owner, updatedAt: new Date() }))
-    const prisma = {
+    const prisma = { systemSetting: { findUnique: vi.fn(async () => null) },
       learningCollection: { findMany: vi.fn(async () => rows) },
       $queryRaw: vi.fn(async (_sql: Prisma.Sql) => [{ id: 'first', itemCount: 12000, videoCount: 11000, durationSeconds: 660000 }]),
     }
@@ -94,8 +94,8 @@ describe('资源查询边界与分页', () => {
 
   it('合集从第521项定向读取，前后分页只补齐本页且保留总体统计', async () => {
     const slot = (index: number) => ({ id: `item-${index}`, sortOrder: index, contributionPostId: `post-${index}` })
-    const meta = { id: 'collection', ownerId: 'viewer', owner: { id: 'viewer', userRoles: [] }, updatedAt: new Date() }
-    const prisma = {
+    const meta = { id: 'collection', ownerId: 'viewer', owner: { status: 'active', profile: {}, receivedModeration: [], identityVerification: null, id: 'viewer', userRoles: [] }, updatedAt: new Date() }
+    const prisma = { systemSetting: { findUnique: vi.fn(async () => null) },
       learningCollection: { findFirst: vi.fn(async () => meta) },
       learningCollectionItem: { findFirst: vi.fn().mockResolvedValueOnce(slot(521)).mockResolvedValueOnce(slot(520)), findMany: vi.fn().mockResolvedValueOnce([slot(521), slot(522), slot(523)]).mockResolvedValueOnce([slot(520), slot(519), slot(518)]) },
       communityPost: { findMany: vi.fn(async ({ where }: { where: { AND: Array<{ id?: { in: string[] } }> } }) => where.AND[1].id!.in.map((id) => ({ id }))) },

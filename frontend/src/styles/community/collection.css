@@ -26,7 +26,7 @@
 .community-profile-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 9px; min-height: 48px; margin-top: -48px; }
 .community-profile-copy { max-width: 760px; min-width: 0; padding-top: 12px; }
 .community-profile-name { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
-.community-profile-name h1 { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 27px; line-height: 1.25; }
+.community-profile-name h1 { min-width: 0; max-width: 100%; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 27px; line-height: 1.25; }
 .community-profile-username { margin: 4px 0 14px; overflow-wrap: anywhere; color: var(--amc-text-secondary); font-size: 13px; }
 .community-profile-copy > strong { display: block; margin-bottom: 8px; font-size: 15px; }
 .community-profile-copy > p:not(.community-profile-username) { max-width: 680px; margin: 0 0 12px; color: var(--amc-text-body); line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }

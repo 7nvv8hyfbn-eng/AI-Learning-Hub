@@ -1,3 +1,4 @@
+import { loadBadgeContext } from './user-badges'
 import { Injectable, NotFoundException } from '@nestjs/common'
 import type { CommunityNotificationDto } from '@ai-learning-hub/contracts'
 import { Prisma } from '@prisma/client'
@@ -30,7 +31,8 @@ export class CommunityNotificationService {
       reviewIds.length ? this.prisma.contentReview.findMany({ where: { id: { in: reviewIds }, authorId: userId, status: { in: ['approved', 'rejected'] } }, select: { id: true, targetType: true, targetId: true, contentRevision: true, status: true, reason: true } }) : [],
     ])
     const visibleIds = new Set(posts.map((row) => row.id))
-    const authorMap = new Map(authors.map((row) => [row.id, authorDto(row)]))
+    const badgeContext = await loadBadgeContext(this.prisma)
+    const authorMap = new Map(authors.map((row) => [row.id, authorDto(row, badgeContext)]))
     const reviewMap = new Map(reviews.map((row) => [row.id, row]))
     const targetLabels: Record<string, string> = { post: '投稿', comment: '评论', profile: '公开资料', collection: '合集', resource: '资源' }
     const labels: Record<string, string> = { comment: '回答了你的动态', reply: '回复了你的评论', like: '赞了你的内容', useful: '认为你的内容有帮助', answer_accepted: '采纳了你的回答', follow: '关注了你', mention: '提到了你', quote: '引用了你的帖子', official: '发布了学习提醒', moderation: '你的内容有新的处理结果' }

@@ -5,7 +5,7 @@ import { Permissions } from '../auth/permissions.decorator'
 import { CurrentUser } from '../auth/current-user.decorator'
 import type { AuthUser } from '../auth/auth.types'
 import { UsersService } from './users.service'
-import { CampusIdentityVerificationInputDto, IdentityReviewDto, ModeratorGrantUpdateDto, UserQuery, UserReasonDto, UserStatusUpdateDto, UserUpdateDto } from './users.dto'
+import { CampusIdentityVerificationInputDto, IdentityReviewDto, ModeratorGrantUpdateDto, UserBadgeUpdateDto, UserQuery, UserReasonDto, UserStatusUpdateDto, UserUpdateDto } from './users.dto'
 import { PrismaService } from '../../prisma/prisma.service'
 
 @Controller('admin/users')
@@ -38,6 +38,10 @@ export class UsersController {
   revokeIdentity(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: IdentityReviewDto) { return this.users.reviewIdentity(actor, id, 'revoke', input) }
   @Put(':id/moderator-grants') @Permissions('user.moderator.manage')
   moderatorGrants(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: ModeratorGrantUpdateDto, @Headers('idempotency-key') key?: string) { return this.users.updateModeratorGrants(actor, id, input, key) }
+  @Get(':id/badges') @Permissions('user.read', 'user.badge.manage')
+  badges(@CurrentUser() actor: AuthUser, @Param('id') id: string) { return this.users.badges(actor, id) }
+  @Put(':id/badges') @Permissions('user.read', 'user.badge.manage')
+  updateBadges(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: UserBadgeUpdateDto) { return this.users.updateBadges(actor, id, input) }
   @Patch(':id') @Permissions('user.write')
   update(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() input: UserUpdateDto) { return this.users.update(actor, id, input, actor.permissions.includes('user.identity.read')) }
   @Patch(':id/status') @Permissions('user.write')

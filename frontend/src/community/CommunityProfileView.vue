@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CommunityUserBadges from './CommunityUserBadges.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { CommunityProfileDto, CommunityProfileInput, CommunityProfileRelationDto, CommunityProfileTab, CommunityReplySummaryDto, LearningCollectionSummaryDto, ResourceHubItemDto } from '@ai-learning-hub/contracts'
@@ -14,7 +15,7 @@ import CommunityPostCard from './CommunityPostCard.vue'
 import CommunityPostMenu from './CommunityPostMenu.vue'
 import CommunityReportDialog from './CommunityReportDialog.vue'
 import CommunitySkeleton from './CommunitySkeleton.vue'
-import { badgeLabels, contentDetectionNotice } from './labels'
+import { contentDetectionNotice } from './labels'
 import { resourceHubApi } from '../services/api/resourceHub'
 import ResourceHubCard from '../components/ResourceHubCard.vue'
 import { useCommunityAccess } from './composables/useCommunityAccess'
@@ -47,8 +48,8 @@ const requestedTab = () => {
 const syncResult = (result: Awaited<ReturnType<typeof communityApi.updateProfile>>) => {
   auth.user = result.user
   profile.value = result.profile
+  store.syncAuthors([result.profile])
   sessionStorage.setItem('student-user', JSON.stringify(result.user))
-  for (const post of store.postCopies()) if (post.author.id === result.user.id) Object.assign(post.author, { displayName: result.user.displayName, username: result.user.username, avatar: result.user.avatarUrl })
   if (editOpen.value) {
     form.value.expectedUserRevision = result.profile.userRevision
     form.value.expectedProfileRevision = result.profile.revision
@@ -77,6 +78,7 @@ const load = async () => {
     const next = route.params.userId ? await communityApi.profileById(String(route.params.userId)) : await communityApi.profile(String(route.params.username))
     if (epoch !== loadEpoch) return
     profile.value = next
+    store.syncAuthors([next])
     tab.value = requestedTab()
     if (tab.value === 'liked' && !next.isSelf) tab.value = 'posts'
     if (legacyPanel.value === 'following') relationPeople.value = (await communityApi.relations(next.id, 'following')).items
@@ -232,7 +234,7 @@ onBeforeUnmount(() => { loadEpoch++ })
       <article class="community-profile-header">
         <div class="community-profile-banner" :class="{ empty: !profile.bannerUrl }" :style="profile.bannerUrl ? { backgroundImage: `url(${profile.bannerUrl})` } : undefined" />
         <div class="community-profile-identity">
-          <CommunityAvatar class="community-profile-avatar" :src="profile.avatar" :username="profile.username" :name="profile.displayName" size="lg" :verified="profile.verifiedType !== 'none'" />
+          <CommunityAvatar class="community-profile-avatar" :src="profile.avatar" :username="profile.username" :name="profile.displayName" size="lg" />
           <div class="community-profile-actions">
             <template v-if="profile.isSelf"><RouterLink class="button secondary small" to="/community/governance">处理与申诉</RouterLink><RouterLink class="button secondary small" to="/community/drafts">草稿箱</RouterLink><button class="button secondary small" type="button" @click="openEditor">编辑资料</button></template>
             <template v-else>
@@ -242,7 +244,7 @@ onBeforeUnmount(() => { loadEpoch++ })
             <button class="button secondary small" type="button" @click="share">分享主页</button>
           </div>
           <div class="community-profile-copy">
-            <div class="community-profile-name"><h1>{{ profile.displayName }}</h1><span v-if="profile.verifiedType !== 'none'" class="community-badge">{{ badgeLabels[profile.verifiedType] }}</span></div>
+            <div class="community-profile-name"><h1>{{ profile.displayName }}</h1><CommunityUserBadges :badges="profile.badges" :verified-type="profile.verifiedType" /></div>
             <p class="community-profile-username">@{{ profile.username }}</p>
             <strong v-if="profile.headline">{{ profile.headline }}</strong>
             <p>{{ profile.bio || '还没有填写个人介绍。' }}</p>
@@ -297,7 +299,7 @@ onBeforeUnmount(() => { loadEpoch++ })
     </template>
 
     <AppDialog :model-value="!!relationOpen" :title="relationOpen === 'followers' ? '关注者' : '正在关注'" @update:model-value="(open) => { if (!open) relationOpen = null }">
-      <div class="community-profile-relations"><div v-for="person in relationPeople" :key="person.id"><RouterLink :to="`/community/user/${person.username}`" @click="relationOpen = null"><CommunityAvatar :src="person.avatar" :username="person.username" :name="person.displayName" size="sm" /><span><strong>{{ person.displayName }}</strong><small>@{{ person.username }}<template v-if="person.verifiedType !== 'none'"> · {{ badgeLabels[person.verifiedType] }}</template></small></span></RouterLink><FollowButton v-if="person.id !== auth.user?.id" :active="person.following" :pending="store.operations[`follow:user:${person.id}`]" @click="store.follow(person.id, false, !person.following, person)" /></div><p v-if="!relationPeople.length">暂无可见用户。</p><button v-if="relationCursor" class="button secondary small" @click="moreRelations">加载更多</button></div>
+      <div class="community-profile-relations"><div v-for="person in relationPeople" :key="person.id"><RouterLink :to="`/community/user/${person.username}`" @click="relationOpen = null"><CommunityAvatar :src="person.avatar" :username="person.username" :name="person.displayName" size="sm" /><span><strong>{{ person.displayName }}</strong><CommunityUserBadges :badges="person.badges" :verified-type="person.verifiedType" /><small>@{{ person.username }}</small></span></RouterLink><FollowButton v-if="person.id !== auth.user?.id" :active="person.following" :pending="store.operations[`follow:user:${person.id}`]" @click="store.follow(person.id, false, !person.following, person)" /></div><p v-if="!relationPeople.length">暂无可见用户。</p><button v-if="relationCursor" class="button secondary small" @click="moreRelations">加载更多</button></div>
     </AppDialog>
 
     <AppDialog v-model="editOpen" title="编辑社区资料" class="community-profile-edit-dialog">

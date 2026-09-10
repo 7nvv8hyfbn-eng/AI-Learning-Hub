@@ -72,7 +72,7 @@
 .resource-hub-card-body > p { display: -webkit-box; min-height: 40px; margin: 8px 0 0; overflow: hidden; color: var(--secondary); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .resource-hub-card-body footer { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; margin-top: auto; padding-top: 12px; color: var(--muted); font-size: 12px; }
 .resource-hub-author { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--secondary); }
-.resource-hub-author span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resource-hub-author-name { min-width: 36px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .resource-hub-card-body footer small { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 .resource-hub-card-body footer > button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; color: var(--secondary); border: 1px solid var(--border); border-radius: 8px; background: white; cursor: pointer; }
 .resource-hub-card.is-featured .resource-hub-card-body { min-height: 155px; }

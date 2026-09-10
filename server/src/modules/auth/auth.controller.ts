@@ -1,3 +1,4 @@
+import { loadBadgeContext } from '../community/user-badges'
 import { Body, ConflictException, Controller, Delete, Get, Headers, Ip, Param, Patch, Post, Req, Res, UnauthorizedException, UseGuards } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import type { Request, Response } from 'express'
@@ -130,7 +131,7 @@ export class MeController {
       const contentDetection = await this.detection.saveProfile(tx, user.id, { displayName: input.displayName })
       const row = await tx.user.findUniqueOrThrow({ where: { id: user.id }, include: authUserInclude })
       await actionEvent(tx, user.id, 'profile_updated', 'user', user.id)
-      return { ...authUserDto(row), contentDetection }
+      return { ...authUserDto(row, await loadBadgeContext(tx)), contentDetection }
     })
   }
 

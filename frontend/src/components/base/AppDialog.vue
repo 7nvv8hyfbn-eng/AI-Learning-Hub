@@ -51,7 +51,10 @@ const syncDialog = async (open: boolean) => {
   } else if (!open && dialog.value.open) {
     dialog.value.close()
     releaseBodyLock()
-    previousFocus?.focus({ preventScroll: true })
+    const parentDialog = openedDialogs.at(-1)
+    const canRestore = previousFocus?.isConnected && previousFocus.getClientRects().length && !previousFocus.matches(':disabled') && !previousFocus.closest('[inert], dialog:not([open])') && (!parentDialog || parentDialog.contains(previousFocus))
+    const target = canRestore ? previousFocus : parentDialog?.querySelector<HTMLElement>('input, select, textarea, button, a[href]') || document.querySelector<HTMLElement>('a.skip-link')
+    target?.focus({ preventScroll: true })
   }
 }
 

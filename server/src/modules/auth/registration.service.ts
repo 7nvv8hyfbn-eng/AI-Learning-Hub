@@ -1,3 +1,4 @@
+import { loadBadgeContext } from '../community/user-badges'
 import { BadRequestException, ConflictException, HttpException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Prisma } from '@prisma/client'
@@ -130,7 +131,7 @@ export class RegistrationService {
           const user = await tx.user.findUniqueOrThrow({ where: { id: request.resourceId, status: 'active' }, include: authUserInclude })
           if (!user.passwordHash || !await compare(input.password, user.passwordHash)) throw new ConflictException('账号凭证已变化，请重新登录')
           const contentDetection = await this.detection.result('profile', user.id, user.communityProfile?.revision || 1)
-          return { user: { ...authUserDto(user), contentDetection }, ...await this.auth.createSession(authUserDto(user), tx), contentDetection }
+          return { user: { ...authUserDto(user, await loadBadgeContext(tx)), contentDetection }, ...await this.auth.createSession(authUserDto(user), tx), contentDetection }
         }
         const settings = await this.settings(tx)
         if (settings.mode === 'closed') throw new BadRequestException('注册已关闭，请联系管理员')
@@ -155,7 +156,7 @@ export class RegistrationService {
         })
         await this.detection.record(tx, { type: 'profile', id: user.id, revision: user.communityProfile?.revision || 1, authorId: user.id, submittedById: user.id }, contentDetection, { changes: { username, displayName: input.displayName.trim() }, userRevision: user.revision, initialUsername: true })
         await actionEvent(tx, user.id, 'student_register', 'user', user.id, { source: settings.mode })
-        const dto = authUserDto(user), session = await this.auth.createSession(dto, tx)
+        const dto = authUserDto(user, await loadBadgeContext(tx)), session = await this.auth.createSession(dto, tx)
         if (settings.emailVerification) {
           const token = randomBytes(48).toString('base64url')
           await tx.emailVerificationToken.create({ data: { userId: user.id, tokenHash: digest(token), expiresAt: new Date(Date.now() + 30 * 60_000) } })

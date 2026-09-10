@@ -18,6 +18,13 @@ const { canPost, decision, message, nextAction } = useCommunityAccess()
 const collapsed = ref(false), menuOpen = ref(false)
 const verificationReason = ref('')
 const mainScroll = provideCommunityScrollRoot()
+const focusMainEntry = () => {
+  const main = mainScroll.value
+  const target = main?.querySelector<HTMLElement>('h1, [role="tab"][aria-selected="true"]') || main?.querySelector<HTMLElement>('h2, button, a[href]') || main
+  if (!target) return
+  if (target.matches('h1, h2')) target.tabIndex = -1
+  target.focus()
+}
 const wide = computed(() => route.meta.communityMode === 'wide')
 const profileRoute = computed(() => `/community/user/${auth.user?.username}`)
 const groups = [
@@ -43,7 +50,7 @@ onBeforeUnmount(() => { window.clearInterval(polling) })
 </script>
 <template>
   <div class="community-shell" :class="{ 'sidebar-collapsed': collapsed, 'community-wide': wide }">
-    <a class="skip-link" href="#main-content">跳到主要内容</a>
+    <a class="skip-link" href="#main-content" @click.prevent="focusMainEntry">跳到主要内容</a>
     <aside class="community-sidebar">
       <RouterLink class="brand community-brand" to="/community"><span class="brand-mark">A</span><span class="nav-label"><strong>AI MAKER CAMPUS</strong><small>高校 AI 创客学习平台</small></span></RouterLink>
       <button class="sidebar-collapse icon-button" type="button" :aria-label="collapsed ? '展开侧栏' : '收起侧栏'" @click="collapsed = !collapsed"><AppIcon name="sidebar-menu" :size="20" /></button>

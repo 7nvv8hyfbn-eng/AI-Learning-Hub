@@ -1,3 +1,4 @@
+import { loadBadgeContext } from './user-badges'
 import { CommunityPostRelationsService } from './post-relations.service'
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { createHash } from 'node:crypto'
@@ -250,6 +251,7 @@ export class CommunityPostService {
     return { unpublished: true }
   }
   async mapMany(userId: string, rows: HydratedPost[]): Promise<CommunityPostDetailDto[]> {
+    const badgeContext = await loadBadgeContext(this.prisma)
     const ids = rows.map((row) => row.id)
     const commentWhere = { postId: { in: ids }, deletedAt: null, status: 'published' as const, ...visibleComment() }
     const [reactions, bookmarks, follows, topicFollows, teachers, commentCounts, acceptedComments] = await Promise.all([
@@ -274,7 +276,7 @@ export class CommunityPostService {
       id: row.id, revision: row.revision, type: row.postType, status: row.status, visibility: row.visibility, portalConsent: row.portalConsent, title: row.title,
       mediaCount: (row.contentBlocks as CommunityContentBlock[]).filter((block) => block.type === 'image').length + (row.coverFileId ? 1 : 0),
       body: row.body, bodyPreview: row.plainText.slice(0, 320), contentBlocks: row.contentBlocks as CommunityContentBlock[], coverFileId: row.coverFileId,
-      author: authorDto(row.author),
+      author: authorDto(row.author, badgeContext),
       bindings: [...new Map(row.bindings.map((ref) => {
         if (ref.targetType === 'lab_run' && row.authorId !== userId) return runRefs.get(ref.targetId)
         return references.get(`${ref.targetType}:${ref.targetId}`) || { type: ref.targetType as CommunityBindingInput['type'], id: ref.targetId, title: '关联内容已下架', route: '', status: 'unavailable' }

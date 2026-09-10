@@ -4,7 +4,7 @@
 .author-avatar-link { flex-shrink: 0; }
 .community-author { flex: 1; min-width: 0; }
 .community-author > a { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
-.community-author strong { font-size: 15px; font-weight: 650; overflow-wrap: anywhere; }
+.community-author strong { min-width: 0; max-width: 100%; font-size: 15px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .community-author small { display: block; font-size: 12px; color: var(--amc-text-secondary); margin-top: 4px; line-height: 1.55; }
 .community-badge, .community-type { font-size: 12px; line-height: 1.5; border-radius: var(--amc-radius-xs); background: var(--amc-purple-soft); color: var(--amc-purple); padding: 3px 7px; white-space: nowrap; font-weight: 600; }
 .community-type.lab_result { color: var(--amc-success); background: var(--amc-green-soft); }

@@ -21,7 +21,7 @@ vi.mock('../src/services/api/community', () => ({ communityApi: { topics: vi.fn(
 const storage = new Map<string, string>()
 const key = (id: string, intent = 'post') => `community-draft:mock:${id}:${intent}`
 const settle = async () => { await nextTick(); await Promise.resolve(); await nextTick() }
-const post = { id: 'saved-post', type: 'general', status: 'published', topics: [], viewerState: {} } as CommunityPostDetailDto
+const post = { id: 'saved-post', author: { id: 'owner-a', username: 'owner_a', displayName: '合成作者', avatar: null, school: null, major: null, verifiedType: 'none', badges: [] }, type: 'general', status: 'published', topics: [], viewerState: {} } as CommunityPostDetailDto
 beforeEach(() => {
   vi.useFakeTimers(); vi.resetAllMocks(); storage.clear(); setActivePinia(createPinia())
   account.user = { id: 'owner-a', communityWriteEnabled: true }

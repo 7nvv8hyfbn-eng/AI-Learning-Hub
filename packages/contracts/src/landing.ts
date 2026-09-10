@@ -20,7 +20,7 @@ export interface LandingConfigMap {
   landing_community_overview: LandingCommunityOverviewConfig
   landing_bottom_cta: LandingBottomCtaConfig
 }
-export interface LandingPublicAuthor { id: string; username: string; displayName: string; avatarUrl?: string; verifiedType: string; headline: string; followerCount: number }
+export interface LandingPublicAuthor { badges?: import('./community/badges').CommunityUserBadge[]; id: string; username: string; displayName: string; avatarUrl?: string; verifiedType: import('./community').CommunityVerifiedType; headline: string; followerCount: number }
 export const LANDING_DEFAULT_CONFIG: LandingConfigMap = {
   landing_hero: { brandName: 'AI MAKER CAMPUS', brandSubtitle: '高校 AI 创客学习平台', eyebrow: '连接学习者，激发 AI 创造力', titleFirst: '加入 AI 创客社区', titleSecond: '一起学习 · 实践 · 成长', description: '和同学、学长、导师一起探索 AI 的边界，用项目实践想法，让学习真正发生。', primaryLabel: '登录 / 注册', secondaryLabel: '了解社区', image: 'heroArms', memberDisplay: 'count' },
   landing_capabilities: { title: '你可以在社区做什么', items: [

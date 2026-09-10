@@ -1,3 +1,4 @@
+import { loadBadgeContext, type BadgeContext } from '../../modules/community/user-badges'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import type { CommunityBindingInput, HomepageResolvedItemDto, LandingPublicAuthor, LearningContentReferenceDto, LearningContentType } from '@ai-learning-hub/contracts'
 import { PrismaService } from '../../prisma/prisma.service'
@@ -17,7 +18,7 @@ export class ContentReferenceService {
     if (type === 'community_post') {
       const row = await this.prisma.communityPost.findFirst({ where: { id, ...visiblePublicPost(), portalConsent: true }, include: { author: { include: authorInclude } } })
       if (!row) return null
-      const author = this.publicAuthor(row.author)
+      const author = this.publicAuthor(row.author, await loadBadgeContext(this.prisma))
       const commentCount = await this.prisma.communityComment.count({ where: { postId: row.id, status: 'published', deletedAt: null, ...visibleComment() } })
       return { targetType: type, slug: row.id, title: row.title || row.plainText.slice(0, 60), summary: row.plainText.slice(0, 160), data: { route: `/community/post/${row.id}`, postType: row.postType, author, publishedAt: row.publishedAt?.toISOString(), commentCount, likeCount: row.likeCount, bookmarkCount: row.bookmarkCount } }
     }
@@ -30,7 +31,7 @@ export class ContentReferenceService {
     if (type === 'community_user') {
       const user = await this.prisma.user.findFirst({ where: { OR: [{ id }, { username: id }], ...visibleProfile(), communityProfile: { isNot: null }, communityPosts: { some: { ...visiblePublicPost(), portalConsent: true } } }, include: authorInclude })
       if (!user) return null
-      const author = this.publicAuthor(user)
+      const author = this.publicAuthor(user, await loadBadgeContext(this.prisma))
       // 公开创作者必须有公开作品；后台身份本身不构成允许展示。
       if (user.userRoles.some((item) => ['admin', 'super_admin'].includes(item.role.code)) && author.verifiedType === 'none') return null
       return { targetType: type, slug: user.username, title: user.displayName, summary: author.headline, data: { ...author, route: `/community/user/${user.username}` } }
@@ -38,9 +39,9 @@ export class ContentReferenceService {
     return null
   }
 
-  private publicAuthor(user: Parameters<typeof authorDto>[0]): LandingPublicAuthor {
-    const author = authorDto(user)
-    return { id: author.id, username: author.username, displayName: author.displayName, verifiedType: author.verifiedType, headline: author.username ? user.communityProfile?.headline.slice(0, 100) || user.communityProfile?.bio.slice(0, 100) || '' : '', followerCount: author.username ? user.communityProfile?.followerCount || 0 : 0 }
+  private publicAuthor(user: Parameters<typeof authorDto>[0], context: BadgeContext): LandingPublicAuthor {
+    const author = authorDto(user, context)
+    return { id: author.id, username: author.username, displayName: author.displayName, verifiedType: author.verifiedType, badges: author.badges, headline: author.username ? user.communityProfile?.headline.slice(0, 100) || user.communityProfile?.bio.slice(0, 100) || '' : '', followerCount: author.username ? user.communityProfile?.followerCount || 0 : 0 }
   }
 
   /** 每个类型一次查询；标题与摘要只来自已发布快照，绝不解析草稿 payload。 */

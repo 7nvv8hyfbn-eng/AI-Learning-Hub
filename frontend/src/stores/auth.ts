@@ -7,7 +7,7 @@ import { useLearningStore } from './learning'
 import { useCommunityStore } from './community'
 import { useAuthUiStore } from './authUi'
 export type AuthState = 'idle' | 'restoring' | 'authenticated' | 'anonymous' | 'error'
-const demoUser = (): AuthUser => ({ id: 'student', username: 'student', email: '', displayName: '造梦少年', roles: ['student'], permissions: [], avatarUrl: null, school: null, major: null, onboardingCompleted: true, emailVerificationRequired: false, identityVerificationStatus: 'approved', communityWriteEnabled: true })
+const demoUser = (): AuthUser => ({ id: 'student', username: 'student', email: '', displayName: '造梦少年', roles: ['student'], permissions: [], badges: [], avatarUrl: null, school: null, major: null, onboardingCompleted: true, emailVerificationRequired: false, identityVerificationStatus: 'approved', communityWriteEnabled: true })
 const demoUsername = (value: string) => {
   const username = value.trim().toLowerCase()
   if (!/^(?!_)(?!.*__)[a-z0-9_]{4,24}(?<!_)$/.test(username) || ['admin', 'administrator', 'root', 'system', 'official', 'moderator', 'support', 'api', 'www'].includes(username)) throw new Error('账号不可用，请使用4～24位字母、数字或下划线')
@@ -42,7 +42,13 @@ export const useAuthStore = defineStore('auth', {
     async checkSession() {
       if (!this.user || dataMode !== 'api') return
       const generation = studentSession.generation
-      try { await authApi.me(); this.connectionError = '' }
+      try {
+        const user = await authApi.me()
+        if (generation !== studentSession.generation || this.user?.id !== user.id) return
+        this.user.badges = user.badges
+        useCommunityStore().syncAuthors([{ id: user.id, badges: user.badges }])
+        this.connectionError = ''
+      }
       catch (error) { if (generation !== studentSession.generation) return; if (!(error instanceof ApiError) || error.status !== 401) this.connectionError = '连接暂时异常，未提交内容已保留'; else if (!studentSession.ended) studentSession.end(error.code) }
     },
     restore(force = false): Promise<void> {

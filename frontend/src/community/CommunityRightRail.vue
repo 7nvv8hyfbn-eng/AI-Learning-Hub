@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import CommunityUserBadges from './CommunityUserBadges.vue'
 import { computed, ref } from 'vue'
 import { useCommunityStore } from '../stores/community'
-import { badgeLabels } from './labels'
 import CommunitySkeleton from './CommunitySkeleton.vue'
 import CommunityAvatar from '../components/base/CommunityAvatar.vue'
 import FollowButton from '../components/base/FollowButton.vue'
@@ -37,7 +37,7 @@ const follow = async (id: string, topic: boolean, active: boolean) => { error.va
   </section>
   <section class="community-rail-card rail-people-card">
     <h2>一起向前的伙伴</h2>
-    <div v-for="user in (store.context?.suggestedUsers || []).slice(0, 3)" :key="user.id" class="rail-person"><RouterLink :to="`/community/user/${user.username}`"><CommunityAvatar :src="user.avatar" :username="user.username" :name="user.displayName" size="sm" /><span><strong>{{ user.displayName }}</strong><small>{{ badgeLabels[user.verifiedType] || '学习创作者' }}</small></span></RouterLink><FollowButton :active="!!store.authorFollowing[user.id]" :label="`${store.authorFollowing[user.id] ? '取消关注' : '关注'}用户 ${user.displayName}`" :pending="store.operations[`follow:user:${user.id}`]" @click="follow(user.id, false, !store.authorFollowing[user.id])" /></div>
+    <div v-for="user in (store.context?.suggestedUsers || []).slice(0, 3)" :key="user.id" class="rail-person"><RouterLink :to="`/community/user/${user.username}`"><CommunityAvatar :src="user.avatar" :username="user.username" :name="user.displayName" size="sm" /><span><strong>{{ user.displayName }}</strong><CommunityUserBadges :badges="user.badges" :verified-type="user.verifiedType" /><small>学习创作者</small></span></RouterLink><FollowButton :active="!!store.authorFollowing[user.id]" :label="`${store.authorFollowing[user.id] ? '取消关注' : '关注'}用户 ${user.displayName}`" :pending="store.operations[`follow:user:${user.id}`]" @click="follow(user.id, false, !store.authorFollowing[user.id])" /></div>
     <div v-if="store.context?.suggestedUsers.length" class="rail-avatar-group"><CommunityAvatar v-for="user in store.context.suggestedUsers.slice(0, 4)" :key="user.id" :src="user.avatar" :username="user.username" :name="user.displayName" size="xs" /><RouterLink class="icon-button" to="/community/search?type=users" aria-label="查看更多学习伙伴"><AppIcon name="more-circle" :size="18" /></RouterLink></div>
     <RouterLink class="text-link rail-more" to="/community/search?type=users">查看更多：搜索学习者</RouterLink>
   </section>

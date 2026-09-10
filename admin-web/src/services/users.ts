@@ -2,6 +2,8 @@ import type { AdminIdentityVerificationDto, AdminUserDetailDto, AdminUserQueryDt
 import { api } from './api'
 export const userQueryString = (query: object) => new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined && value !== '').map(([key, value]) => [key, String(value)])).toString()
 export const usersApi = {
+  badges: (id: string) => api<import('@ai-learning-hub/contracts').UserBadgeSettingsDto>(`/admin/users/${id}/badges`),
+  updateBadges: (id: string, input: import('@ai-learning-hub/contracts').UserBadgeUpdateInput) => api<import('@ai-learning-hub/contracts').UserBadgeSettingsDto>(`/admin/users/${id}/badges`, { method: 'PUT', body: JSON.stringify(input) }),
   moderatorGrants: (id: string, input: import('@ai-learning-hub/contracts').ModeratorGrantInput, key: string) => api(`/admin/users/${id}/moderator-grants`, { method: 'PUT', body: JSON.stringify(input), headers: { 'idempotency-key': key } }),
   list: (query: AdminUserQueryDto) => api<PageResult<AdminUserSummaryDto>>(`/admin/users?${userQueryString(query)}`),
   detail: (id: string) => api<AdminUserDetailDto>(`/admin/users/${id}`),

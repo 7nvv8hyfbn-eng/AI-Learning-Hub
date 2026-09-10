@@ -30,7 +30,7 @@ const classList = () => { const values = new Set<string>(); return { add: (value
 beforeEach(() => {
   vi.useFakeTimers(); vi.resetAllMocks(); Observer.instances = []; Resize.instances = []
   vi.stubGlobal('window', Object.assign(new EventTarget(), { setInterval, clearInterval, innerWidth: 1200, innerHeight: 800 }))
-  vi.stubGlobal('document', { documentElement: { classList: classList() }, body: { classList: classList(), style: { overflow: '' } }, visibilityState: 'visible', activeElement: null })
+  vi.stubGlobal('document', { documentElement: { classList: classList() }, body: { classList: classList(), style: { overflow: '' } }, visibilityState: 'visible', activeElement: null, querySelector: vi.fn(() => null) })
   vi.stubGlobal('HTMLElement', class {})
   vi.stubGlobal('IntersectionObserver', Observer); vi.stubGlobal('ResizeObserver', Resize)
   vi.mocked(communityApi.feed).mockResolvedValue({ items: [], requestId: 'r1', nextCursor: null, degraded: false, policyVersion: 'v1' })

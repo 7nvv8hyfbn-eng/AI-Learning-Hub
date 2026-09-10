@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CommunityUserBadges from '../community/CommunityUserBadges.vue'
 import type { ResourceHubItemDto } from '@ai-learning-hub/contracts'
 import { computed, ref } from 'vue'
 import CommunityPostMenu from '../community/CommunityPostMenu.vue'
@@ -36,7 +37,7 @@ const duration = computed(() => {
       <footer>
         <RouterLink v-if="item.author" class="resource-hub-author" :to="`/community/user/${item.author.username}`">
           <CommunityAvatar :src="item.author.avatar" :username="item.author.username" :name="item.author.displayName" size="xs" />
-          <span>{{ item.author.displayName }}</span>
+          <span class="resource-hub-author-name">{{ item.author.displayName }}</span><CommunityUserBadges :badges="item.author.badges" :verified-type="item.author.verifiedType" />
         </RouterLink>
         <span v-else>平台资源</span>
         <small :title="item.kind === 'video' ? '有效播放次数' : '浏览次数'"><AppIcon :name="item.kind === 'video' ? 'play' : 'eye'" :size="14" />{{ item.stats.views.toLocaleString() }} · {{ relativeTime(item.publishedAt) }}</small>

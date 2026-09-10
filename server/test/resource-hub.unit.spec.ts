@@ -37,7 +37,7 @@ afterEach(async () => {
 })
 
 const hub = (prisma: object = {}, visibility: object = {}, detection: object = {}, userId = 'student-a') => new ResourceHubService(
-  { refreshToken: { findUnique: vi.fn(async () => ({ userId, client: 'student', revokedAt: null, expiresAt: new Date(Date.now() + 3600000), user: { id: userId, status: 'active', sessionVersion: 0, userRoles: [] } })) }, ...prisma } as never,
+  { refreshToken: { findUnique: vi.fn(async () => ({ userId, client: 'student', revokedAt: null, expiresAt: new Date(Date.now() + 3600000), user: { id: userId, status: 'active', receivedModeration: [], sessionVersion: 0, userRoles: [] } })) }, ...prisma } as never,
   new ConfigService({ JWT_SECRET: 'resource-test-secret-with-enough-entropy' }),
   {} as never,
   visibility as never,
@@ -64,7 +64,7 @@ describe('资源播放交付', () => {
   it.each(['revoked', 'expired', 'foreign', 'version', 'disabled', 'admin_without_mfa', 'admin_network'])('媒体凭据拒绝失效设备及后台旁路：%s', async (failure) => {
     const session = {
       userId: 'student-a', client: 'student', revokedAt: null as Date | null, expiresAt: new Date(Date.now() + 60000), mfaVerified: false,
-      user: { id: 'student-a', status: 'active', sessionVersion: 0, userRoles: [], mfaEnabledAt: null as Date | null },
+      user: { id: 'student-a', status: 'active', receivedModeration: [], sessionVersion: 0, userRoles: [], mfaEnabledAt: null as Date | null },
     }
     const service = hub({ refreshToken: { findUnique: vi.fn(async () => session) } })
     const signing = service as unknown as { sign(p: string, id: string, user: string, expires: number): string; verify(p: string, id: string, token: string): Promise<string> }

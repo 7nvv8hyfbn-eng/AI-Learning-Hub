@@ -5,6 +5,8 @@ import type { AdminIdentityVerificationDto, AdminUserSummaryDto, AdminUserDetail
 import { PrismaService } from '../../prisma/prisma.service'
 import { actionEvent, idempotency, lockFileReferences, lockUser } from '../../common/persistence'
 import { moderatorGrantDto } from '../community/moderator-grants'
+import { badgeUserInclude, loadBadgeContext, normalizeCustomBadges, userBadgeSettings } from '../community/user-badges'
+import { automaticBadgeCodes, type UserBadgeUpdateInput } from '@ai-learning-hub/contracts'
 import type { ModeratorGrantInput } from '@ai-learning-hub/contracts'
 import { ContentDetectionService } from '../community/content-detection.service'
 import { CampusIdentityVerificationInputDto, IdentityReviewDto, UserQuery, UserStatusUpdateDto, UserUpdateDto } from './users.dto'
@@ -91,6 +93,31 @@ export class UsersService {
       activities: activities.map((r) => ({ id: r.id, actorId: r.userId, eventType: r.actionType || r.eventType, entityType: r.entityType || r.targetType, entityId: r.entityId || r.targetId, source: r.source, occurredAt: r.occurredAt.toISOString() })),
       audits: audits.map((r) => ({ id: r.id, action: r.action, reason: typeof (r.details as Prisma.JsonObject).reason === 'string' ? String((r.details as Prisma.JsonObject).reason) : '', createdAt: r.createdAt.toISOString() })),
     }
+  }
+  async badges(actor: AuthUser, userId: string) {
+    if (!actor.permissions.includes('user.badge.manage')) throw new ForbiddenException('缺少公开标签管理权限')
+    const [user, context] = await Promise.all([this.prisma.user.findUnique({ where: { id: userId }, include: badgeUserInclude }), loadBadgeContext(this.prisma)])
+    if (!user) throw new NotFoundException('用户不存在')
+    return userBadgeSettings(user, context)
+  }
+  async updateBadges(actor: AuthUser, userId: string, input: UserBadgeUpdateInput) {
+    if (!actor.permissions.includes('user.badge.manage')) throw new ForbiddenException('缺少公开标签管理权限')
+    const customBadges = normalizeCustomBadges(input.customBadges)
+    if (!Array.isArray(input.hiddenAutomaticBadges) || input.hiddenAutomaticBadges.length > 4 || input.hiddenAutomaticBadges.some((code) => !automaticBadgeCodes.includes(code))) throw new BadRequestException('隐藏标签代码无效')
+    const hiddenAutomaticBadges = [...new Set(input.hiddenAutomaticBadges)], reason = input.reason?.trim()
+    if (!reason || reason.length < 4 || reason.length > 500) throw new BadRequestException('请填写 4～500 字的操作原因')
+    return this.prisma.$transaction(async (tx) => {
+      await lockFileReferences(tx)
+      await this.assertTarget(actor, userId, tx)
+      const user = await tx.user.findUniqueOrThrow({ where: { id: userId }, include: badgeUserInclude }), context = await loadBadgeContext(tx)
+      const before = userBadgeSettings(user, context)
+      if (before.revision !== input.expectedRevision) throw new ConflictException('公开资料或标签已变化，请重新读取后修改')
+      for (const code of before.hiddenAutomaticBadges) if (!hiddenAutomaticBadges.includes(code) && !before.automaticBadges.some((badge) => badge.code === code)) throw new BadRequestException('当前身份或版主授权无效，不能恢复该自动标签')
+      const data = { customBadges: customBadges as unknown as Prisma.InputJsonValue, hiddenAutomaticBadges, revision: before.revision + 1 }
+      await tx.communityProfile.upsert({ where: { userId }, create: { userId, ...data }, update: data })
+      await tx.auditLog.create({ data: { actorId: actor.id, action: 'public_user_badges_updated', targetType: 'user', targetId: userId, details: { reason, source: 'admin-web', before: { customBadges: before.customBadges, hiddenAutomaticBadges: before.hiddenAutomaticBadges }, after: { customBadges, hiddenAutomaticBadges } } as unknown as Prisma.InputJsonValue } })
+      return userBadgeSettings(await tx.user.findUniqueOrThrow({ where: { id: userId }, include: badgeUserInclude }), context)
+    })
   }
   async updateModeratorGrants(actor: AuthUser, userId: string, input: ModeratorGrantInput, key?: string) {
     if (!actor.permissions.includes('user.moderator.manage')) throw new ForbiddenException('缺少前台版主授权管理权限')

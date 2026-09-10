@@ -1,7 +1,8 @@
 import { Transform, Type } from 'class-transformer'
-import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min } from 'class-validator'
+import { ArrayMaxSize, ArrayUnique, IsArray, IsBoolean, IsDateString, IsIn, IsInt, IsOptional, IsString, Length, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator'
 import { moderatorScopes, type ModeratorGrantInput, type ModeratorScope } from '@ai-learning-hub/contracts'
 import type { AdminUserQueryDto, CampusIdentityVerificationInput, IdentityReviewInput } from '@ai-learning-hub/contracts'
+import { automaticBadgeCodes, userBadgeTones, type AutomaticBadgeCode, type CustomUserBadge, type UserBadgeTone, type UserBadgeUpdateInput } from '@ai-learning-hub/contracts'
 
 export const queryBoolean = ({ value }: { value: unknown }) => value === 'true' ? true : value === 'false' ? false : value
 export class PageQuery {
@@ -39,6 +40,14 @@ export class IdentityReviewDto implements IdentityReviewInput {
 }
 export class UserReasonDto {
   @IsString() @Length(4, 500) @Matches(/\S/) reason!: string
+}
+class CustomBadgeDto implements CustomUserBadge {
+  @IsString() @MaxLength(128) label!: string
+  @IsIn(userBadgeTones) tone!: UserBadgeTone
+}
+export class UserBadgeUpdateDto extends IdentityReviewDto implements UserBadgeUpdateInput {
+  @IsArray() @ArrayMaxSize(3) @ValidateNested({ each: true }) @Type(() => CustomBadgeDto) customBadges!: CustomBadgeDto[]
+  @IsArray() @ArrayMaxSize(4) @ArrayUnique() @IsIn(automaticBadgeCodes, { each: true }) hiddenAutomaticBadges!: AutomaticBadgeCode[]
 }
 export class ModeratorGrantUpdateDto extends UserReasonDto implements ModeratorGrantInput {
   @IsInt() @Min(1) expectedRevision!: number

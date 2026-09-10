@@ -14,7 +14,7 @@ function fixture() {
     adminWhere: vi.fn(async () => adminScope), auditAdminRead: vi.fn(),
   }
   const prisma = {
-    refreshToken: { findUnique: vi.fn(async () => ({ userId: 'synthetic-viewer', client: state.permissions.length ? 'admin' : 'student', mfaVerified: true, expiresAt: new Date(Date.now() + 3600000), user: { id: 'synthetic-viewer', status: 'active', sessionVersion: 0, mfaEnabledAt: new Date(), userRoles: [] } })) },
+    refreshToken: { findUnique: vi.fn(async () => ({ userId: 'synthetic-viewer', client: state.permissions.length ? 'admin' : 'student', mfaVerified: true, expiresAt: new Date(Date.now() + 3600000), user: { id: 'synthetic-viewer', status: 'active', receivedModeration: [], sessionVersion: 0, mfaEnabledAt: new Date(), userRoles: [] } })) },
     communityPost: { findFirst: vi.fn(async () => state.status === 'published' || state.owner && ['draft', 'pending_review'].includes(state.status) ? { authorId: 'synthetic-owner' } : null), count: vi.fn(async ({ where }: { where: { AND: object[] } }) => {
       const scope = where.AND[1]
       if (scope === adminScope) return Number(state.submitted && state.status !== 'draft')

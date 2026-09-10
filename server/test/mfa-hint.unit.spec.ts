@@ -9,7 +9,7 @@ afterEach(() => vi.useRealTimers())
 describe('体验环境验证码提示', () => {
   const setup = (profile?: string) => {
     const challenge = 'synthetic-challenge', secret = generateSecret(), key = 'a3'.repeat(32)
-    const user = { id: 'admin', status: 'active', sessionVersion: 1, mfaChallengeHash: createHash('sha256').update(challenge).digest('hex'), mfaLastTimeStep: null as number | null,
+    const user = { id: 'admin', status: 'active', receivedModeration: [], sessionVersion: 1, mfaChallengeHash: createHash('sha256').update(challenge).digest('hex'), mfaLastTimeStep: null as number | null,
       mfaSecretEncrypted: encryptMfa(secret, key, 'admin'), userRoles: [{ role: { code: 'admin', permissions: [{ permission: { code: 'resource.read' } }] } }], profile: {} }
     const prisma = { user: { findUnique: vi.fn(async () => user) }, $queryRaw: vi.fn(async () => [{ attempts: 1 }]) }
     const jwt = { verifyAsync: vi.fn(async () => ({ id: 'admin', version: 1, purpose: 'admin-mfa' })) }

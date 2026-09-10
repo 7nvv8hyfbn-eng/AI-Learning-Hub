@@ -7,7 +7,7 @@ import type { CollectionPageQuery, CreatorContentSection, CreatorContentSummaryD
 
 const collectionsKey = 'ai-learning-resource-hub:collections-v1'
 const progressKey = 'ai-learning-resource-hub:progress-v1'
-const student: CommunityAuthorDto = { id: 'student', username: 'student', displayName: '造梦少年', verifiedType: 'none', avatar: null, school: 'AI 创客学院', major: '计算机科学与技术' }
+const student: CommunityAuthorDto = { id: 'student', username: 'student', displayName: '造梦少年', verifiedType: 'none', badges: [], avatar: null, school: 'AI 创客学院', major: '计算机科学与技术' }
 const category = (code: string) => demoResourceHubCategories.find((item) => item.code === code) || null
 const uploadedVideos = new Map<string, { url: string; asset: VideoAssetDto }>()
 const uploadedDocuments = new Map<string, { url: string; name: string; mimeType: string; size: number }>()

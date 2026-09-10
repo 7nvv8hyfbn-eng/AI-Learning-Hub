@@ -7,6 +7,7 @@ const post = (overrides: Partial<CommunityPost> = {}) => ({ id: 'post-a', author
 const setup = () => {
   const topics = [{ id: 'manual', name: '手动话题', normalizedName: '手动话题', status: 'active' }]
   const tx = {
+    systemSetting: { findUnique: vi.fn(async () => null) },
     $queryRaw: vi.fn(async () => [{ attempts: 1, expires_at: new Date(Date.now() + 3600000), retry_after: 3600 }]),
     communityTopic: { findMany: vi.fn(async () => topics), upsert: vi.fn(async ({ create }) => ({ ...create, id: 'new-topic', status: 'active' })) },
     user: { findMany: vi.fn(async () => [{ id: 'original-user', username: 'student_1' }]), count: vi.fn(async () => 1) },

@@ -1,3 +1,4 @@
+import { loadBadgeContext } from '../community/user-badges'
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
@@ -36,7 +37,7 @@ export class AuthGuard implements CanActivate {
       assertAdminNetwork(this.config, request.ip)
       if (!session.mfaVerified || !payload.mfaVerified || !user.mfaEnabledAt) throw new UnauthorizedException('管理员需要重新完成 MFA')
     }
-    request.user = { ...authUserDto(user), sessionId: session.id, sessionClient: payload.sessionClient, mfaVerified: session.mfaVerified }
+    request.user = { ...authUserDto(user, await loadBadgeContext(this.prisma)), sessionId: session.id, sessionClient: payload.sessionClient, mfaVerified: session.mfaVerified }
     return true
   }
 }

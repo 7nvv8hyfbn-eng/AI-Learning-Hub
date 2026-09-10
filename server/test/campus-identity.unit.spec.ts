@@ -27,10 +27,11 @@ describe('校园实名、账号和社区写权限', () => {
     const user = {
       id: 'u1', email: 'student@example.invalid', username: 'student_2026', displayName: '测试同学', passwordHash, status: 'active', revision: 1, sessionVersion: 0,
       schoolId: null, departmentId: null, grade: '', major: '', onboardingCompletedAt: null, emailVerifiedAt: null, profile: {}, school: null,
-      communityProfile: { revision: 1, avatarFileId: null }, identityVerification: { status: 'approved' },
-      userRoles: [{ role: { code: 'student', permissions: [] } }],
+      receivedModeration: [], communityRestrictions: [], moderatorGrants: [], communityProfile: { revision: 1, avatarFileId: null }, identityVerification: { status: 'approved' },
+      userRoles: [{ role: { code: 'student', permissions: [], _count: { permissions: 0 } } }],
     }
     const tx: any = {
+      systemSetting: { findUnique: vi.fn(async () => null) },
       $queryRaw: vi.fn().mockResolvedValue([{ attempts: 1 }]),
       loginThrottle: { findUnique: vi.fn().mockResolvedValue(null), deleteMany: vi.fn() }, loginLog: { create: vi.fn() },
       user: { findFirst: vi.fn().mockResolvedValue(user), findUniqueOrThrow: vi.fn().mockResolvedValue(user), update: vi.fn().mockResolvedValue(user) },
@@ -126,6 +127,7 @@ describe('校园实名、账号和社区写权限', () => {
       }),
     }
     const tx: any = {
+      systemSetting: { findUnique: vi.fn(async () => null) },
       $queryRaw: vi.fn(), campusIdentityVerification,
       user: { findUnique: vi.fn().mockResolvedValue({ status: 'active' }), update: vi.fn() },
       school: { count: vi.fn().mockResolvedValue(0) }, systemSetting: { findUnique: vi.fn().mockResolvedValue(null) },

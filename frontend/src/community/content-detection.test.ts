@@ -27,7 +27,7 @@ describe('内容检测学生端提示', () => {
     expect(contentDetectionNotice({ ...detection, action: 'warn', hits: [hit, hit] })).toBe('提醒：请确认资源授权')
   })
   it.each(['draft', 'pending_review'] as const)('%s详情不会因请求公开评论接口失败而消失', async (status) => {
-    vi.mocked(communityApi.post).mockResolvedValue({ id: 'synthetic-post', status } as CommunityPostDetailDto)
+    vi.mocked(communityApi.post).mockResolvedValue({ id: 'synthetic-post', author: { id: 'synthetic-owner' }, status } as CommunityPostDetailDto)
     vi.mocked(communityApi.comments).mockRejectedValue(new Error('待审帖子不可公开读取'))
     const view = setupComponent<ViewState>(CommunityPostView)
     await flushRender()
@@ -37,7 +37,7 @@ describe('内容检测学生端提示', () => {
     view.unmount()
   })
   it('评论复核和拒绝均不伪造发布成功；拒绝保留编辑框输入', async () => {
-    vi.mocked(communityApi.post).mockResolvedValue({ id: 'synthetic-post', status: 'published' } as CommunityPostDetailDto)
+    vi.mocked(communityApi.post).mockResolvedValue({ id: 'synthetic-post', author: { id: 'synthetic-owner' }, status: 'published' } as CommunityPostDetailDto)
     vi.mocked(communityApi.comment).mockResolvedValue({ id: 'synthetic-comment', detection, status: 'pending_review' } as never)
     const view = setupComponent<ViewState>(CommunityPostView)
     await flushRender()

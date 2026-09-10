@@ -1,3 +1,4 @@
+import { loadBadgeContext } from './user-badges'
 import { activeSanction, visibleComment } from './governance-policy'
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import type { CommunityCommentDto, CommunityCommentPageDto, CommunityCommentQuery, CommunityContentBlock, ContentDetectionResult } from '@ai-learning-hub/contracts'
@@ -49,6 +50,7 @@ export class CommunityCommentService {
       this.prisma.communityQuestionState.findUnique({ where: { postId } }),
       this.visibility.authorExclusions(userId),
     ])
+    const badgeContext = await loadBadgeContext(this.prisma)
     const page = rows.slice(0, id ? 1 : limit)
     const targets = page.filter((row) => admin || row.authorId === userId).map((row) => ({ targetId: row.id, contentRevision: row.revision }))
     const reviews = new Map((targets.length ? await this.prisma.contentReview.findMany({ where: { targetType: 'comment', OR: targets } }) : []).map((row) => [row.targetId, row]))
@@ -56,7 +58,7 @@ export class CommunityCommentService {
       const deleted = !!row.deletedAt || row.status !== 'published' && !(row.status === 'pending_review' && (admin || row.authorId === userId)) || row.author.status !== 'active' || row.author._count.receivedModeration > 0 || row.moderationActions.length > 0 || (!admin && feedback.authors.includes(row.authorId))
       const review = !deleted ? reviews.get(row.id) : undefined
       const detection = review ? { ...review.findings as unknown as ContentDetectionResult, review: { id: review.id, status: review.status as NonNullable<ContentDetectionResult['review']>['status'], reason: review.reason } } : undefined
-      return { id: row.id, revision: row.revision, status: row.status as CommunityCommentDto['status'], detection, postId, author: deleted ? { id: '', username: '', displayName: '不可见用户', avatar: null, school: null, major: null, verifiedType: 'none' as const } : authorDto(row.author), parentId: row.parentId, rootId: row.rootId, body: deleted ? '该评论已删除或不可见' : row.body, contentBlocks: deleted ? [] : row.contentBlocks as CommunityContentBlock[], deleted, likes: deleted ? 0 : row.likeCount, liked: !deleted && row.reactions.length > 0, accepted: !deleted && row.status === 'published' && question?.acceptedCommentId === row.id, createdAt: row.createdAt.toISOString(), replyCount: row._count.replies }
+      return { id: row.id, revision: row.revision, status: row.status as CommunityCommentDto['status'], detection, postId, author: deleted ? { id: '', username: '', displayName: '不可见用户', avatar: null, school: null, major: null, verifiedType: 'none' as const, badges: [] } : authorDto(row.author, badgeContext), parentId: row.parentId, rootId: row.rootId, body: deleted ? '该评论已删除或不可见' : row.body, contentBlocks: deleted ? [] : row.contentBlocks as CommunityContentBlock[], deleted, likes: deleted ? 0 : row.likeCount, liked: !deleted && row.reactions.length > 0, accepted: !deleted && row.status === 'published' && question?.acceptedCommentId === row.id, createdAt: row.createdAt.toISOString(), replyCount: row._count.replies }
     })
     return { items, nextCursor: !id && rows.length > limit ? page.at(-1)!.id : null }
   }

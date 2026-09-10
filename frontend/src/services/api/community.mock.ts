@@ -14,7 +14,7 @@ export const checkMockContent = (input: ContentDetectionInput) => {
   return result
 }
 const fixtures = createCommunityFixtures({ courses: demoCourses, labs: demoLabs, articles: demoArticles, themes: demoThemes, students: demoStudents })
-const authors: CommunityAuthorDto[] = fixtures.users.map((user) => ({ id: user.username, username: user.username, displayName: user.displayName, verifiedType: user.verifiedType, avatar: null, major: user.major, school: 'AI 创客学院' }))
+const authors: CommunityAuthorDto[] = fixtures.users.map((user) => ({ id: user.username, username: user.username, displayName: user.displayName, verifiedType: user.verifiedType, badges: user.verifiedType === 'none' ? [] : [{ code: user.verifiedType, label: ({ official: '官方', teacher: '认证教师', mentor: '学习导师' })[user.verifiedType], tone: user.verifiedType === 'official' ? 'orange' : 'blue' }], avatar: null, major: user.major, school: 'AI 创客学院' }))
 const text = (blocks: CommunityContentBlock[]) => blocks.map((block) => block.type === 'image' ? block.alt : block.type === 'code' ? block.code : block.type === 'list' ? block.items.join(' ') : block.type === 'rich_text' ? block.text.replace(/<[^>]*>/g, '') : block.text).join('\n')
 const topics: CommunityTopicDto[] = fixtures.topics.map((topic) => ({
   ...topic,
@@ -423,7 +423,7 @@ export async function mockCommunity<T>(path: string, method: string, body?: unkn
     const q = (url.searchParams.get('q') || '').normalize('NFKC').toLowerCase()
     value = url.searchParams.get('kind') === 'topic'
       ? topics.filter((topic) => topic.status === 'active' && (normalizeTopicName(topic.name).includes(normalizeTopicName(q)) || `${topic.name} ${topic.description}`.normalize('NFKC').toLowerCase().includes(q))).slice(0, 8).map((topic) => ({ kind: 'topic', id: topic.id, name: topic.name, postCount: topic.postCount }))
-      : authors.filter((user) => COMMUNITY_USERNAME_PATTERN.test(user.username) && !muted.has(user.id) && !blocked.has(user.id) && !mockTargetUnavailable('profile', user.id, user.id) && `${user.username} ${user.displayName}`.normalize('NFKC').toLowerCase().includes(q)).slice(0, 8).map((user) => ({ kind: 'mention', id: user.id, name: user.displayName, username: user.username, avatar: user.avatar, verifiedType: user.verifiedType }))
+      : authors.filter((user) => COMMUNITY_USERNAME_PATTERN.test(user.username) && !muted.has(user.id) && !blocked.has(user.id) && !mockTargetUnavailable('profile', user.id, user.id) && `${user.username} ${user.displayName}`.normalize('NFKC').toLowerCase().includes(q)).slice(0, 8).map((user) => ({ kind: 'mention', id: user.id, name: user.displayName, username: user.username, avatar: user.avatar, verifiedType: user.verifiedType, badges: user.badges }))
   } else if (root === 'search') {
     const q = (url.searchParams.get('q') || '').toLowerCase(), type = url.searchParams.get('type') || 'all', offset = Number(url.searchParams.get('cursor') || 0), limit = type === 'all' ? 3 : 20
     const matches = (value: string) => !!q && value.toLowerCase().includes(q)
@@ -613,7 +613,7 @@ export async function mockCommunity<T>(path: string, method: string, body?: unkn
         const rows = candidates.filter((c) => fourth ? c.id === fourth : c.parentId === parentId && (!cursor || compare(c, cursor) > 0)).sort(compare)
         const items = rows.slice(0, fourth ? 1 : limit).map((c) => {
           const deleted = c.deleted || muted.has(c.author.id) || (c.status || 'published') !== 'published' && !(c.status === 'pending_review' && c.author.id === authors[0].id)
-          return { ...c, ...(deleted ? { author: { id: '', username: '', displayName: '不可见用户', avatar: null, school: null, major: null, verifiedType: 'none' }, body: '该评论已删除或不可见', contentBlocks: [], deleted: true, detection: undefined, likes: 0, liked: false, accepted: false } : {}), replyCount: all.filter((reply) => reply.parentId === c.id && readable(reply)).length }
+          return { ...c, ...(deleted ? { author: { id: '', username: '', displayName: '不可见用户', avatar: null, school: null, major: null, verifiedType: 'none', badges: [] }, body: '该评论已删除或不可见', contentBlocks: [], deleted: true, detection: undefined, likes: 0, liked: false, accepted: false } : {}), replyCount: all.filter((reply) => reply.parentId === c.id && readable(reply)).length }
         })
         if (fourth && !items.length) throw new Error('评论不存在或不可见')
         value = fourth ? items[0] : { items, nextCursor: rows.length > limit ? items.at(-1)!.id : null }

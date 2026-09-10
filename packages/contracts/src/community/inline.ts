@@ -7,7 +7,7 @@ export interface CommunityInlineReference { kind: 'topic' | 'mention'; text: str
 export interface CommunityInlineReferenceDto extends CommunityInlineReference { route?: string }
 export interface CommunityInlineCandidateDto {
   kind: 'topic' | 'mention'; id: string; name: string
-  username?: string; avatar?: string | null; verifiedType?: 'none' | 'teacher' | 'mentor' | 'official'; postCount?: number
+  username?: string; avatar?: string | null; verifiedType?: 'none' | 'teacher' | 'mentor' | 'official'; badges?: import('./badges').CommunityUserBadge[]; postCount?: number
 }
 
 // 只屏蔽不应识别标记的区段，保留 UTF-16 偏移供 textarea 光标使用。

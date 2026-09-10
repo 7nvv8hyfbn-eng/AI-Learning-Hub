@@ -14,7 +14,7 @@ import { contentDetectionFields, type ContentDetectionField, type ContentDetecti
 const session = useSessionStore(), can = (permission: string) => !!session.user?.permissions.includes(permission)
 const route = useRoute()
 const tabs = [{ key: 'posts', label: '动态内容', permission: 'community.read' }, { key: 'questions', label: '学习问答', permission: 'community.read' }, { key: 'comments', label: '评论管理', permission: 'community.read' }, { key: 'topics', label: '话题管理', permission: 'community.topic.manage' }, { key: 'reports', label: '治理工作台', permission: 'community.report.manage' }, { key: 'official', label: '官方账号', permission: 'community.official.publish' }, { key: 'eligibility', label: '操作资格', permission: 'community.moderate' }, { key: 'content', label: '内容检测与复核', permission: 'community.moderate' }, { key: 'policy', label: '推荐策略', permission: 'community.feed.manage' }]
-const tab = ref('posts'), keyword = ref(''), page = ref(1), loading = ref(false), error = ref(''), selected = ref<CommunityAdminInspectionDto | null>(null)
+const tab = ref(tabs.find(item => item.key === route?.query?.tab && can(item.permission))?.key || 'posts'), keyword = ref(''), page = ref(1), loading = ref(false), error = ref(''), selected = ref<CommunityAdminInspectionDto | null>(null)
 const total = ref(0)
 const filters = reactive({ status: '', authorId: '', schoolId: '', topicId: '', postType: '' as '' | CommunityPostDetailDto['type'], visibility: '' as '' | 'public' | 'school', hasMedia: undefined as boolean | undefined, reported: undefined as boolean | undefined, createdFrom: '', createdTo: '', sortBy: 'createdAt' as 'createdAt' | 'publishedAt' | 'editedAt', sortOrder: 'desc' as 'asc' | 'desc' })
 let loadEpoch = 0, detailEpoch = 0

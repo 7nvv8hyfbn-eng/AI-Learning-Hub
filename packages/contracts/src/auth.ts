@@ -4,6 +4,7 @@ export const SESSION_REPLACED_MESSAGE = '你的账号已在其他设备登录，
 export type SessionRevocationReason = 'replaced_by_login' | 'manual_logout' | 'security_revoke'
 
 export interface AuthUser {
+  badges?: import('./community/badges').CommunityUserBadge[]
   sessionId?: string
   sessionClient?: import('./account-security').SessionClient
   mfaVerified?: boolean

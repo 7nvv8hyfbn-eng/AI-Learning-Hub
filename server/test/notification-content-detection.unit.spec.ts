@@ -4,7 +4,7 @@ import { CommunityNotificationService } from '../src/modules/community/notificat
 const notification = (entityType = 'content_review', entityId = 'synthetic-review', notificationType = 'moderation') => ({ id: `synthetic-${entityId}`, recipientId: 'synthetic-owner', actorId: 'synthetic-reviewer', actorIds: ['synthetic-reviewer'], entityType, entityId, notificationType, createdAt: new Date(0), readAt: null })
 const setup = (rows = [notification()]) => {
   const reviews = [{ id: 'synthetic-review', authorId: 'synthetic-owner', targetType: 'post', targetId: 'synthetic-post', contentRevision: 3, status: 'rejected', reason: '请补充合成案例说明' }]
-  const prisma = {
+  const prisma = { systemSetting: { findUnique: vi.fn(async () => null) },
     userNotification: { findMany: vi.fn(async () => rows), createMany: vi.fn(), updateMany: vi.fn() },
     user: { findMany: vi.fn(async () => []) },
     communityPost: { findMany: vi.fn(async () => []) },

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CommunityUserBadges from './CommunityUserBadges.vue'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { communityInlineAtCaret, topicMarkerName, type CommunityInlineCandidateDto } from '@ai-learning-hub/contracts'
 import { communityApi } from '../services/api/community'
@@ -85,7 +86,7 @@ watch(() => [store.epoch, store.composerSession, store.composerOpen], close)
 onMounted(() => document.addEventListener('pointerdown', outside))
 onBeforeUnmount(() => { close(); document.removeEventListener('pointerdown', outside); props.target?.removeEventListener('input', input, true); props.target?.removeEventListener('click', update); props.target?.removeEventListener('keydown', keydown as (event: Event) => void, true); props.target?.removeEventListener('keyup', keyup as (event: Event) => void, true); props.target?.removeEventListener('compositionstart', compositionStart); props.target?.removeEventListener('compositionend', compositionEnd) })
 </script>
-<template><Teleport :to="target?.closest('dialog') || 'body'"><div v-if="items.length" class="inline-suggestions" role="listbox" aria-label="正文补全建议" :style="position"><button v-for="(item, i) in items" :key="item.id" type="button" role="option" :aria-selected="i === index" :class="{ selected: i === index }" @pointerdown.prevent @click.prevent.stop="choose(item)"><CommunityAvatar v-if="item.kind === 'mention'" :src="item.avatar" :name="item.name" :username="item.username" size="sm" /><span><strong>{{ item.name }}</strong><small>{{ item.kind === 'topic' ? `${item.postCount || 0} 篇帖子` : `@${item.username}` }}{{ item.verifiedType && item.verifiedType !== 'none' ? ' · 已认证' : '' }}</small></span></button></div></Teleport></template>
+<template><Teleport :to="target?.closest('dialog') || 'body'"><div v-if="items.length" class="inline-suggestions" role="listbox" aria-label="正文补全建议" :style="position"><button v-for="(item, i) in items" :key="item.id" type="button" role="option" :aria-selected="i === index" :class="{ selected: i === index }" @pointerdown.prevent @click.prevent.stop="choose(item)"><CommunityAvatar v-if="item.kind === 'mention'" :src="item.avatar" :name="item.name" :username="item.username" size="sm" /><span><strong>{{ item.name }}</strong><CommunityUserBadges :badges="item.badges" :verified-type="item.verifiedType" /><small>{{ item.kind === 'topic' ? `${item.postCount || 0} 篇帖子` : `@${item.username}` }}</small></span></button></div></Teleport></template>
 <style scoped>
 .inline-suggestions { position: fixed; z-index: 10050; width: min(280px, calc(100vw - 16px)); max-height: 180px; overflow: auto; background: var(--amc-surface, #fff); border: 1px solid var(--amc-border, #e6e0d8); border-radius: 10px; box-shadow: 0 6px 24px #32251926; }
 button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 12px; text-align: left; min-height: 48px; border: 0; background: transparent; }

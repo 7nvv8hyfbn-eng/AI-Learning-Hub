@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CommunityUserBadges from '../community/CommunityUserBadges.vue'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { LANDING_DEFAULT_CONFIG, type HomepageResolvedItemDto, type LandingConfigMap, type LandingModuleKey, type LandingPublicAuthor, type PublicHomepageDto } from '@ai-learning-hub/contracts'
@@ -11,7 +12,6 @@ import { useAuthStore } from '../stores/auth'
 import { useAuthUiStore } from '../stores/authUi'
 import { useCommunityStore } from '../stores/community'
 import { itemPath } from '../homepage/module-utils'
-import { badgeLabels } from '../community/labels'
 import { communityApi } from '../services/api/community'
 const props = defineProps<{ homepage: PublicHomepageDto; preview?: boolean }>()
 const router = useRouter(), auth = useAuthStore(), authUi = useAuthUiStore(), community = useCommunityStore()
@@ -99,7 +99,7 @@ const learnMore = () => capabilities.value?.scrollIntoView({ behavior: window.ma
       </article>
       <article class="landing-overview-panel"><div class="landing-section-heading"><h2>{{ overview.creatorsTitle }}</h2><button class="text-link" type="button" @click="navigate('/community/search?type=users')">查看更多 <AppIcon name="arrow-right" :size="14" /></button></div>
         <p v-if="followError" role="status" class="landing-empty">{{ followError }}</p>
-        <div v-for="creator in creators" :key="creator.slug" class="landing-creator-row"><button class="landing-creator-profile" type="button" @click="openItem(creator)"><CommunityAvatar :name="creator.title" :username="creator.slug" :src="author(creator).avatarUrl" size="md" /><span><strong>{{ creator.title }} <small>{{ badgeLabels[author(creator).verifiedType as keyof typeof badgeLabels] || '社区创作者' }}</small></strong><p>{{ creator.summary || '分享学习与实践经验' }}</p></span></button><FollowButton v-if="auth.user?.id !== author(creator).id" :active="community.authorFollowing[author(creator).id]" :pending="followingLoading || community.operations[`follow:user:${author(creator).id}`]" :label="`关注${creator.title}`" @click="follow(creator)" /></div><p v-if="!creators.length" class="landing-empty">暂无公开创作者</p>
+        <div v-for="creator in creators" :key="creator.slug" class="landing-creator-row"><button class="landing-creator-profile" type="button" @click="openItem(creator)"><CommunityAvatar :name="creator.title" :username="creator.slug" :src="author(creator).avatarUrl" size="md" /><span><strong>{{ creator.title }} <CommunityUserBadges :badges="author(creator).badges" :verified-type="author(creator).verifiedType" /></strong><p>{{ creator.summary || '分享学习与实践经验' }}</p></span></button><FollowButton v-if="auth.user?.id !== author(creator).id" :active="community.authorFollowing[author(creator).id]" :pending="followingLoading || community.operations[`follow:user:${author(creator).id}`]" :label="`关注${creator.title}`" @click="follow(creator)" /></div><p v-if="!creators.length" class="landing-empty">暂无公开创作者</p>
       </article>
     </section>
     <section v-if="moduleFor('landing_bottom_cta')" class="landing-bottom-cta landing-container" aria-labelledby="landing-cta-title"><div><h2 id="landing-cta-title">{{ cta.title }}</h2><p>{{ cta.description }}</p><button class="button primary landing-login" type="button" @click="navigate()">{{ auth.user ? '进入社区' : cta.buttonLabel }}<AppIcon name="arrow-right" :size="20" /></button></div><img :src="landingAsset(cta.image, 'ctaRobot')" alt="" width="1200" height="600" loading="lazy" /></section>

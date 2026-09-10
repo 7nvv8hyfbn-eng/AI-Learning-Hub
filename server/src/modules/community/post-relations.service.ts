@@ -1,3 +1,4 @@
+import { loadBadgeContext } from './user-badges'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { createHash } from 'node:crypto'
 import type { CommunityPost, Prisma } from '@prisma/client'
@@ -115,12 +116,13 @@ export class CommunityPostRelationsService {
       rows.length ? this.prisma.communityPost.groupBy({ by: ['quotedPostId'], where: { AND: [where, { status: 'published', quotedPostId: { in: rows.map((row) => row.id) } }] }, _count: { _all: true } }) : [],
     ])
     const links = await this.links(userId, targets.map((target) => target.inlineReferences))
+    const badgeContext = await loadBadgeContext(this.prisma)
     const previews = new Map<string, CommunityQuotedPostDto>(ids.map((id) => [id, { id, available: false }]))
     for (const target of targets) {
       const blocks = target.contentBlocks as CommunityContentBlock[]
       // 摘要不含媒体块和原帖的引用对象；文件仍由原帖自己的访问策略校验。
       const excerpt = target.plainText.slice(0, 280).replace(/[#@][\p{L}\p{N}_]*$/u, '')
-      previews.set(target.id, { id: target.id, available: true, author: authorDto(target.author), publishedAt: target.publishedAt!.toISOString(), title: target.title, contentBlocks: [{ type: 'paragraph', text: excerpt }], inlineReferences: links.get(JSON.stringify(target.inlineReferences)) || [], thumbnailFileId: blocks.find((block) => block.type === 'image')?.fileId || undefined })
+      previews.set(target.id, { id: target.id, available: true, author: authorDto(target.author, badgeContext), publishedAt: target.publishedAt!.toISOString(), title: target.title, contentBlocks: [{ type: 'paragraph', text: excerpt }], inlineReferences: links.get(JSON.stringify(target.inlineReferences)) || [], thumbnailFileId: blocks.find((block) => block.type === 'image')?.fileId || undefined })
     }
     return { previews, counts: new Map(counts.map((row) => [row.quotedPostId, row._count._all])) }
   }

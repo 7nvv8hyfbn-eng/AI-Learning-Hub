@@ -1,3 +1,4 @@
+import { loadBadgeContext } from './user-badges'
 import { visibleProfile } from './governance-policy'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { normalizeTopicName, COMMUNITY_USERNAME_PATTERN, type CatalogContentType, type CommunitySearchResultDto, type CommunityInlineCandidateDto } from '@ai-learning-hub/contracts'
@@ -18,7 +19,8 @@ export class CommunitySearchService {
     if (query.kind === 'topic') return (await this.context.topics(userId, { text: q, limit: 8 })).map((topic) => ({ kind: 'topic', id: topic.id, name: topic.name, postCount: topic.postCount }))
     const excluded = await this.visibility.authorExclusions(userId), text = { contains: q, mode: 'insensitive' as const }
     const users = await this.prisma.user.findMany({ where: { ...visibleProfile(), id: { notIn: excluded.authors }, ...(q ? { OR: [{ username: text }, { displayName: text }] } : {}) }, include: authorInclude, orderBy: { id: 'asc' }, take: 24 })
-    return users.filter((row) => COMMUNITY_USERNAME_PATTERN.test(row.username || '')).slice(0, 8).map((row) => { const user = authorDto(row); return { kind: 'mention', id: user.id, name: user.displayName, username: user.username, avatar: user.avatar, verifiedType: user.verifiedType } })
+    const badgeContext = await loadBadgeContext(this.prisma)
+    return users.filter((row) => COMMUNITY_USERNAME_PATTERN.test(row.username || '')).slice(0, 8).map((row) => { const user = authorDto(row, badgeContext); return { kind: 'mention', id: user.id, name: user.displayName, username: user.username, avatar: user.avatar, verifiedType: user.verifiedType, badges: user.badges } })
   }
   async search(userId: string, query: SearchDto): Promise<CommunitySearchResultDto> {
     await this.visibility.viewer(userId)
@@ -41,8 +43,9 @@ export class CommunitySearchService {
       result.posts = await this.posts.mapMany(userId, page(rows))
     }
     if (selected('users')) {
+      const badgeContext = await loadBadgeContext(this.prisma)
       const excluded = await this.visibility.authorExclusions(userId)
-      result.users = page(await this.prisma.user.findMany({ where: { id: { ...id, notIn: excluded.authors }, ...visibleProfile(), OR: [{ username: text }, { displayName: text }] }, include: authorInclude, orderBy: { id: 'asc' }, take: take + 1 })).map(authorDto)
+      result.users = page(await this.prisma.user.findMany({ where: { id: { ...id, notIn: excluded.authors }, ...visibleProfile(), OR: [{ username: text }, { displayName: text }] }, include: authorInclude, orderBy: { id: 'asc' }, take: take + 1 })).map((user) => authorDto(user, badgeContext))
     }
     if (selected('topics')) result.topics = page(await this.context.topics(userId, { text: q, after, limit: take + 1 }))
     // 仅检索已发布快照，避免草稿标题进入公开搜索；映射复用内容公共基础契约。

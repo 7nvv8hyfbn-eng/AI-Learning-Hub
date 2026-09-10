@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { CommunityCommentService } from '../src/modules/community/comment.service'
 
-const comment = (id: string, authorId = 'synthetic-author', status = 'published') => ({ id, postId: 'synthetic-post', authorId, status, revision: 2, parentId: null, rootId: null, deletedAt: null, body: '合成教学评论', contentBlocks: [], likeCount: 0, createdAt: new Date(0), author: { id: authorId, username: authorId, displayName: '合成学生', status: 'active', userRoles: [], receivedModeration: [], _count: { receivedModeration: 0 } }, reactions: [], moderationActions: [], _count: { replies: 0 } })
+const comment = (id: string, authorId = 'synthetic-author', status = 'published') => ({ id, postId: 'synthetic-post', authorId, status, revision: 2, parentId: null, rootId: null, deletedAt: null, body: '合成教学评论', contentBlocks: [], likeCount: 0, createdAt: new Date(0), author: { id: authorId, username: authorId, displayName: '合成学生', status: 'active', profile: {}, identityVerification: null, userRoles: [], receivedModeration: [], _count: { receivedModeration: 0 } }, reactions: [], moderationActions: [], _count: { replies: 0 } })
 
 describe('评论复核读取与提交结果', () => {
   it('只映射当前页和本人的复核信息，使用额外一条确定下一页', async () => {
     const rows = Array.from({ length: 26 }, (_, n) => comment(`synthetic-${n}`))
-    const prisma = {
+    const prisma = { systemSetting: { findUnique: vi.fn(async () => null) },
       communityComment: { findMany: vi.fn(async () => rows) },
       communityQuestionState: { findUnique: vi.fn(async () => null) },
       contentReview: { findMany: vi.fn(async () => []) },
@@ -22,7 +22,7 @@ describe('评论复核读取与提交结果', () => {
   it('有界读取仍遮蔽被下架的资料，封禁父项仅显示占位', async () => {
     const masked = { ...comment('masked'), author: { ...comment('masked').author, receivedModeration: [{ expiresAt: null }] } }
     const banned = { ...comment('banned'), author: { ...comment('banned').author, _count: { receivedModeration: 1 } }, _count: { replies: 521 } }
-    const prisma = { communityComment: { findMany: vi.fn(async () => [masked, banned]) }, communityQuestionState: { findUnique: vi.fn(async () => null) }, contentReview: { findMany: vi.fn(async () => []) } }
+    const prisma = { systemSetting: { findUnique: vi.fn(async () => null) }, communityComment: { findMany: vi.fn(async () => [masked, banned]) }, communityQuestionState: { findUnique: vi.fn(async () => null) }, contentReview: { findMany: vi.fn(async () => []) } }
     const service = new CommunityCommentService(prisma as never, {} as never, { assertPost: vi.fn(), authorExclusions: vi.fn(async () => ({ authors: [] })) } as never, {} as never, {} as never, {} as never)
     const { items } = await service.list('synthetic-viewer', 'synthetic-post')
     expect(items[0]).toMatchObject({ deleted: false, author: { username: '', displayName: '账号资料暂不可见' } })
@@ -30,7 +30,7 @@ describe('评论复核读取与提交结果', () => {
   })
 
   it('拒绝将另一帖子或另一父评论的游标用于当前分页', async () => {
-    const prisma = { communityComment: { findUnique: vi.fn(async () => ({ id: 'other', postId: 'another-post', parentId: null, createdAt: new Date() })), findMany: vi.fn() } }
+    const prisma = { systemSetting: { findUnique: vi.fn(async () => null) }, communityComment: { findUnique: vi.fn(async () => ({ id: 'other', postId: 'another-post', parentId: null, createdAt: new Date() })), findMany: vi.fn() } }
     const service = new CommunityCommentService(prisma as never, {} as never, { assertPost: vi.fn() } as never, {} as never, {} as never, {} as never)
     await expect(service.list('viewer', 'synthetic-post', { cursor: 'other' })).rejects.toThrow('游标')
     expect(prisma.communityComment.findMany).not.toHaveBeenCalled()
@@ -38,7 +38,7 @@ describe('评论复核读取与提交结果', () => {
   it('评论超过500条仍定向返回刚保存的评论，不重复查询所有评论', async () => {
     const row = comment('synthetic-comment-501')
     const tx = { $queryRaw: vi.fn(), communityComment: { create: vi.fn(async () => row) }, communityPost: { update: vi.fn() } }
-    const prisma = {
+    const prisma = { systemSetting: { findUnique: vi.fn(async () => null) },
       $transaction: (fn: (tx: unknown) => Promise<unknown>) => fn(tx),
       communityComment: { findMany: vi.fn(async ({ where, take }: { where: { id?: string }; take: number }) => where.id === row.id ? [row] : Array.from({ length: take }, (_, n) => comment(`synthetic-comment-${n}`))) },
       communityQuestionState: { findUnique: vi.fn(async () => null) },
@@ -54,7 +54,7 @@ describe('评论复核读取与提交结果', () => {
   it('重载后本人可读待审正文和驳回理由，其他读者不查询审核载荷', async () => {
     const row = comment('synthetic-held', 'synthetic-author', 'pending_review')
     const detection = { action: 'review', ruleVersion: 1, mediaReview: 'not_performed', hits: [] }
-    const prisma = {
+    const prisma = { systemSetting: { findUnique: vi.fn(async () => null) },
       communityComment: { findMany: vi.fn().mockResolvedValueOnce([row]).mockResolvedValueOnce([]) },
       communityQuestionState: { findUnique: vi.fn(async () => null) },
       contentReview: { findMany: vi.fn(async () => [{ id: 'synthetic-review', targetId: row.id, contentRevision: 2, findings: detection, status: 'rejected', reason: '请移除合成隐私信息后重投' }]) },

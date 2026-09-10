@@ -11,7 +11,7 @@ export const requiredPermissions = [
   'community.read', 'community.write', 'community.moderate', 'community.topic.manage',
   'community.report.manage', 'community.official.publish', 'community.feed.manage',
   'user.read', 'user.write', 'user.session.revoke', 'user.export',
-  'user.identity.read', 'user.identity.review', 'user.moderator.manage',
+  'user.identity.read', 'user.identity.review', 'user.moderator.manage', 'user.badge.manage',
   'media.read', 'media.write', 'media.delete', 'media.default.manage',
 ]
 const roles: Record<string, string> = {

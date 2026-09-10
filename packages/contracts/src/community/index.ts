@@ -1,6 +1,7 @@
 import type { ResourceContributionDto, ResourceContributionInput } from '../resource-hub'
 import type { ContentDetectionResult } from '../content-detection'
 export * from './inline'
+export * from './badges'
 import type { CommunityInlineReference, CommunityInlineReferenceDto } from './inline'
 
 export const communityPostTypes = ['question', 'note', 'lab_result', 'project', 'frontier_discussion', 'achievement', 'general'] as const
@@ -61,6 +62,7 @@ export interface CommunityBindingInput { type: LearningContentType; id: string }
 export type CommunityBindingDto = LearningContentReferenceDto
 export interface CommunityBindingContextDto { binding: CommunityBindingDto; topicIds: string[] }
 export interface CommunityAuthorDto {
+  badges?: import('./badges').CommunityUserBadge[]
   id: string; username: string; displayName: string; avatar: string | null
   school: string | null; major: string | null; verifiedType: CommunityVerifiedType
 }
