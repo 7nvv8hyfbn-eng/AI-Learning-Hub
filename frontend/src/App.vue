@@ -9,7 +9,7 @@ import PageState from './components/PageState.vue'
 import QuizBridgeDialog from './components/QuizBridgeDialog.vue'
 import AuthDialog from './components/AuthDialog.vue'
 import CommunityComposer from './community/CommunityComposer.vue'
-import { AUTH_SESSION_CLEARED_EVENT, COMMUNITY_VERIFICATION_REQUIRED_EVENT, dataMode, studentSession } from './services/api/client'
+import { AUTH_SESSION_CLEARED_EVENT, dataMode, studentSession } from './services/api/client'
 import { ACCOUNT_BANNED, SESSION_REPLACED, SESSION_REPLACED_MESSAGE } from '@ai-learning-hub/contracts'
 import { useAuthStore } from './stores/auth'
 import { useLearningStore } from './stores/learning'
@@ -72,7 +72,6 @@ const clearApiSession = (event: Event) => {
   if (showNotice) auth.sessionNotice = detail?.message || '登录状态已失效，请重新登录'
 }
 let stopSessionCheck: (() => void) | undefined
-const verificationRequired = async () => { await auth.restore(true); await router.push('/community/verification') }
 const reconnect = async () => { await auth.restore(true); if (!auth.user && auth.authState === 'anonymous') useAuthUiStore().open({ redirect: route.fullPath, reason: '登录已失效，请重新登录后继续当前页面' }) }
 const layout = computed(() => route.meta.layout === 'landing' ? LandingLayout : route.meta.layout === 'immersive' ? ImmersiveLabLayout : route.meta.layout === 'community' || (route.meta.layout === 'adaptive' && auth.user) ? CommunityLayout : PublicLayout)
 
@@ -94,7 +93,6 @@ onMounted(() => {
   window.addEventListener(AUTH_SESSION_CLEARED_EVENT, clearApiSession)
   window.addEventListener('student-auth-before-clear', preserveDrafts)
   stopSessionCheck = watchVisibleSession(() => auth.checkSession())
-  window.addEventListener(COMMUNITY_VERIFICATION_REQUIRED_EVENT, verificationRequired)
   void loadApi()
 })
 onBeforeUnmount(() => {
@@ -103,7 +101,6 @@ onBeforeUnmount(() => {
   window.removeEventListener(AUTH_SESSION_CLEARED_EVENT, clearApiSession)
   window.removeEventListener('student-auth-before-clear', preserveDrafts)
   stopSessionCheck?.()
-  window.removeEventListener(COMMUNITY_VERIFICATION_REQUIRED_EVENT, verificationRequired)
   window.clearTimeout(hideTimer)
 })
 </script>

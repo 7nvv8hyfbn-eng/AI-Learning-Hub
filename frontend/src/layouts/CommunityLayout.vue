@@ -16,7 +16,8 @@ import { useCommunityAccess } from '../community/composables/useCommunityAccess'
 const auth = useAuthStore(), store = useCommunityStore(), router = useRouter(), route = useRoute()
 const { canPost, decision, message, nextAction } = useCommunityAccess()
 const collapsed = ref(false), menuOpen = ref(false)
-const verificationReason = ref('')
+const accessMessage = computed(() => store.accessNotice?.reasonCode === 'COMMUNITY_VERIFICATION_REQUIRED' ? '完成校园实名认证后即可参与社区互动。' : store.accessNotice?.message || message.value)
+const accessAction = computed(() => store.accessNotice?.nextAction || nextAction.value)
 const mainScroll = provideCommunityScrollRoot()
 const focusMainEntry = () => {
   const main = mainScroll.value
@@ -40,11 +41,7 @@ const postAvailableAt = computed(() => {
   const value = decision('post').availableAt
   return value ? `预计 ${new Date(value).toLocaleString('zh-CN')} 后恢复` : ''
 })
-watch(() => auth.user?.identityVerificationStatus, async (status) => {
-  verificationReason.value = ''
-  if (status !== 'rejected') return
-  try { verificationReason.value = (await communityApi.verification()).reviewReason || '' } catch { /* 认证页保留显式重试。 */ }
-}, { immediate: true })
+watch(() => route.fullPath, () => { store.accessNotice = null })
 onMounted(() => { try { collapsed.value = localStorage.getItem('community-sidebar-collapsed') === 'true' } catch { /* 不要求浏览器允许持久存储。 */ }; void store.loadContext(auth.user?.id).catch((error: Error) => { store.error = error.message }); void loadUnread(); polling = window.setInterval(loadUnread, 60000) })
 onBeforeUnmount(() => { window.clearInterval(polling) })
 </script>
@@ -63,7 +60,7 @@ onBeforeUnmount(() => { window.clearInterval(polling) })
       <img v-bind="communityArt.sidebarPlanet" class="sidebar-decoration" alt="" loading="lazy" />
     </aside>
     <header class="community-mobile-header"><RouterLink class="brand" to="/community"><span class="brand-mark">A</span><strong>AI MAKER CAMPUS</strong></RouterLink><button class="icon-button" aria-label="更多功能" @click="menuOpen = true"><AppIcon name="menu" /></button></header>
-    <main id="main-content" ref="mainScroll" class="community-main" tabindex="-1"><aside v-if="!canPost && route.path !== '/community/verification'" class="community-verification-banner"><span>{{ message }}<small v-if="verificationReason">审核意见：{{ verificationReason }}</small><small v-if="postAvailableAt">{{ postAvailableAt }}</small></span><RouterLink v-if="nextAction" class="button secondary" :to="nextAction.route">{{ nextAction.label }}</RouterLink></aside><slot /></main>
+    <main id="main-content" ref="mainScroll" class="community-main" tabindex="-1"><aside v-if="(!canPost || store.accessNotice) && route.path !== '/community/verification'" class="community-verification-banner" :class="{ 'is-prompt': !!store.accessNotice }" role="status"><span>{{ accessMessage }}<small v-if="postAvailableAt">{{ postAvailableAt }}</small></span><div class="community-access-actions"><RouterLink v-if="accessAction" class="button secondary" :to="accessAction.route">{{ accessAction.label }}</RouterLink><button v-if="store.accessNotice" class="button secondary" @click="store.accessNotice = null">继续浏览</button></div></aside><slot /></main>
     <CommunityRightRail v-if="!wide" />
     <nav class="community-bottom-nav" aria-label="移动主导航"><RouterLink v-for="item in communityNavigation.filter((item) => item.mobile).sort((a, b) => a.mobileOrder - b.mobileOrder)" :key="item.path" :to="item.path" :class="{ active: communityNavActive(route.path, item.path) }" :style="{ order: item.mobileOrder }"><AppIcon :name="item.icon" :size="21" /><span>{{ item.label.replace('首页', '').replace('主题', '').replace('项目', '').replace('消息', '').replace('成长', '') }}</span></RouterLink><button class="mobile-publish-button" @click="publish"><AppIcon name="plus" :size="24" /><span>发布</span></button></nav>
     <AppDialog v-model="menuOpen" title="学习社区"><nav class="community-more"><RouterLink v-for="item in communityNavigation" :key="item.path" :to="item.path" @click="menuOpen = false">{{ item.label }}</RouterLink><RouterLink to="/welcome" @click="menuOpen = false">品牌门户</RouterLink><button class="text-link" @click="logout">退出登录</button></nav></AppDialog>

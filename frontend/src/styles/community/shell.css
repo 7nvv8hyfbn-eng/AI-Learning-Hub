@@ -11,6 +11,8 @@ body.community-layout-active { background: radial-gradient(circle at 92% 4%, rgb
 .community-verification-banner span { min-width: 0; }
 .community-verification-banner small { display: block; margin-top: 3px; color: var(--amc-text-secondary); }
 .community-verification-banner .button { flex: 0 0 auto; min-height: 34px; padding-block: 6px; }
+.community-verification-banner.is-prompt { position: sticky; top: 8px; z-index: 20; box-shadow: var(--amc-shadow-card); }
+.community-access-actions { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
 .community-wide .community-main { background: var(--amc-bg-page); }
 .community-wide .page-container, .community-wide .community-main > section:not(.page-container) { width: min(calc(100% - 48px), 1180px); margin-inline: auto; padding-block: 28px 56px; }
 .community-wide .community-main { container-type: inline-size; }

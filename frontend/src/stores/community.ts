@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
-import type { CommunityAuthorDto, CommunityContextDto, CommunityEligibilityDto, CommunityFeedMode, CommunityPostDetailDto, CommunityPostInput, CommunityPostSummaryDto, CommunityPostType, FeedUnitDto } from '@ai-learning-hub/contracts'
+import type { CommunityEligibilityDecisionDto, CommunityAuthorDto, CommunityContextDto, CommunityEligibilityDto, CommunityFeedMode, CommunityPostDetailDto, CommunityPostInput, CommunityPostSummaryDto, CommunityPostType, FeedUnitDto } from '@ai-learning-hub/contracts'
 import { communityApi } from '../services/api/community'
 import { contentDetectionNotice } from '../community/labels'
 import { ApiError } from '../services/api/client'
+import { useCommunityAccess } from '../community/composables/useCommunityAccess'
 export const MAX_FEED_ITEMS = 150, MAX_FEED_CACHES = 6
 export type ComposerIntent = 'post' | 'video' | 'article' | 'document' | 'quote' | 'edit' | 'restore'
 export interface ComposerRequest { input: CommunityPostInput; id?: string; intent: ComposerIntent; localKey?: string }
@@ -11,10 +12,11 @@ interface FeedState {
   pageCursors: Record<string, string | undefined>; resumeCursor?: string; anchor?: { id: string; offset: number }; evicted?: boolean; revealPostId?: string
 }
 export const useCommunityStore = defineStore('community', {
-  state: () => ({ feeds: {} as Record<string, FeedState>, publishedPosts: [] as Extract<FeedUnitDto, { type: 'post' }>[], feedOrder: [] as string[], operations: {} as Record<string, boolean>, authorFollowing: {} as Record<string, boolean>, context: null as CommunityContextDto | null, eligibility: null as CommunityEligibilityDto | null, unread: 0, composerOpen: false, composerMode: 'quick' as 'quick' | 'advanced' | 'rich', composerInline: false, composerIntent: 'post' as ComposerIntent, composerSession: 0, composerRequest: null as ComposerRequest | null, composerLocalKey: undefined as string | undefined, draft: null as CommunityPostInput | null, editingId: undefined as string | undefined, publishNotice: null as { id: string; text: string } | null, error: '', epoch: 0, lastFeedLocation: '/community' }),
+  state: () => ({ accessNotice: null as CommunityEligibilityDecisionDto | null, feeds: {} as Record<string, FeedState>, publishedPosts: [] as Extract<FeedUnitDto, { type: 'post' }>[], feedOrder: [] as string[], operations: {} as Record<string, boolean>, authorFollowing: {} as Record<string, boolean>, context: null as CommunityContextDto | null, eligibility: null as CommunityEligibilityDto | null, unread: 0, composerOpen: false, composerMode: 'quick' as 'quick' | 'advanced' | 'rich', composerInline: false, composerIntent: 'post' as ComposerIntent, composerSession: 0, composerRequest: null as ComposerRequest | null, composerLocalKey: undefined as string | undefined, draft: null as CommunityPostInput | null, editingId: undefined as string | undefined, publishNotice: null as { id: string; text: string } | null, error: '', epoch: 0, lastFeedLocation: '/community' }),
   actions: {
     clear() { const epoch = this.epoch + 1; this.$reset(); this.epoch = epoch },
     openComposer(input?: Partial<CommunityPostInput>, id?: string, options?: { intent?: ComposerIntent; localKey?: string }) {
+      if (!id && options?.intent !== 'restore' && !useCommunityAccess().requireWrite(input?.contribution?.kind === 'video' || input?.contribution?.kind === 'document' ? 'upload' : 'post')) return
       if (this.composerOpen && !input && !id && !options && this.composerIntent === 'post') {
         window.dispatchEvent(new CustomEvent('community-composer-focus'))
         return

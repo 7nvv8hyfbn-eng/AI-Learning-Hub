@@ -4,6 +4,7 @@ import CommunityPostCard from './CommunityPostCard.vue'
 import { communityApi } from '../services/api/community'
 import { mockCommunity, resetCommunityMock } from '../services/api/community.mock'
 import { setupComponent } from './test-renderer'
+import { useCommunityStore } from '../stores/community'
 
 interface CardState {
   hide: (kind: 'hide' | 'not-interested' | 'mute' | 'block') => Promise<void>
@@ -61,7 +62,7 @@ describe('帖子移除事件不刷新不可见详情', () => {
     expect(view.state.unpublishOpen).toBe(false)
     view.unmount()
   })
-  it('未认证互动不写数据并跳转实名认证', async () => {
+  it('未认证互动不写数据，仅提示主动认证并留在当前页面', async () => {
     access.write = false
     const windowTarget = new EventTarget(), notified = vi.fn()
     windowTarget.addEventListener('community-verification-required', notified)
@@ -71,7 +72,9 @@ describe('帖子移除事件不刷新不可见详情', () => {
     try {
       await view.state.reaction('like')
       expect(communityApi.reaction).not.toHaveBeenCalled()
-      expect(notified).toHaveBeenCalledOnce()
+      expect(notified).not.toHaveBeenCalled()
+      expect(access.push).not.toHaveBeenCalled()
+      expect(useCommunityStore().accessNotice).toMatchObject({ reasonCode: 'COMMUNITY_VERIFICATION_REQUIRED', nextAction: { route: '/community/verification' } })
     } finally { view.unmount(); vi.unstubAllGlobals() }
   })
 })

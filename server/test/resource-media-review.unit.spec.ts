@@ -8,6 +8,7 @@ function fixture() {
   const ownerScope = { OR: [publicScope, { authorId: 'synthetic-viewer', status: { in: ['draft', 'pending_review'] } }] }
   const adminScope = { status: { not: 'draft' }, publishedAt: { not: null } }
   const visibility = {
+    assertOperation: vi.fn(async (_user: string, operation: string) => { if (!state.active) throw new Error('账号不可用'); expect(operation).toBe('read') }),
     assertMediaEligibility: vi.fn(async () => { if (!state.active) throw new Error('账号不可用') }),
     viewer: vi.fn(async () => { if (!state.active) throw new Error('账号不可用') }),
     where: vi.fn(async (_user: string, own = false) => { await visibility.viewer(); return own ? ownerScope : publicScope }),

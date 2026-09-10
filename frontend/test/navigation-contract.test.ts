@@ -30,7 +30,7 @@ describe('声明式导航契约', () => {
   it('只读提示直接使用顶层 computed，避免嵌套 ref 被当作真值', () => {
     const layout = source('layouts/CommunityLayout.vue')
     expect(layout).toContain('const { canPost, decision, message, nextAction } = useCommunityAccess()')
-    expect(layout).toContain('v-if="!canPost && route.path !== \'/community/verification\'"')
+    expect(layout).toContain('v-if="(!canPost || store.accessNotice) && route.path !== \'/community/verification\'"')
     expect(layout).not.toContain('access.canWrite')
   })
   it('受限的发布器和上传入口保留草稿并展示解除时间与解决入口', () => {

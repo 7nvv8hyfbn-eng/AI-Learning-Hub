@@ -21,7 +21,7 @@ import ResourceHubCard from '../components/ResourceHubCard.vue'
 import { useCommunityAccess } from './composables/useCommunityAccess'
 
 const route = useRoute(), router = useRouter(), auth = useAuthStore(), store = useCommunityStore()
-const { requireWrite } = useCommunityAccess()
+const { decision, requireWrite } = useCommunityAccess()
 const profile = ref<CommunityProfileDto | null>(null)
 const posts = ref<NonNullable<CommunityProfileDto['pinnedPost']>[]>([])
 const replies = ref<CommunityReplySummaryDto[]>([])
@@ -101,7 +101,7 @@ const load = async () => {
     if (legacyPanel.value === 'following') relationPeople.value = (await communityApi.relations(next.id, 'following')).items
     else await loadTimeline()
     if (epoch === loadEpoch) void communityApi.signals({ eventType: 'community_profile_visit', targetType: 'user', targetId: next.id }).catch(() => undefined)
-    if (route.query.settings === '1' && next.isSelf) openEditor()
+    if (route.query.settings === '1' && next.isSelf && decision('profile').allowed) openEditor()
   } catch (cause) { if (epoch === loadEpoch) error.value = cause instanceof Error ? cause.message : '个人主页读取失败' }
   finally { if (epoch === loadEpoch) loading.value = false }
 }
@@ -149,7 +149,7 @@ const moreRelations = async () => {
   relationPeople.value.push(...result.items); relationCursor.value = result.nextCursor
 }
 const openEditor = () => {
-  if (!profile.value?.isSelf || !requireWrite('profile')) return
+  if (!profile.value?.isSelf) return
   const text = { ...profile.value, ...profile.value.pendingChanges }
   form.value = {
     expectedUserRevision: profile.value.userRevision,
@@ -261,7 +261,7 @@ onBeforeUnmount(() => {
         <div class="community-profile-identity">
           <CommunityAvatar class="community-profile-avatar" :src="profile.avatar" :username="profile.username" :name="profile.displayName" size="lg" />
           <div class="community-profile-actions">
-            <template v-if="profile.isSelf"><RouterLink class="button secondary small" to="/community/governance">处理与申诉</RouterLink><RouterLink class="button secondary small" to="/community/drafts">草稿箱</RouterLink><button class="button secondary small" type="button" @click="openEditor">编辑资料</button></template>
+            <template v-if="profile.isSelf"><RouterLink class="button secondary small" to="/community/governance">处理与申诉</RouterLink><RouterLink class="button secondary small" to="/community/drafts">草稿箱</RouterLink><button class="button secondary small" type="button" @click="requireWrite('profile') && openEditor()">编辑资料</button></template>
             <template v-else>
               <FollowButton v-if="!profile.blocked" :active="profile.following" :pending="store.operations[`follow:user:${profile.id}`]" @click="follow" />
               <CommunityPostMenu label="个人主页操作"><button type="button" role="menuitem" @click="requireWrite('report') && (reportOpen = true)">举报账号资料</button><button type="button" role="menuitem" @click="relationship('mute')">{{ profile.muted ? '取消静音' : '静音该用户' }}</button><button type="button" role="menuitem" @click="relationship('block')">{{ profile.blocked ? '取消拉黑' : '拉黑该用户' }}</button></CommunityPostMenu>

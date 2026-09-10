@@ -885,7 +885,7 @@ export class ResourceHubService {
   }
 
   private async assertMediaPost(userId: string, media: Prisma.CommunityPostWhereInput, targetId: string) {
-    await this.visibility.assertMediaEligibility(userId)
+    await this.visibility.assertOperation(userId, 'read')
     const post = await this.prisma.communityPost.findFirst({ where: { AND: [media, await this.visibility.where(userId, true)] }, select: { authorId: true } })
     if (post) { await this.visibility.assertMediaEligibility(post.authorId); return }
     const reviewer = await this.prisma.user.count({ where: { id: userId, AND: ['community.moderate', 'resource.read'].map((code) => ({ userRoles: { some: { role: { permissions: { some: { permission: { code } } } } } } })) } })
@@ -897,7 +897,7 @@ export class ResourceHubService {
   }
 
   private async visibleAsset(userId: string, id: string, preview = false) {
-    await this.visibility.assertMediaEligibility(userId)
+    await this.visibility.assertOperation(userId, 'read')
     const asset = await this.prisma.videoAsset.findFirst({
       where: { id, status: 'ready', playableFileId: { not: null }, durationSeconds: { gt: 0 }, ...(preview ? {} : { contribution: { is: { post: await this.visibility.where(userId) } } }) },
       include: { contribution: true },
