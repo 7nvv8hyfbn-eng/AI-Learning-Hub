@@ -30,7 +30,7 @@ beforeEach(() => { vi.resetAllMocks(); Object.assign(draft, { richBlocks: [{ typ
 afterEach(() => { unmount?.(); vi.restoreAllMocks() })
 it('无光标时恢复与导入整篇正文，不使用光标插入接口', async () => {
   const mounted = setupComponent<State>(BaseRichEditor); unmount = mounted.unmount
-  const editor = { setHtml: vi.fn(), getHtml: () => '<p>导入</p>', enable: vi.fn(), disable: vi.fn(), destroy: vi.fn() } as unknown as IDomEditor
+  const editor = { on: vi.fn(), setHtml: vi.fn(), getHtml: () => '<p>导入</p>', enable: vi.fn(), disable: vi.fn(), destroy: vi.fn() } as unknown as IDomEditor
   mounted.state.handleCreated(editor)
   await flushRender()
   expect(editor.setHtml).toHaveBeenCalledWith(JSON.stringify(draft.richBlocks))

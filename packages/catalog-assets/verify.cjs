@@ -57,8 +57,8 @@ async function verify() {
   const achievements = ['first-course', 'seven-day-streak', 'first-lab', 'deployment-starter', 'agent-builder', 'command-runner', 'hardware-maker', 'first-assessment', 'high-score', 'resource-curator', 'project-maker', 'learning-star']
   for (const name of [...achievements, 'brain', 'network', 'rag', 'database', 'workflow', 'memory', 'api', 'container', 'gpu', 'sensor', 'edge', 'crop', 'template', 'download', 'pulse', 'scale', 'graduation', 'missing']) assert.ok(iconRegistry[name], name)
   const iconfont = fs.readFileSync(path.join(__dirname, 'icons', 'iconfont.js'), 'utf8')
-  assert.equal((iconfont.match(/<symbol /g) || []).length, 143)
-  assert.equal((iconfont.match(/(?:fill|stroke)="currentColor"/g) || []).length, 143)
+  assert.equal((iconfont.match(/<symbol /g) || []).length, 148)
+  assert.equal((iconfont.match(/(?:fill|stroke)="currentColor"/g) || []).length, 148)
   assert.doesNotMatch(iconfont, /fill="#000000"/)
   for (const [name, symbol] of Object.entries(iconRegistry)) {
     assert.match(symbol, /^[A-Za-z0-9_-]+$/, name)

@@ -34,6 +34,8 @@ CommonJS 运行入口为 `dist/manifest.js`，声明入口为 `dist/manifest.d.t
 
 `icons/iconfont.js` 是项目唯一 UI 图标源，使用阿里 iconfont Symbol 模式；所有路径统一为 `currentColor`。`icons/registry.ts` 只维护既有业务名称到 Symbol ID 的映射，学生端和管理端均通过现有图标组件渲染 `<use>`。
 
+关闭与页面返回使用夜悠缘的[线型图标库 25233](https://www.iconfont.cn/collections/detail?cid=25233)：“关 闭” `17984171` 对应 `close`，“返回” `17879241` 对应 `back`。保留原始路径及 `0 0 1024 1024` viewBox，仅统一为 `currentColor`；关闭不带圆圈，页面返回与上一节、轮播翻页分别映射。后台弹窗和富文本编辑器弹层也复用这两个 Symbol。
+
 未知名称返回中性 `missing` 图标；开发环境警告由页面 `AppIcon` 统一处理。正式 SVG 不含位图、Base64、脚本或外部引用。
 
 侧栏菜单与搜索使用 hanabizh 的[无风格化icon 图标集](https://www.iconfont.cn/collections/detail?cid=53651)：菜单 `46962277`、搜索 `46962314` 分别映射 `sidebar-menu`、`feed-search`。

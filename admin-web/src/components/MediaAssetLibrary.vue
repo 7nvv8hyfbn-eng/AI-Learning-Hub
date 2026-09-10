@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { MediaAssetDto, MediaContentType, MediaDefaultRuleDto, MediaUsageDto, PageResult } from '@ai-learning-hub/contracts'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import AdminCloseIcon from './AdminCloseIcon.vue'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { usePermissionAction } from '../composables/usePermissionAction'
 import { useSessionStore } from '../stores/session'
@@ -75,7 +76,7 @@ const remove = async () => {
   if (!selected.value || !canDelete.value || busy.value) return
   const targetId = selected.value.id
   busy.value = true
-  try { await ElMessageBox.confirm('删除只标记素材，不删除内容。仍有草稿、发布、历史或默认引用的素材不能删除。', '删除素材', { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' }) } catch { return }
+  try { await ElMessageBox.confirm('删除只标记素材，不删除内容。仍有草稿、发布、历史或默认引用的素材不能删除。', '删除素材', { type: 'warning', closeIcon: AdminCloseIcon, confirmButtonText: '确认删除', cancelButtonText: '取消' }) } catch { return }
   finally { busy.value = false }
   await action(async () => {
     await api(`/admin/media-assets/${targetId}`, { method: 'DELETE' })

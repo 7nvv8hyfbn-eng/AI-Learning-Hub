@@ -56,7 +56,7 @@ watch(() => route.query.login, (value) => { if (value === '1') { authUi.open({ r
         <RouterLink v-if="auth.user" class="text-link" to="/community">进入学习社区</RouterLink>
         <button v-if="auth.user" class="text-link" type="button" @click="logout">退出</button>
         <RouterLink class="button primary header-cta" to="/topics">开始学习</RouterLink>
-        <button class="icon-button mobile-nav-toggle" type="button" :aria-expanded="navOpen" aria-controls="main-navigation" :aria-label="navOpen ? '关闭主导航' : '打开主导航'" @click="navOpen = !navOpen"><AppIcon :name="navOpen ? 'close' : 'menu'" :size="20" /></button>
+        <button class="icon-button mobile-nav-toggle" :class="{ 'close-button': navOpen }" type="button" :aria-expanded="navOpen" aria-controls="main-navigation" :aria-label="navOpen ? '关闭主导航' : '打开主导航'" @click="navOpen = !navOpen"><AppIcon :name="navOpen ? 'close' : 'menu'" :size="20" /></button>
       </div>
     </div>
   </header>

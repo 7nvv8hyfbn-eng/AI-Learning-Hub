@@ -137,7 +137,7 @@ onBeforeUnmount(() => { loadEpoch++; void saveProgress() })
 
 <template>
   <section class="page-container resource-detail-page">
-    <header class="resource-detail-breadcrumb"><RouterLink to="/resources"><i class="resource-direction-arrow back" aria-hidden="true" />返回教程中心</RouterLink><button class="button secondary small" @click="share">分享</button></header>
+    <header class="resource-detail-breadcrumb"><RouterLink to="/resources"><AppIcon name="back" :size="18" />返回教程中心</RouterLink><button class="button secondary small" @click="share">分享</button></header>
     <p v-if="error" class="community-error" role="alert">{{ error }} <button class="text-link" @click="load">重试</button></p>
     <p v-if="notice" class="community-notice" role="status">{{ notice }}</p>
     <template v-if="detail">

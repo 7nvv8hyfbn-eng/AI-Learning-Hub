@@ -2,6 +2,7 @@
 import '@wangeditor/editor/dist/css/style.css'
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
+import { getIconHref } from '@ai-learning-hub/catalog-assets/icons/registry'
 import CommunityInlineSuggestions from '../CommunityInlineSuggestions.vue'
 import { DomEditor, SlateEditor, SlateElement, SlateNode, SlateRange, SlateTransforms } from '@wangeditor/editor'
 import type { InlineEditorAdapter } from '../inlineEditor'
@@ -106,7 +107,18 @@ const restoreBlocks = async () => {
   } catch (cause) { if (active()) { draft.richError = '图片或草稿读取失败，请关闭后重试，原稿已保留'; draft.error = cause instanceof Error ? cause.message : draft.richError } }
   finally { release(); if (active()) hydrating.value = false }
 }
-const handleCreated = (editor: IDomEditor) => { editorRef.value = editor; void restoreBlocks() }
+const handleCreated = (editor: IDomEditor) => {
+  editorRef.value = editor
+  // 编辑器内部弹层没有图标配置项，在其展示事件中复用项目关闭 Symbol。
+  editor.on('modalOrPanelShow', () => {
+    root.value?.querySelectorAll('.w-e-modal .btn-close svg').forEach((svg) => {
+      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use')
+      use.setAttribute('href', getIconHref('close'))
+      svg.replaceChildren(use)
+    })
+  })
+  void restoreBlocks()
+}
 const customPaste = (_editor: IDomEditor, event: ClipboardEvent, callback: (allow: boolean) => void) => {
   try { richHtmlToBlocks(event.clipboardData?.getData('text/html') || '', imageIds); callback(true) }
   catch (cause) { draft.error = (cause as Error).message; callback(false) }

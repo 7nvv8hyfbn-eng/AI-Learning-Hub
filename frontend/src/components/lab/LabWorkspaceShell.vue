@@ -39,7 +39,7 @@ const related = computed(() => props.definition.relatedResourceIds
     <div class="page-container">
       <section class="lab-hero">
         <div>
-          <RouterLink class="back-link" to="/labs"><AppIcon name="arrow-left" :size="16" />返回实训项目</RouterLink>
+          <RouterLink class="back-link" to="/labs"><AppIcon name="back" :size="16" />返回实训项目</RouterLink>
           <span class="tag purple">{{ definition.category }} · {{ definition.level }}</span>
           <h1>{{ definition.title }}</h1>
           <p>{{ definition.subtitle }}</p>

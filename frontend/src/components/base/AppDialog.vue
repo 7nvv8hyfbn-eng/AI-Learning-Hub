@@ -88,7 +88,7 @@ onBeforeUnmount(() => {
       <div class="dialog-card" @click.stop>
         <slot name="header" :close="close" :title-id="titleId"><div class="dialog-title">
           <strong :id="titleId">{{ title }}</strong>
-          <button class="icon-button" type="button" :aria-label="`关闭${title}`" @click="close"><AppIcon name="close" :size="18" /></button>
+          <button class="icon-button close-button" type="button" :aria-label="`关闭${title}`" @click="close"><AppIcon name="close" :size="18" /></button>
         </div></slot>
         <slot :close="close" />
       </div>

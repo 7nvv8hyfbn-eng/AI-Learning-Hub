@@ -17,7 +17,6 @@
 .resource-hub-banner-copy p { display: -webkit-box; max-width: 460px; margin: 0 0 20px; overflow: hidden; color: var(--secondary); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .resource-hub-banner-copy .button { display: inline-flex; gap: 8px; align-items: center; }
 .resource-direction-arrow { display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; border: solid currentColor; border-width: 1.5px 1.5px 0 0; transform: rotate(45deg); }
-.resource-direction-arrow.back { transform: rotate(-135deg); }
 .resource-direction-arrow.up { transform: rotate(-45deg); }
 .resource-direction-arrow.down { transform: rotate(135deg); }
 .resource-hub-banner-empty { background: #fff8f3; }

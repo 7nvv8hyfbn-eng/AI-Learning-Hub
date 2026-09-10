@@ -6,6 +6,8 @@
 .header-actions, .hero-actions, .card-actions, .lab-hero-actions { display: flex; align-items: center; gap: 10px; }
 .icon-button { display: inline-grid; place-items: center; min-width: 40px; min-height: 40px; border: 1px solid var(--amc-border); border-radius: 50%; background: var(--amc-surface); cursor: pointer; transition: color var(--amc-duration-control) var(--amc-ease), background var(--amc-duration-control) var(--amc-ease); }
 .icon-button:hover { border-color: var(--amc-orange-border); background: var(--amc-bg-soft); }
+.icon-button.close-button { border: 0; border-radius: var(--amc-radius-xs); background: transparent; }
+.icon-button.close-button:hover { color: var(--brand); background: var(--amc-bg-soft); }
 .icon-button .app-icon, .value-pills .app-icon, .lab-badges .app-icon, .terminal-header .app-icon, .report-link .app-icon { color: inherit; }
 .icon-button.active { color: var(--brand); border-color: #ffc4b2; background: var(--brand-soft); }
 .community-avatar { position: relative; display: inline-grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; color: var(--amc-surface); background: linear-gradient(145deg, var(--amc-purple), color-mix(in srgb, var(--amc-purple) 50%, var(--amc-surface))); border-radius: 50%; font-weight: 700; vertical-align: middle; }
