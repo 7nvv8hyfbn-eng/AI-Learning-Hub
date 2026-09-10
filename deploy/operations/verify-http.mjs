@@ -132,11 +132,16 @@ try {
   }
   assert(playback && video, '恢复库没有获准播放的真实视频，不能声称播放通过')
   const eligibility = await json('/community/eligibility', student.accessToken)
-  const decision = eligibility.operations.upload
-  const expectedAccess = decision.allowed || decision.reasonCode === 'COMMUNITY_OPERATION_RESTRICTED'
+  const expectedAccess = eligibility.operations.read.allowed
   const studentPlayback = await fetch(`${base}/resource-hub/videos/${encodeURIComponent(video.videoAssetId)}/playback`, { headers: { authorization: `Bearer ${student.accessToken}` }, signal: AbortSignal.timeout(10000) })
-  assert.equal(studentPlayback.status, expectedAccess ? 200 : 403)
-  await studentPlayback.arrayBuffer()
+  if (input.previous && expectedAccess && studentPlayback.status === 403) {
+    // 仅回滚读取演练兼容旧版把观看资格归入上传资格；候选版本必须按 read 放行。
+    assert.equal(eligibility.operations.upload.allowed, false)
+    assert.equal((await studentPlayback.json()).errorCode, 'COMMUNITY_VERIFICATION_REQUIRED')
+  } else {
+    assert.equal(studentPlayback.status, expectedAccess ? 200 : 403)
+    await studentPlayback.arrayBuffer()
+  }
   checks.push('media-eligibility-enforced')
   const playbackUrl = new URL(playback.sources[0].src, base)
   assert.equal(playbackUrl.origin, 'http://127.0.0.1:3000')
