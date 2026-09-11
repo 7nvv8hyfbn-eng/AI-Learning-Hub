@@ -1,11 +1,11 @@
-.course-hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .65fr) 270px; gap: 28px; align-items: center; margin: 40px 0 28px; padding: 35px; border-radius: var(--radius-hero); background: linear-gradient(135deg, #fff, #f1efff); }
+.course-hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .65fr); gap: 28px; align-items: center; margin: 40px 0 28px; padding: 35px; border-radius: var(--radius-hero); background: linear-gradient(135deg, #fff, #f1efff); }
 .course-hero h1 { margin: 13px 0; font-size: clamp(2.15rem, 3.2vw, 3.4rem); }
 .course-hero > .category-cover { border-radius: 18px; }
 .teacher { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
 .teacher div { display: flex; flex-direction: column; }
 .teacher small { color: var(--muted); }
 .teacher .button { margin-left: 8px; }
-.hero-progress { display: flex; flex-direction: column; gap: 15px; padding: 21px; border: 1px solid var(--border); border-radius: var(--radius-card); background: white; box-shadow: var(--shadow); }
+.course-progress { display: flex; flex-direction: column; gap: 15px; margin-top: 24px; padding: 21px; border: 1px solid var(--border); border-radius: var(--radius-card); background: white; box-shadow: var(--shadow); }
 .learning-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr) 270px; align-items: start; gap: 20px; }
 .sticky { position: sticky; top: 92px; }
 .outline-title { display: flex; justify-content: space-between; width: 100%; min-height: 42px; border: 0; background: transparent; cursor: pointer; }

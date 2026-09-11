@@ -3,7 +3,7 @@ import CommunityAvatar from '../components/base/CommunityAvatar.vue'
 import FollowButton from '../components/base/FollowButton.vue'
 import type { CourseDetailDto } from '@ai-learning-hub/contracts'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CourseCard from '../components/CourseCard.vue'
 import AppDialog from '../components/base/AppDialog.vue'
@@ -33,6 +33,7 @@ const course = computed(() => {
 })
 const courseId = computed(() => String(route.params.courseId))
 const currentLesson = ref(Math.max(1, Number(route.query.lesson) || 1))
+const lessonContent = ref<HTMLElement | null>(null)
 const expanded = ref(true)
 const copyMessage = ref('复制代码')
 const followed = ref(false)
@@ -60,7 +61,11 @@ const accountDataMessage = computed(() => {
 })
 const startLearning = async (next = false) => {
   if (!ensureAuth('登录后可开始课程并记录学习进度', () => startLearning(next))) return
-  try { if (dataMode === 'api') await behaviorApi.enroll(courseId.value); if (next) currentLesson.value++; document.querySelector('.lesson-content')?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+  try {
+    if (dataMode === 'api') await behaviorApi.enroll(courseId.value)
+    if (next) currentLesson.value++
+    else lessonContent.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
   catch (error) { window.dispatchEvent(new CustomEvent('api-error', { detail: { message: error instanceof Error ? error.message : '暂时无法开始课程' } })) }
 }
 const copyCode = async (code: unknown) => {
@@ -81,8 +86,10 @@ const completeCurrentLesson = () => {
   if (lessonId) void store.completeCourseStep(courseId.value, lessonId, displayLessons.value.length)
 }
 const recommendations = computed(() => courses.value.filter((item) => item.id !== courseId.value).slice(0, 4))
-watch(currentLesson, (lesson) => {
-  router.replace({ query: { ...route.query, lesson: String(lesson) } })
+watch(currentLesson, async (lesson) => {
+  await router.replace({ query: { ...route.query, lesson: String(lesson) } })
+  await nextTick()
+  if (!detailLoading.value) lessonContent.value?.scrollIntoView({ block: 'start' })
 })
 watch(noteKey, (key) => { noteDraft.value = store.notes[key] || '' })
 watch(courseId, async () => {
@@ -109,7 +116,6 @@ watch(courseId, async () => {
     <section class="course-hero">
       <div class="hero-copy"><span class="tag purple">{{ course.category }}</span><h1>{{ course.title }}</h1><p>{{ course.description }}</p><div class="meta"><span>{{ course.level }}</span><span>{{ chapterCount }} 章 · {{ displayLessons.length }} 节</span><span>{{ course.learners === undefined ? '学习人数 —' : `${course.learners.toLocaleString()} 人学习` }}</span><span>{{ courseDetail?.data.rating ? `${courseDetail.data.rating} 分` : '评分 —' }}</span></div><div class="teacher"><CommunityAvatar :name="courseDetail?.data.instructor?.name || '讲师'" :avatar-key="dataMode === 'mock' ? 'official-teacher' : undefined" /><div><strong>{{ courseDetail?.data.instructor?.name || (dataMode === 'api' ? '讲师待配置' : '林知远老师') }}</strong><small>{{ courseDetail?.data.instructor?.title || (dataMode === 'api' ? '信息待配置' : '高校 AI 应用课程讲师') }}</small></div><FollowButton v-if="dataMode === 'mock'" :active="followed" @click="followed = !followed" /></div></div>
       <CategoryCover :title="course.title" :media="course" eager />
-      <aside class="hero-progress"><ProgressBar v-if="accountDataReady" :value="store.courseProgress[course.id] ?? course.progress ?? 0" label="学习进度" /><p v-else class="notice">{{ accountDataMessage }}</p><strong>当前第 {{ currentLesson }} / {{ displayLessons.length }} 课时</strong><button class="button primary full-width" type="button" :disabled="!displayLessons.length" @click="startLearning()">{{ store.courseProgress[course.id] ? '继续学习' : '开始学习' }}</button><button class="button secondary full-width" type="button" :disabled="!displayLessons.length" @click="completeCurrentLesson">完成本节</button><button class="button secondary full-width" type="button" @click="store.toggleFavorite('course', course.id)">{{ store.isFavorite('course', course.id) ? '已收藏' : '收藏课程' }}</button></aside>
     </section>
     <RouterLink class="text-link" :to="`/community/search?bindingId=${courseId}`">查看课程相关讨论 <AppIcon name="arrow-up-right" :size="14" /></RouterLink>
     <div class="learning-layout">
@@ -124,7 +130,7 @@ watch(courseId, async () => {
         <p v-else-if="expanded">课程尚未发布结构化课时。</p>
         <div v-if="courseDetail?.data.certificate" class="certificate-card">完成全部课程可获得<br /><strong>{{ courseDetail.data.certificate }}</strong></div>
       </aside>
-      <article class="lesson-content">
+      <article ref="lessonContent" class="lesson-content">
         <div class="lesson-nav"><button type="button" :disabled="currentLesson === 1" @click="currentLesson--"><AppIcon name="arrow-left" :size="16" />上一节</button><strong>第 {{ currentLesson }} 节</strong><button type="button" :disabled="currentLesson === displayLessons.length || !displayLessons.length" @click="currentLesson++">下一节<AppIcon name="arrow-right" :size="16" /></button></div>
         <div v-if="detailLoading" class="notice">正在读取已发布课程内容…</div>
         <div v-else-if="detailError" class="notice error">{{ detailError }}，未回退到演示内容。</div>
@@ -152,6 +158,7 @@ watch(courseId, async () => {
           <div v-else class="inline-empty"><p>该课程暂无已发布课时内容。</p></div>
         </template>
         <div class="lesson-actions"><button type="button" @click="noteOpen = true">记录笔记</button><template v-if="dataMode === 'mock'"><button type="button" @click="questionSent = !questionSent">{{ questionSent ? '问题已记录' : '向老师提问' }}</button><button type="button" :class="{ active: liked }" @click="liked = !liked">{{ liked ? '已点赞' : '点赞本节' }}</button></template></div>
+        <aside class="course-progress"><ProgressBar v-if="accountDataReady" :value="store.courseProgress[course.id] ?? course.progress ?? 0" label="学习进度" /><p v-else class="notice">{{ accountDataMessage }}</p><strong>当前第 {{ currentLesson }} / {{ displayLessons.length }} 课时</strong><button class="button primary full-width" type="button" :disabled="!displayLessons.length" @click="startLearning()">{{ store.courseProgress[course.id] ? '继续学习' : '开始学习' }}</button><button class="button secondary full-width" type="button" :disabled="!displayLessons.length" @click="completeCurrentLesson">完成本节</button><button class="button secondary full-width" type="button" @click="store.toggleFavorite('course', course.id)">{{ store.isFavorite('course', course.id) ? '已收藏' : '收藏课程' }}</button></aside>
       </article>
       <aside class="lesson-aside sticky">
         <section><div class="panel-title"><strong>我的笔记</strong><button type="button" @click="noteOpen = true">编辑</button></div><p>{{ store.notes[noteKey] || '还没有笔记，记录一个关键想法吧。' }}</p><button class="text-link" type="button" :disabled="!store.notes[noteKey]" @click="shareNote">发布为学习笔记</button><small class="muted">仅在预览并确认后公开。</small></section>

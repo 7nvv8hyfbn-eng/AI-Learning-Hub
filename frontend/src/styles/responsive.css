@@ -19,7 +19,6 @@
   .catalog-layout > .study-aside { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); }
   .card-grid.three { grid-template-columns: repeat(2, 1fr); }
   .course-hero { grid-template-columns: 1fr .65fr; }
-  .course-hero .hero-progress { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto auto; align-items: center; }
   .learning-layout { grid-template-columns: 220px minmax(0, 1fr); }
   .lesson-aside { grid-column: 1 / -1; grid-template-columns: repeat(4, 1fr); }
   .lesson-aside.sticky { position: static; }
@@ -155,7 +154,6 @@
   .filter-panel { grid-template-columns: 1fr; }
   .filter-panel .panel-title { grid-column: auto; }
   .course-hero { grid-template-columns: 1fr; padding: 24px; }
-  .course-hero .hero-progress { grid-column: auto; display: flex; }
   .lesson-content { padding: 20px; }
   .lesson-aside { grid-template-columns: 1fr; }
   .featured-lab { grid-template-columns: 1fr; }

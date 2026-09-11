@@ -27,7 +27,8 @@ body.community-layout-active { background: radial-gradient(circle at 92% 4%, rgb
 .community-main .page-container p { font-size: var(--amc-font-body); }
 .community-main .content-card:hover { transform: none; }
 .community-main :is(.course-hero, .learning-layout) { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
-.community-main .course-hero .hero-progress, .community-main .lesson-aside { grid-column: 1 / -1; }
+.community-main .lesson-aside { grid-column: 1 / -1; }
+.community-main:has(.learning-layout) { scroll-padding-top: 16px; }
 .community-main .catalog-layout { grid-template-columns: 190px minmax(0, 1fr); }
 .community-main .catalog-layout > .study-aside { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .community-main .featured-lab, .community-main .challenge-hero { grid-template-columns: minmax(0, 1fr) minmax(180px, .65fr); }
