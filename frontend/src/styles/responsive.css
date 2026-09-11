@@ -19,7 +19,7 @@
   .catalog-layout > .study-aside { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); }
   .card-grid.three { grid-template-columns: repeat(2, 1fr); }
   .course-hero { grid-template-columns: 1fr .65fr; }
-  .learning-layout { grid-template-columns: 220px minmax(0, 1fr); }
+  .learning-layout { grid-template-columns: minmax(0, 1fr) 220px; }
   .lesson-aside { grid-column: 1 / -1; grid-template-columns: repeat(4, 1fr); }
   .lesson-aside.sticky { position: static; }
   .workspace-layout { grid-template-columns: 210px minmax(0, 1fr); }

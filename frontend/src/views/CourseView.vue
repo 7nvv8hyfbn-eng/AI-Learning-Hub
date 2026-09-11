@@ -119,17 +119,6 @@ watch(courseId, async () => {
     </section>
     <RouterLink class="text-link" :to="`/community/search?bindingId=${courseId}`">查看课程相关讨论 <AppIcon name="arrow-up-right" :size="14" /></RouterLink>
     <div class="learning-layout">
-      <aside class="outline-panel sticky">
-        <button class="outline-title" type="button" @click="expanded = !expanded"><strong>课程大纲</strong><span>{{ expanded ? '收起' : '展开' }}</span></button>
-        <div v-if="expanded && displayLessons.length" class="lesson-list">
-          <section v-for="chapter in lessonChapters" :key="chapter.id" class="lesson-chapter">
-            <h3>{{ chapter.title }}</h3>
-            <button v-for="lesson in chapter.lessons" :key="lesson.id" type="button" :class="{ active: lesson.number === currentLesson }" :aria-current="lesson.number === currentLesson ? 'step' : undefined" @click="currentLesson = lesson.number"><span>{{ String(lesson.number).padStart(2, '0') }}</span>{{ lesson.title }}</button>
-          </section>
-        </div>
-        <p v-else-if="expanded">课程尚未发布结构化课时。</p>
-        <div v-if="courseDetail?.data.certificate" class="certificate-card">完成全部课程可获得<br /><strong>{{ courseDetail.data.certificate }}</strong></div>
-      </aside>
       <article ref="lessonContent" class="lesson-content">
         <div class="lesson-nav"><button type="button" :disabled="currentLesson === 1" @click="currentLesson--"><AppIcon name="arrow-left" :size="16" />上一节</button><strong>第 {{ currentLesson }} 节</strong><button type="button" :disabled="currentLesson === displayLessons.length || !displayLessons.length" @click="currentLesson++">下一节<AppIcon name="arrow-right" :size="16" /></button></div>
         <div v-if="detailLoading" class="notice">正在读取已发布课程内容…</div>
@@ -160,6 +149,17 @@ watch(courseId, async () => {
         <div class="lesson-actions"><button type="button" @click="noteOpen = true">记录笔记</button><template v-if="dataMode === 'mock'"><button type="button" @click="questionSent = !questionSent">{{ questionSent ? '问题已记录' : '向老师提问' }}</button><button type="button" :class="{ active: liked }" @click="liked = !liked">{{ liked ? '已点赞' : '点赞本节' }}</button></template></div>
         <aside class="course-progress"><ProgressBar v-if="accountDataReady" :value="store.courseProgress[course.id] ?? course.progress ?? 0" label="学习进度" /><p v-else class="notice">{{ accountDataMessage }}</p><strong>当前第 {{ currentLesson }} / {{ displayLessons.length }} 课时</strong><button class="button primary full-width" type="button" :disabled="!displayLessons.length" @click="startLearning()">{{ store.courseProgress[course.id] ? '继续学习' : '开始学习' }}</button><button class="button secondary full-width" type="button" :disabled="!displayLessons.length" @click="completeCurrentLesson">完成本节</button><button class="button secondary full-width" type="button" @click="store.toggleFavorite('course', course.id)">{{ store.isFavorite('course', course.id) ? '已收藏' : '收藏课程' }}</button></aside>
       </article>
+      <aside class="outline-panel sticky">
+        <button class="outline-title" type="button" @click="expanded = !expanded"><strong>课程大纲</strong><span>{{ expanded ? '收起' : '展开' }}</span></button>
+        <div v-if="expanded && displayLessons.length" class="lesson-list">
+          <section v-for="chapter in lessonChapters" :key="chapter.id" class="lesson-chapter">
+            <h3>{{ chapter.title }}</h3>
+            <button v-for="lesson in chapter.lessons" :key="lesson.id" type="button" :class="{ active: lesson.number === currentLesson }" :aria-current="lesson.number === currentLesson ? 'step' : undefined" @click="currentLesson = lesson.number"><span>{{ String(lesson.number).padStart(2, '0') }}</span>{{ lesson.title }}</button>
+          </section>
+        </div>
+        <p v-else-if="expanded">课程尚未发布结构化课时。</p>
+        <div v-if="courseDetail?.data.certificate" class="certificate-card">完成全部课程可获得<br /><strong>{{ courseDetail.data.certificate }}</strong></div>
+      </aside>
       <aside class="lesson-aside sticky">
         <section><div class="panel-title"><strong>我的笔记</strong><button type="button" @click="noteOpen = true">编辑</button></div><p>{{ store.notes[noteKey] || '还没有笔记，记录一个关键想法吧。' }}</p><button class="text-link" type="button" :disabled="!store.notes[noteKey]" @click="shareNote">发布为学习笔记</button><small class="muted">仅在预览并确认后公开。</small></section>
         <section><h3>相关资料</h3><RouterLink v-for="resource in courseDetail?.relatedResources || []" :key="resource.slug" :to="{ path: '/resources', query: { preview: resource.slug } }">{{ resource.title }}</RouterLink><p v-if="!courseDetail?.relatedResources.length">本课程的参考来源列在最后一节。</p></section>

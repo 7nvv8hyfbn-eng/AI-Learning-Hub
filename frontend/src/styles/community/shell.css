@@ -26,7 +26,8 @@ body.community-layout-active { background: radial-gradient(circle at 92% 4%, rgb
 .community-main :is(.course-grid, .lab-grid, .resource-grid, .article-grid, .card-grid.three) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .community-main .page-container p { font-size: var(--amc-font-body); }
 .community-main .content-card:hover { transform: none; }
-.community-main :is(.course-hero, .learning-layout) { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
+.community-main .course-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); }
+.community-main .learning-layout { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
 .community-main .lesson-aside { grid-column: 1 / -1; }
 .community-main:has(.learning-layout) { scroll-padding-top: 16px; }
 .community-main .catalog-layout { grid-template-columns: 190px minmax(0, 1fr); }
