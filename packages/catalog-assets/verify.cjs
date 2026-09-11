@@ -7,7 +7,7 @@ const { catalogAssets, getCatalogAsset, getDefaultAssetKeys, normalizeCategoryKe
 const { iconRegistry, getIconHref } = require('./dist/icons/registry')
 
 async function verify() {
-  assert.equal(catalogAssets.length, 118)
+  assert.equal(catalogAssets.length, 166)
   assert.equal(new Set(catalogAssets.map((asset) => asset.assetKey)).size, catalogAssets.length)
   assert.equal(new Set(catalogAssets.map((asset) => asset.file)).size, catalogAssets.length)
   for (const [contentType, count] of Object.entries({ course: 24, lab: 13, resource: 24, article: 15, challenge: 5 })) {
@@ -15,6 +15,13 @@ async function verify() {
   }
   assert.equal(catalogAssets.filter((asset) => asset.assetKey.startsWith('default--')).length, 31)
   assert.equal(catalogAssets.filter((asset) => asset.kind === 'hero').length, 6)
+  assert.equal(catalogAssets.filter((asset) => asset.kind === 'illustration').length, 48)
+  for (const cover of catalogAssets.filter((asset) => asset.contentType === 'course' && asset.contentSlug && asset.kind === 'cover')) {
+    const illustrations = catalogAssets.filter((asset) => asset.kind === 'illustration' && asset.contentSlug === cover.contentSlug)
+    assert.equal(illustrations.length, 2, cover.contentSlug)
+    assert.equal(new Set(illustrations.map((asset) => asset.knowledgePoint)).size, 2, cover.contentSlug)
+    for (const asset of [cover, ...illustrations]) assert.equal(asset.mascot, true, asset.assetKey)
+  }
   assert.equal(normalizeCategoryKey('resource', '提示词模板'), 'prompt-template')
   assert.equal(normalizeCategoryKey('article', '模型部署'), 'generic')
   assert.deepEqual(getDefaultAssetKeys('course', 'llm'), ['default--course--llm', 'default--course--generic', 'default--global--generic'])
@@ -31,7 +38,7 @@ async function verify() {
     assert.ok(asset.altText.trim())
     assert.equal(asset.source, 'image2_seed')
     assert.equal(asset.width, asset.kind === 'hero' ? 1600 : 1200)
-    assert.equal(asset.height, asset.kind === 'hero' ? 800 : 675)
+    assert.equal(asset.height, asset.kind === 'hero' ? 800 : asset.contentType === 'course' && asset.contentSlug ? 900 : 675)
     assert.match(asset.file, /^images\/[a-z]+\/[a-z0-9-]+\.webp$/)
     assert.ok(asset.focalX >= 0 && asset.focalX <= 1 && asset.focalY >= 0 && asset.focalY <= 1)
     const file = path.join(__dirname, asset.file)

@@ -10,7 +10,7 @@ import { mediaCategories, mediaKindLabels, mediaSourceLabels, mediaTypeLabels } 
 import AdminPagination from './AdminPagination.vue'
 import MediaAssetPreview from './MediaAssetPreview.vue'
 
-const props = withDefaults(defineProps<{ selectable?: boolean; kind?: 'cover' | 'hero'; contentType?: MediaContentType; categoryKey?: string }>(), { selectable: false })
+const props = withDefaults(defineProps<{ selectable?: boolean; kind?: 'cover' | 'hero' | 'illustration'; contentType?: MediaContentType; categoryKey?: string }>(), { selectable: false })
 const emit = defineEmits<{ select: [asset: MediaAssetDto] }>()
 const canRead = usePermissionAction('media.read'), canWrite = usePermissionAction('media.write'), canDelete = usePermissionAction('media.delete'), canDefault = usePermissionAction('media.default.manage')
 const session = useSessionStore()

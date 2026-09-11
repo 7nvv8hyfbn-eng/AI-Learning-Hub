@@ -8,6 +8,7 @@ import type { AuthUser } from '../auth/auth.types'
 import { PageQueryDto } from '../../common/content/page-query.dto'
 import { CourseRelationsDto, CreateBlockDto, CreateChapterDto, CreateCourseDto, CreateLessonDto, ReorderCourseDto, UpdateBlockDto, UpdateChapterDto, UpdateCourseDto, UpdateLessonDto } from './course.dto'
 import { CourseService } from './course.service'
+import { bindCourseImage } from './course-images'
 
 @Controller('admin/courses')
 @UseGuards(AuthGuard, PermissionsGuard)
@@ -78,15 +79,21 @@ export class CourseStructureController {
 
   @Post('lessons/:id/blocks') @Permissions('course.write')
   block(@Param('id') lessonId: string, @Body() input: CreateBlockDto) {
-    return this.courses.editStructure('lesson', lessonId, (tx, targetId) => tx.lessonBlock.create({ data: { lessonId: targetId, blockType: input.blockType, sortOrder: input.sortOrder, content: input.content as Prisma.InputJsonValue } }))
+    return this.courses.editStructure('lesson', lessonId, async (tx, targetId) => {
+      const content = input.blockType === 'image' ? await bindCourseImage(tx, input.content) : input.content
+      return tx.lessonBlock.create({ data: { lessonId: targetId, blockType: input.blockType, sortOrder: input.sortOrder, content: content as Prisma.InputJsonValue } })
+    })
   }
 
   @Patch('lesson-blocks/:id') @Permissions('course.write')
   updateBlock(@Param('id') id: string, @Body() input: UpdateBlockDto) {
-    return this.courses.editStructure('block', id, (tx, targetId) => tx.lessonBlock.update({
-      where: { id: targetId },
-      data: { ...(input.blockType ? { blockType: input.blockType } : {}), ...(input.content ? { content: input.content as Prisma.InputJsonValue } : {}) },
-    }))
+    return this.courses.editStructure('block', id, async (tx, targetId) => {
+      const previous = await tx.lessonBlock.findUniqueOrThrow({ where: { id: targetId } })
+      const blockType = input.blockType || previous.blockType
+      const value = input.content || previous.content as Record<string, unknown>
+      const content = blockType === 'image' ? await bindCourseImage(tx, value, previous.content as Record<string, unknown>) : value
+      return tx.lessonBlock.update({ where: { id: targetId }, data: { blockType, content: content as Prisma.InputJsonValue } })
+    })
   }
 
   @Delete('lesson-blocks/:id') @Permissions('course.write')

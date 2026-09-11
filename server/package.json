@@ -35,6 +35,8 @@
     "demo:cleanup": "node dist/modules/media/demo-data.js",
     "homepage:upgrade": "tsx prisma/upgrade-landing.ts",
     "prehomepage:upgrade": "npm run build:contracts",
+    "courses:upgrade-demo": "tsx prisma/upgrade-courses.ts",
+    "precourses:upgrade-demo": "npm run check:runtime",
     "precommunity:import-lcz": "npm run build:contracts",
     "community:import-lcz": "tsx prisma/import-lcz-curated-posts.ts",
     "preresource:import-demo": "npm run build",

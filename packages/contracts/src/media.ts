@@ -1,6 +1,16 @@
 export type CatalogContentType = 'theme' | 'course' | 'lab' | 'resource' | 'article' | 'challenge'
 export type MediaContentType = CatalogContentType | 'page_hero' | 'global'
 export type MediaCoverSource = 'explicit' | 'category_default' | 'type_default' | 'global_default' | 'legacy'
+export interface LessonImageContent extends Record<string, unknown> {
+  assetId: string
+  fileId: string
+  alt: string
+  caption: string
+  aspectRatio: string
+  width: number
+  height: number
+  url?: string
+}
 export interface ResolvedMedia {
   id: string | null
   url: string

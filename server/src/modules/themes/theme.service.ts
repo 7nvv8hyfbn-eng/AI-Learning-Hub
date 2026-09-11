@@ -6,6 +6,7 @@ import type { PageQueryDto } from '../../common/content/page-query.dto'
 import type { CreateThemeDto, UpdateThemeDto } from './theme.dto'
 
 const fields = ['subtitle', 'introduction', 'coverAssetId', 'icon', 'accent', 'recommended', 'recommendedCourseIds', 'relatedLabIds', 'relatedResourceIds']
+const publishedCourseCount = { select: { courses: { where: { status: PublishStatus.published, deletedAt: null, publishedVersionId: { not: null } } } } } as const
 
 @Injectable()
 export class ThemeService {
@@ -29,6 +30,7 @@ export class ThemeService {
         ...this.support.page(query),
         where,
         include: {
+          _count: publishedCourseCount,
           publishedVersion: true,
           paths: {
             where: publicOnly ? { status: PublishStatus.published } : {},
@@ -48,7 +50,7 @@ export class ThemeService {
             ...item,
             title: published?.title || item.title,
             summary: published?.summary || item.summary,
-          }, !publicOnly, published?.data || this.support.data(item.payload), covers),
+          }, !publicOnly, { ...(published?.data || this.support.data(item.payload)), courseCount: item._count.courses }, covers),
           paths: publicOnly ? published?.paths || [] : item.paths,
         }
       })),
@@ -62,6 +64,7 @@ export class ThemeService {
     const item = await this.prisma.theme.findFirst({
       where: { OR: [{ id: value }, { slug: value }], deletedAt: null, ...(publicOnly ? { status: PublishStatus.published } : {}) },
       include: {
+        _count: publishedCourseCount,
         currentDraftVersion: true,
         publishedVersion: true,
         versions: { orderBy: { versionNo: 'desc' } },
@@ -79,7 +82,7 @@ export class ThemeService {
         ...item,
         title: published?.title || item.title,
         summary: published?.summary || item.summary,
-      }, !publicOnly, published?.data || this.support.data(item.payload)),
+      }, !publicOnly, { ...(published?.data || this.support.data(item.payload)), courseCount: item._count.courses }),
       paths: publicOnly ? published?.paths || [] : item.paths,
       ...(!publicOnly ? {
         currentDraftVersionId: item.currentDraftVersionId,

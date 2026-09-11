@@ -79,10 +79,18 @@ export class MediaResolverService {
     const explicit = Object.hasOwn(data, 'coverAssetId') ? data.coverAssetId : !publicOnly && item.coverAssetId ? item.coverAssetId : undefined
     const categoryKey = mediaCategory(type, publicOnly ? item : { ...item, publishedVersion: undefined }, data)
     const input = { contentType: type, categoryKey, explicitAssetId: typeof explicit === 'string' ? explicit : null }
-    const [resolved, fallback] = await Promise.all([
+    const [explicitCover, fallback] = await Promise.all([
       this.resolve({ ...input, legacyCover: data.cover, allowLegacy: explicit === undefined }, this.prisma, cache),
       this.resolve({ contentType: type, categoryKey }, this.prisma, cache),
     ])
+    let resolved = explicitCover
+    const pinned = type === 'course' && publicOnly ? mediaObject(data.coverImage) : {}
+    if (typeof pinned.assetId === 'string' && typeof pinned.fileId === 'string') {
+      const focal = mediaObject(pinned.focalPoint)
+      resolved = { id: pinned.assetId, url: `/api/v1/public/media/${encodeURIComponent(pinned.assetId)}/files/${encodeURIComponent(pinned.fileId)}`,
+        alt: String(pinned.alt || ''), width: Number(pinned.width), height: Number(pinned.height),
+        focalPoint: { x: Number(focal.x ?? .5), y: Number(focal.y ?? .5) }, source: 'explicit' }
+    }
     return {
       ...data, cover: resolved?.url || '', coverAssetId: typeof explicit === 'string' ? explicit : null,
       coverAlt: resolved?.alt || String(item.title || ''), coverFocalPoint: resolved?.focalPoint || { x: 0.5, y: 0.5 },

@@ -1,9 +1,11 @@
 import type { CourseDetailDto, CourseSummaryDto, PageResult } from '@ai-learning-hub/contracts'
+import { PublishStatus } from '@ai-learning-hub/contracts'
+import { demoCourses, getCourseCurriculum } from '@ai-learning-hub/demo-fixtures'
 import { defineStore } from 'pinia'
 import { courses as mockCourses } from '../../data/mock'
 import { dataMode, request } from '../../services/api/client'
 import type { Course } from '../../types'
-import { apiCatalogCover } from '../../media/catalog'
+import { apiCatalogCover, localCatalogMedia } from '../../media/catalog'
 import { localPage, normalizePageQuery, pageKey, pageUrl, type ContentPageQuery } from './paging'
 
 export const mapCourse = (item: CourseSummaryDto): Course => ({
@@ -63,7 +65,26 @@ export const useCoursesStore = defineStore('content-courses', {
       finally { this.loading = false }
     },
     async detail(slug: string) {
-      if (dataMode !== 'api') return null
+      if (dataMode === 'mock') {
+        const fixture = demoCourses.find((item) => item.slug === slug)
+        const curriculum = getCourseCurriculum(slug)
+        const listed = mockCourses.find((item) => item.id === slug)
+        if (!fixture || !curriculum || !listed) { this.selected = null; return null }
+        this.selected = {
+          id: slug, slug, title: fixture.title, summary: fixture.summary, status: PublishStatus.PUBLISHED, sortOrder: 0, publishedAt: null, updatedAt: '',
+          data: { ...listed, rating: fixture.rating, chapters: curriculum.chapters.length, instructor: { name: fixture.instructor, title: 'AI 通识课程讲师' } },
+          chapters: curriculum.chapters.map((chapter, ci) => ({
+            id: `${slug}:chapter:${ci}`, title: chapter.title, description: '', sortOrder: ci + 1,
+            lessons: chapter.lessons.map((lesson, li) => ({
+              ...lesson, id: `${slug}:lesson:${ci}:${li}`, lessonType: 'article', sortOrder: li + 1,
+              blocks: lesson.blocks.map((block, bi) => ({ ...block, id: `${slug}:block:${ci}:${li}:${bi}`, sortOrder: bi + 1,
+                content: block.blockType === 'image' ? { ...block.content, url: localCatalogMedia(String(block.content.assetId))?.url || '' } : { ...block.content },
+              })),
+            })),
+          })), relatedResources: [], relatedLabs: [],
+        }
+        return this.selected
+      }
       this.selected = await request<CourseDetailDto>(`/courses/${encodeURIComponent(slug)}`)
       return this.selected
     },

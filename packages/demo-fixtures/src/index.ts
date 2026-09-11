@@ -1,8 +1,10 @@
 import { catalogAssets, getDefaultAssetKeys } from '../../catalog-assets/manifest'
+import { getCourseCurriculum } from './curriculum'
+export { courseCurricula, curriculumVersion, getCourseCurriculum } from './curriculum'
 
 function withCover<T extends { slug: string; coverAssetKey: string }>(type: string, items: Omit<T, 'coverAssetKey'>[]): T[] {
   return items.map((item) => {
-    const coverAssetKey = type === 'theme' ? getDefaultAssetKeys(type, item.slug)[0] : catalogAssets.find((asset) => asset.contentType === type && asset.contentSlug === item.slug)?.assetKey
+    const coverAssetKey = type === 'theme' ? getDefaultAssetKeys(type, item.slug)[0] : catalogAssets.find((asset) => asset.kind === 'cover' && asset.contentType === type && asset.contentSlug === item.slug)?.assetKey
     if (!coverAssetKey) throw new Error(`演示内容缺少素材清单映射: ${type}/${item.slug}`)
     return { ...item, coverAssetKey } as T
   })
@@ -93,107 +95,71 @@ export interface DemoArticle {
   content: string[]
 }
 
-export const demoThemes = withCover<DemoTheme>('theme', [
+const themeFixtures = withCover<Omit<DemoTheme, 'courseCount' | 'hours' | 'path'>>('theme', [
   {
     slug: 'llm', title: '大模型 LLM', summary: '从通识、Transformer 到 RAG 与部署，建立大模型完整知识框架。',
-    accent: '#6e5bff', coverVariant: 'llm', icon: 'layers', learners: 12600, courseCount: 6, hours: 42,
-    path: [
-      { key: 'ai-literacy', name: 'AI 通识入门', description: '理解人工智能、机器学习与生成式 AI。', countLabel: '3 门课程', hours: 4, type: 'learning' },
-      { key: 'python-data', name: 'Python 与数据基础', description: '掌握模型应用所需的数据与编程基础。', countLabel: '4 门课程', hours: 6, type: 'learning' },
-      { key: 'llm-core', name: '大模型核心原理', description: '理解 Transformer、训练与推理。', countLabel: '5 门课程', hours: 8, type: 'learning' },
-      { key: 'prompt-rag', name: 'Prompt 与 RAG 应用', description: '构建可追溯的大模型应用。', countLabel: '5 门课程', hours: 10, type: 'learning' },
-      { key: 'model-deploy', name: '模型部署实训', description: '完成服务化与运行监控。', countLabel: '3 个实训', hours: 8, type: 'project' },
-      { key: 'llm-capstone', name: '综合项目与测评', description: '用作品与测评验证学习成果。', countLabel: '2 个项目', hours: 6, type: 'assessment' },
-    ],
+    accent: '#6e5bff', coverVariant: 'llm', icon: 'layers', learners: 12600,
   },
   {
     slug: 'agent', title: 'AI Agent', summary: '学习工具调用、任务规划、记忆与多智能体协作。',
-    accent: '#27b86b', coverVariant: 'agent', icon: 'bot', learners: 9800, courseCount: 5, hours: 38,
-    path: [
-      { key: 'agent-concept', name: '智能体基本概念', description: '理解感知、规划、行动和反馈闭环。', countLabel: '3 门课程', hours: 4, type: 'learning' },
-      { key: 'tool-calling', name: '工具调用', description: '设计安全、可验证的工具契约。', countLabel: '4 门课程', hours: 6, type: 'learning' },
-      { key: 'memory-context', name: '记忆与上下文', description: '管理短期状态和长期知识。', countLabel: '3 门课程', hours: 6, type: 'learning' },
-      { key: 'agent-workflow', name: '任务规划与工作流', description: '拆解目标并观察执行过程。', countLabel: '4 门课程', hours: 8, type: 'learning' },
-      { key: 'multi-agent', name: '多智能体协作', description: '设计角色、消息与冲突处理。', countLabel: '2 个实训', hours: 8, type: 'project' },
-      { key: 'agent-capstone', name: '校园 Agent 项目', description: '交付带来源和权限边界的智能助手。', countLabel: '1 个项目', hours: 6, type: 'assessment' },
-    ],
+    accent: '#27b86b', coverVariant: 'agent', icon: 'bot', learners: 9800,
   },
   {
     slug: 'image', title: '图像生成', summary: '从提示词、构图到 Stable Diffusion 与 ComfyUI 工作流。',
-    accent: '#a05cf6', coverVariant: 'image', icon: 'image', learners: 8800, courseCount: 4, hours: 31,
-    path: [
-      { key: 'visual-literacy', name: '视觉表达基础', description: '理解构图、色彩与视觉叙事。', countLabel: '2 门课程', hours: 4, type: 'learning' },
-      { key: 'image-prompt', name: '图像提示词', description: '用结构化语言控制视觉结果。', countLabel: '3 门课程', hours: 5, type: 'learning' },
-      { key: 'sd-basics', name: 'Stable Diffusion 基础', description: '认识模型、采样与参数。', countLabel: '3 门课程', hours: 6, type: 'learning' },
-      { key: 'comfyui', name: 'ComfyUI 工作流', description: '搭建可复用的节点流程。', countLabel: '3 门课程', hours: 6, type: 'learning' },
-      { key: 'image-app', name: '图像应用实训', description: '完成图像分类或生成 Web 应用。', countLabel: '2 个实训', hours: 6, type: 'project' },
-      { key: 'image-ethics', name: '版权与成果评审', description: '验证作品质量与合规边界。', countLabel: '1 个项目', hours: 4, type: 'assessment' },
-    ],
+    accent: '#a05cf6', coverVariant: 'image', icon: 'image', learners: 8800,
   },
   {
     slug: 'deployment', title: '模型部署', summary: '掌握 Linux、Docker、FastAPI、vLLM 与服务监控。',
-    accent: '#3478f6', coverVariant: 'deployment', icon: 'server', learners: 7600, courseCount: 4, hours: 36,
-    path: [
-      { key: 'linux-basics', name: 'Linux 命令基础', description: '使用受控命令完成文件与进程操作。', countLabel: '3 门课程', hours: 5, type: 'learning' },
-      { key: 'api-service', name: '推理 API 服务', description: '用 FastAPI 封装模型调用。', countLabel: '3 门课程', hours: 6, type: 'learning' },
-      { key: 'docker', name: 'Docker 容器化', description: '构建可重复运行的模型容器。', countLabel: '3 门课程', hours: 6, type: 'learning' },
-      { key: 'vllm', name: 'vLLM 推理服务', description: '理解批处理、显存与吞吐。', countLabel: '2 门课程', hours: 6, type: 'learning' },
-      { key: 'monitoring', name: '健康检查与监控', description: '识别日志、指标和故障状态。', countLabel: '3 个实训', hours: 7, type: 'project' },
-      { key: 'deployment-capstone', name: '服务发布演练', description: '完成可回滚的受控发布。', countLabel: '1 个项目', hours: 6, type: 'assessment' },
-    ],
+    accent: '#3478f6', coverVariant: 'deployment', icon: 'server', learners: 7600,
   },
   {
     slug: 'hardware', title: '智能硬件', summary: '理解 GPU、开发板、传感器与边缘 AI 应用。',
-    accent: '#e5a91d', coverVariant: 'hardware', icon: 'chip', learners: 6300, courseCount: 3, hours: 28,
-    path: [
-      { key: 'hardware-structure', name: '硬件结构认知', description: '认识 GPU、开发板与常用接口。', countLabel: '3 门课程', hours: 4, type: 'learning' },
-      { key: 'sensor', name: '传感器与数据', description: '采集并理解环境数据。', countLabel: '3 门课程', hours: 5, type: 'learning' },
-      { key: 'edge-model', name: '边缘模型基础', description: '理解轻量模型和设备约束。', countLabel: '2 门课程', hours: 5, type: 'learning' },
-      { key: 'device-control', name: '设备控制逻辑', description: '设计安全的状态机与阈值。', countLabel: '2 门课程', hours: 5, type: 'learning' },
-      { key: 'iot-lab', name: 'AIoT 模拟实训', description: '完成传感器数据分析。', countLabel: '3 个实训', hours: 5, type: 'project' },
-      { key: 'hardware-capstone', name: '硬件创客项目', description: '交付可解释的校园硬件原型。', countLabel: '1 个项目', hours: 4, type: 'assessment' },
-    ],
+    accent: '#e5a91d', coverVariant: 'hardware', icon: 'chip', learners: 6300,
   },
   {
     slug: 'security', title: 'AI 安全', summary: '学习提示词注入、隐私、权限与生成式 AI 伦理。',
-    accent: '#16a67a', coverVariant: 'security', icon: 'shield', learners: 5100, courseCount: 3, hours: 25,
-    path: [
-      { key: 'security-literacy', name: 'AI 安全意识', description: '识别数据、模型与应用风险。', countLabel: '3 门课程', hours: 4, type: 'learning' },
-      { key: 'prompt-injection', name: '提示词注入', description: '理解攻击路径与输入边界。', countLabel: '3 门课程', hours: 4, type: 'learning' },
-      { key: 'least-privilege', name: '最小权限', description: '限制工具、密钥和数据访问。', countLabel: '2 门课程', hours: 4, type: 'learning' },
-      { key: 'privacy', name: '隐私与数据治理', description: '建立可追溯的数据使用规则。', countLabel: '2 门课程', hours: 4, type: 'learning' },
-      { key: 'red-team', name: '安全对抗实训', description: '在受控案例中验证防线。', countLabel: '2 个实训', hours: 5, type: 'project' },
-      { key: 'ethics', name: '伦理与版权测评', description: '形成负责任的 AI 使用判断。', countLabel: '1 个测评', hours: 4, type: 'assessment' },
-    ],
+    accent: '#16a67a', coverVariant: 'security', icon: 'shield', learners: 5100,
   },
 ])
 
 export const demoCourses = withCover<DemoCourse>('course', [
-  { slug: 'ai-literacy', title: '零基础认识人工智能', summary: '建立人工智能、机器学习与生成式 AI 的基本认知。', theme: 'llm', level: '入门', hours: 2.5, durationMinutes: 150, learners: 15680, rating: 4.9, chapters: 4, mode: '图文', coverVariant: 'llm', icon: 'brain', instructor: '林知远', recommended: true, progress: 72 },
-  { slug: 'llm-zero', title: '从零理解大语言模型', summary: '理解 Transformer、训练与推理的核心逻辑。', theme: 'llm', level: '入门', hours: 3.5, durationMinutes: 210, learners: 12600, rating: 4.9, chapters: 5, mode: '图文', coverVariant: 'llm', icon: 'layers', instructor: '林知远', recommended: true, progress: 60 },
-  { slug: 'transformer-core', title: 'Transformer 核心原理', summary: '从注意力机制到编码器结构，拆解现代大模型基础。', theme: 'llm', level: '中级', hours: 6, durationMinutes: 360, learners: 8920, rating: 4.8, chapters: 6, mode: '视频', coverVariant: 'llm', icon: 'network', instructor: '周思齐', recommended: true, progress: 34 },
-  { slug: 'prompt-basics', title: '提示词设计入门', summary: '用目标、上下文、约束和示例提升输出质量。', theme: 'llm', level: '入门', hours: 3, durationMinutes: 180, learners: 11420, rating: 4.8, chapters: 4, mode: '互动实验', coverVariant: 'llm', icon: 'message', instructor: '赵清禾', recommended: true, progress: 48 },
-  { slug: 'rag-practice', title: 'RAG 检索增强生成实战', summary: '用可信资料库提升模型回答准确性与可追溯性。', theme: 'llm', level: '高级', hours: 6.5, durationMinutes: 390, learners: 4900, rating: 4.9, chapters: 5, mode: '实战项目', coverVariant: 'llm', icon: 'search', instructor: '周思齐', recommended: true, progress: 18 },
-  { slug: 'llm-finetune', title: '大模型微调基础', summary: '理解数据准备、参数高效微调和效果评估。', theme: 'llm', level: '高级', hours: 8, durationMinutes: 480, learners: 3680, rating: 4.7, chapters: 6, mode: '实战项目', coverVariant: 'llm', icon: 'sliders', instructor: '沈砚', recommended: false, progress: 0 },
-  { slug: 'agent-first', title: '构建你的第一个 AI Agent', summary: '从任务规划到工具调用，完成可运行的智能助手。', theme: 'agent', level: '初级', hours: 6.2, durationMinutes: 372, learners: 9800, rating: 4.9, chapters: 5, mode: '实战项目', coverVariant: 'agent', icon: 'bot', instructor: '顾行舟', recommended: true, progress: 35 },
-  { slug: 'function-calling', title: 'Agent 工具调用与 Function Calling', summary: '设计受控工具契约、参数校验与执行反馈。', theme: 'agent', level: '中级', hours: 5, durationMinutes: 300, learners: 6540, rating: 4.8, chapters: 5, mode: '互动实验', coverVariant: 'agent', icon: 'tool', instructor: '顾行舟', recommended: true, progress: 12 },
-  { slug: 'agent-memory', title: 'Agent 记忆与上下文管理', summary: '区分会话状态、长期知识与检索记忆。', theme: 'agent', level: '中级', hours: 5.5, durationMinutes: 330, learners: 5320, rating: 4.8, chapters: 5, mode: '图文', coverVariant: 'agent', icon: 'memory', instructor: '顾行舟', recommended: true, progress: 0 },
-  { slug: 'multi-agent', title: '多智能体协作系统', summary: '设计角色、消息、协调与可观测的协作流程。', theme: 'agent', level: '高级', hours: 9.5, durationMinutes: 570, learners: 3200, rating: 4.7, chapters: 6, mode: '实战项目', coverVariant: 'agent', icon: 'users', instructor: '程知微', recommended: true, progress: 0 },
-  { slug: 'agent-evaluation', title: 'AI Agent 评测与可观测性', summary: '用轨迹、指标和人工复核评估智能体。', theme: 'agent', level: '高级', hours: 6.5, durationMinutes: 390, learners: 2760, rating: 4.7, chapters: 5, mode: '图文', coverVariant: 'agent', icon: 'chart', instructor: '程知微', recommended: false, progress: 0 },
-  { slug: 'stable-diffusion', title: 'Stable Diffusion 入门', summary: '认识扩散模型、采样方法和常用生成参数。', theme: 'image', level: '入门', hours: 4.8, durationMinutes: 288, learners: 8600, rating: 4.8, chapters: 4, mode: '互动实验', coverVariant: 'image', icon: 'image', instructor: '苏映雪', recommended: true, progress: 20 },
-  { slug: 'comfyui', title: 'ComfyUI 工作流基础', summary: '用节点组织可复用、可解释的图像生成流程。', theme: 'image', level: '中级', hours: 5.5, durationMinutes: 330, learners: 6250, rating: 4.8, chapters: 5, mode: '实战项目', coverVariant: 'image', icon: 'workflow', instructor: '苏映雪', recommended: true, progress: 0 },
-  { slug: 'image-editing', title: '图像编辑与控制生成', summary: '理解局部重绘、结构控制与一致性表达。', theme: 'image', level: '中级', hours: 6, durationMinutes: 360, learners: 4380, rating: 4.7, chapters: 5, mode: '视频', coverVariant: 'image', icon: 'crop', instructor: '苏映雪', recommended: false, progress: 0 },
-  { slug: 'generative-ethics', title: '生成式 AI 伦理与版权', summary: '识别训练数据、作品归属与内容风险。', theme: 'image', level: '入门', hours: 3, durationMinutes: 180, learners: 7120, rating: 4.9, chapters: 4, mode: '图文', coverVariant: 'image', icon: 'scale', instructor: '叶书宁', recommended: true, progress: 0 },
-  { slug: 'linux-basics', title: 'Linux 命令行入门', summary: '掌握目录、文件、进程与日志的安全操作。', theme: 'deployment', level: '入门', hours: 4, durationMinutes: 240, learners: 10800, rating: 4.8, chapters: 4, mode: '互动实验', coverVariant: 'command', icon: 'terminal', instructor: '贺远', recommended: true, progress: 52 },
-  { slug: 'docker-models', title: 'Docker 与模型容器化', summary: '构建可重复、可验证的模型运行环境。', theme: 'deployment', level: '中级', hours: 5.6, durationMinutes: 336, learners: 7200, rating: 4.8, chapters: 5, mode: '实战项目', coverVariant: 'deployment', icon: 'container', instructor: '贺远', recommended: true, progress: 15 },
-  { slug: 'fastapi-inference', title: '使用 FastAPI 发布推理服务', summary: '为模型接口补齐校验、健康检查与错误边界。', theme: 'deployment', level: '中级', hours: 5, durationMinutes: 300, learners: 5980, rating: 4.7, chapters: 5, mode: '实战项目', coverVariant: 'deployment', icon: 'api', instructor: '贺远', recommended: true, progress: 0 },
-  { slug: 'vllm-basics', title: 'vLLM 推理服务基础', summary: '理解批处理、KV Cache、吞吐与显存权衡。', theme: 'deployment', level: '高级', hours: 6.5, durationMinutes: 390, learners: 3860, rating: 4.8, chapters: 5, mode: '视频', coverVariant: 'deployment', icon: 'server', instructor: '沈砚', recommended: false, progress: 0 },
-  { slug: 'gpu-memory', title: 'GPU 与显存基础', summary: '理解计算单元、显存容量与模型推理需求。', theme: 'hardware', level: '入门', hours: 3.5, durationMinutes: 210, learners: 7480, rating: 4.8, chapters: 4, mode: '图文', coverVariant: 'hardware', icon: 'gpu', instructor: '陆川', recommended: true, progress: 0 },
-  { slug: 'aiot-basics', title: 'AIoT 智能硬件入门', summary: '连接传感器、控制器与轻量 AI 能力。', theme: 'hardware', level: '中级', hours: 8, durationMinutes: 480, learners: 6300, rating: 4.7, chapters: 6, mode: '互动实验', coverVariant: 'hardware', icon: 'chip', instructor: '陆川', recommended: true, progress: 0 },
-  { slug: 'edge-ai', title: '边缘 AI 模型应用', summary: '理解轻量化、设备约束与离线推理流程。', theme: 'hardware', level: '高级', hours: 7, durationMinutes: 420, learners: 2840, rating: 4.7, chapters: 5, mode: '实战项目', coverVariant: 'hardware', icon: 'edge', instructor: '陆川', recommended: false, progress: 0 },
-  { slug: 'prompt-injection', title: '提示词注入与模型安全', summary: '识别越权指令、数据泄露与工具滥用风险。', theme: 'security', level: '中级', hours: 4, durationMinutes: 240, learners: 5100, rating: 4.9, chapters: 4, mode: '互动实验', coverVariant: 'security', icon: 'shield', instructor: '叶书宁', recommended: true, progress: 0 },
-  { slug: 'ai-privacy', title: 'AI 应用隐私与数据治理', summary: '建立最小收集、访问控制和数据留存意识。', theme: 'security', level: '中级', hours: 4.5, durationMinutes: 270, learners: 4120, rating: 4.8, chapters: 4, mode: '图文', coverVariant: 'security', icon: 'lock', instructor: '叶书宁', recommended: true, progress: 0 },
-])
+  { slug: 'ai-literacy', title: '零基础认识人工智能', summary: '建立人工智能、机器学习与生成式 AI 的基本认知。', theme: 'llm', learners: 15680, rating: 4.9, coverVariant: 'llm', icon: 'brain', instructor: '林知远', recommended: true, progress: 72 },
+  { slug: 'llm-zero', title: '从零理解大语言模型', summary: '理解 Transformer、训练与推理的核心逻辑。', theme: 'llm', learners: 12600, rating: 4.9, coverVariant: 'llm', icon: 'layers', instructor: '林知远', recommended: true, progress: 60 },
+  { slug: 'transformer-core', title: 'Transformer 核心原理', summary: '从注意力机制到编码器结构，拆解现代大模型基础。', theme: 'llm', learners: 8920, rating: 4.8, coverVariant: 'llm', icon: 'network', instructor: '周思齐', recommended: true, progress: 34 },
+  { slug: 'prompt-basics', title: '提示词设计入门', summary: '用目标、上下文、约束和示例提升输出质量。', theme: 'llm', learners: 11420, rating: 4.8, coverVariant: 'llm', icon: 'message', instructor: '赵清禾', recommended: true, progress: 48 },
+  { slug: 'rag-practice', title: 'RAG 检索增强生成实战', summary: '用可信资料库提升模型回答准确性与可追溯性。', theme: 'llm', learners: 4900, rating: 4.9, coverVariant: 'llm', icon: 'search', instructor: '周思齐', recommended: true, progress: 18 },
+  { slug: 'llm-finetune', title: '大模型微调基础', summary: '理解数据准备、参数高效微调和效果评估。', theme: 'llm', learners: 3680, rating: 4.7, coverVariant: 'llm', icon: 'sliders', instructor: '沈砚', recommended: false, progress: 0 },
+  { slug: 'agent-first', title: '构建你的第一个 AI Agent', summary: '从任务规划到工具调用，完成可运行的智能助手。', theme: 'agent', learners: 9800, rating: 4.9, coverVariant: 'agent', icon: 'bot', instructor: '顾行舟', recommended: true, progress: 35 },
+  { slug: 'function-calling', title: 'Agent 工具调用与 Function Calling', summary: '设计受控工具契约、参数校验与执行反馈。', theme: 'agent', learners: 6540, rating: 4.8, coverVariant: 'agent', icon: 'tool', instructor: '顾行舟', recommended: true, progress: 12 },
+  { slug: 'agent-memory', title: 'Agent 记忆与上下文管理', summary: '区分会话状态、长期知识与检索记忆。', theme: 'agent', learners: 5320, rating: 4.8, coverVariant: 'agent', icon: 'memory', instructor: '顾行舟', recommended: true, progress: 0 },
+  { slug: 'multi-agent', title: '多智能体协作系统', summary: '设计角色、消息、协调与可观测的协作流程。', theme: 'agent', learners: 3200, rating: 4.7, coverVariant: 'agent', icon: 'users', instructor: '程知微', recommended: true, progress: 0 },
+  { slug: 'agent-evaluation', title: 'AI Agent 评测与可观测性', summary: '用轨迹、指标和人工复核评估智能体。', theme: 'agent', learners: 2760, rating: 4.7, coverVariant: 'agent', icon: 'chart', instructor: '程知微', recommended: false, progress: 0 },
+  { slug: 'stable-diffusion', title: 'Stable Diffusion 入门', summary: '认识扩散模型、采样方法和常用生成参数。', theme: 'image', learners: 8600, rating: 4.8, coverVariant: 'image', icon: 'image', instructor: '苏映雪', recommended: true, progress: 20 },
+  { slug: 'comfyui', title: 'ComfyUI 工作流基础', summary: '用节点组织可复用、可解释的图像生成流程。', theme: 'image', learners: 6250, rating: 4.8, coverVariant: 'image', icon: 'workflow', instructor: '苏映雪', recommended: true, progress: 0 },
+  { slug: 'image-editing', title: '图像编辑与控制生成', summary: '理解局部重绘、结构控制与一致性表达。', theme: 'image', learners: 4380, rating: 4.7, coverVariant: 'image', icon: 'crop', instructor: '苏映雪', recommended: false, progress: 0 },
+  { slug: 'generative-ethics', title: '生成式 AI 伦理与版权', summary: '识别训练数据、作品归属与内容风险。', theme: 'image', learners: 7120, rating: 4.9, coverVariant: 'image', icon: 'scale', instructor: '叶书宁', recommended: true, progress: 0 },
+  { slug: 'linux-basics', title: 'Linux 命令行入门', summary: '掌握目录、文件、进程与日志的安全操作。', theme: 'deployment', learners: 10800, rating: 4.8, coverVariant: 'command', icon: 'terminal', instructor: '贺远', recommended: true, progress: 52 },
+  { slug: 'docker-models', title: 'Docker 与模型容器化', summary: '构建可重复、可验证的模型运行环境。', theme: 'deployment', learners: 7200, rating: 4.8, coverVariant: 'deployment', icon: 'container', instructor: '贺远', recommended: true, progress: 15 },
+  { slug: 'fastapi-inference', title: '使用 FastAPI 发布推理服务', summary: '为模型接口补齐校验、健康检查与错误边界。', theme: 'deployment', learners: 5980, rating: 4.7, coverVariant: 'deployment', icon: 'api', instructor: '贺远', recommended: true, progress: 0 },
+  { slug: 'vllm-basics', title: 'vLLM 推理服务基础', summary: '理解批处理、KV Cache、吞吐与显存权衡。', theme: 'deployment', learners: 3860, rating: 4.8, coverVariant: 'deployment', icon: 'server', instructor: '沈砚', recommended: false, progress: 0 },
+  { slug: 'gpu-memory', title: 'GPU 与显存基础', summary: '理解计算单元、显存容量与模型推理需求。', theme: 'hardware', learners: 7480, rating: 4.8, coverVariant: 'hardware', icon: 'gpu', instructor: '陆川', recommended: true, progress: 0 },
+  { slug: 'aiot-basics', title: 'AIoT 智能硬件入门', summary: '连接传感器、控制器与轻量 AI 能力。', theme: 'hardware', learners: 6300, rating: 4.7, coverVariant: 'hardware', icon: 'chip', instructor: '陆川', recommended: true, progress: 0 },
+  { slug: 'edge-ai', title: '边缘 AI 模型应用', summary: '理解轻量化、设备约束与离线推理流程。', theme: 'hardware', learners: 2840, rating: 4.7, coverVariant: 'hardware', icon: 'edge', instructor: '陆川', recommended: false, progress: 0 },
+  { slug: 'prompt-injection', title: '提示词注入与模型安全', summary: '识别越权指令、数据泄露与工具滥用风险。', theme: 'security', learners: 5100, rating: 4.9, coverVariant: 'security', icon: 'shield', instructor: '叶书宁', recommended: true, progress: 0 },
+  { slug: 'ai-privacy', title: 'AI 应用隐私与数据治理', summary: '建立最小收集、访问控制和数据留存意识。', theme: 'security', learners: 4120, rating: 4.8, coverVariant: 'security', icon: 'lock', instructor: '叶书宁', recommended: true, progress: 0 },
+].map((course) => {
+  const curriculum = getCourseCurriculum(course.slug)
+  if (!curriculum) throw new Error(`演示课程缺少正文：${course.slug}`)
+  const durationMinutes = curriculum.chapters.flatMap((chapter) => chapter.lessons).reduce((sum, lesson) => sum + lesson.durationMinutes, 0)
+  return { ...course, level: '入门', mode: '图文', chapters: curriculum.chapters.length, durationMinutes, hours: durationMinutes / 60 }
+}))
+
+export const demoThemes: DemoTheme[] = themeFixtures.map((theme) => {
+  const courses = demoCourses.filter((course) => course.theme === theme.slug)
+  return { ...theme, courseCount: courses.length, hours: courses.reduce((sum, course) => sum + course.hours, 0),
+    path: courses.map((course) => ({ key: course.slug, name: course.title, description: course.summary, countLabel: '1 门课程', hours: course.hours, type: 'learning' })),
+  }
+})
 
 export const demoLabs = withCover<DemoLab>('lab', [
   { slug: 'model-service', title: '部署你的第一个 AI 模型', summary: '模拟模型服务启动、检查与验证。', labType: 'deployment', level: '中级', durationMinutes: 90, steps: 8, completionRate: 66, participants: 8932, coverVariant: 'deployment', icon: 'server', result: '可访问的模型健康检查与推理接口', skills: ['Linux', 'Docker', 'API'] },

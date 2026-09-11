@@ -2,18 +2,18 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { apiBlob } from '../services/api'
 
-const props = withDefaults(defineProps<{ assetId?: string | null; publicUrl?: string; alt?: string; focalX?: number; focalY?: number; revision?: number }>(), { alt: '素材预览', focalX: .5, focalY: .5 })
+const props = withDefaults(defineProps<{ assetId?: string | null; fileId?: string; publicUrl?: string; alt?: string; focalX?: number; focalY?: number; revision?: number; aspectRatio?: string }>(), { alt: '素材预览', focalX: .5, focalY: .5, aspectRatio: '16 / 9' })
 const url = ref(''), error = ref(''), loading = ref(false)
 let abort: AbortController | undefined
 let epoch = 0
 const release = () => { if (url.value.startsWith('blob:')) URL.revokeObjectURL(url.value); url.value = '' }
-watch(() => [props.assetId, props.publicUrl, props.revision], async () => {
+watch(() => [props.assetId, props.fileId, props.publicUrl, props.revision], async () => {
   const request = ++epoch
   abort?.abort(); release(); error.value = ''; loading.value = false
   if (!props.assetId) { url.value = props.publicUrl || ''; return }
   abort = new AbortController(); loading.value = true
   try {
-    const blob = await apiBlob(`/admin/media-assets/${encodeURIComponent(props.assetId)}/preview`, abort.signal)
+    const blob = await apiBlob(`/admin/media-assets/${encodeURIComponent(props.assetId)}/preview${props.fileId ? `?fileId=${encodeURIComponent(props.fileId)}` : ''}`, abort.signal)
     if (request !== epoch) return
     url.value = URL.createObjectURL(blob)
   } catch (cause) {
@@ -24,7 +24,7 @@ onBeforeUnmount(() => { epoch++; abort?.abort(); release() })
 </script>
 
 <template>
-  <div class="media-preview">
+  <div class="media-preview" :style="{ aspectRatio: aspectRatio.replace(':', '/') }">
     <img v-if="url && !error" :src="url" :alt="alt" loading="lazy" :style="{ objectPosition: `${focalX * 100}% ${focalY * 100}%` }" @error="error = '图片文件暂不可用'" />
     <span v-else role="status">{{ loading ? '图片读取中…' : error || '尚无可用图片' }}</span>
   </div>

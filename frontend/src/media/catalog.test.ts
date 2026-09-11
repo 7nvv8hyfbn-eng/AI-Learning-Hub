@@ -10,8 +10,8 @@ import { MockHomepageRepository } from '../homepage/repositories'
 const fallback: ResolvedMedia = { id: 'fallback', url: '/api/media/fallback/file', alt: '服务端默认图', width: 1200, height: 675, focalPoint: { x: .7, y: .3 }, source: 'category_default' }
 
 describe('目录媒体单源解析', () => {
-  it('118张正式素材均可由唯一glob找到，81条独立内容遵循fixture的coverAssetKey', () => {
-    expect(catalogAssets).toHaveLength(118)
+  it('166张正式素材均可由唯一glob找到，81条独立内容遵循fixture的coverAssetKey', () => {
+    expect(catalogAssets).toHaveLength(166)
     for (const asset of catalogAssets) expect(localCatalogMedia(asset.assetKey)?.url).toBeTruthy()
     const groups = { course: demoCourses, lab: demoLabs, resource: demoResources, article: demoArticles, challenge: demoChallenges } as const
     const urls: string[] = []
@@ -31,6 +31,10 @@ describe('目录媒体单源解析', () => {
 
   it('中文分类沿用manifest映射，未知分类保持有序默认链', () => {
     expect(normalizeCategoryKey('resource', '学习手册')).toBe('handbook')
+    for (const course of demoCourses) {
+      const category = normalizeCategoryKey('course', demoThemes.find((theme) => theme.slug === course.theme)!.title)
+      expect(catalogAssets.some((asset) => asset.kind === 'illustration' && asset.contentSlug === course.slug && asset.categoryKey === category)).toBe(true)
+    }
     expect(getDefaultAssetKeys('resource', '不存在的分类').at(-1)).toBe('default--global--generic')
     expect(new Set(getDefaultAssetKeys('course', 'generic')).size).toBe(getDefaultAssetKeys('course', 'generic').length)
     expect(mockCatalogCover('course', '未知分类').coverSource).toBe('type_default')

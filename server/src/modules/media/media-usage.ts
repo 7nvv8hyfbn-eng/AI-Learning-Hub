@@ -19,6 +19,7 @@ export async function unusedMediaIds(tx: Prisma.TransactionClient, ids: string[]
   const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
     SELECT m.id FROM media_assets m WHERE m.id IN (${Prisma.join(ids)})
     AND ${Prisma.join(checks, ' AND ')}
+    AND NOT EXISTS (SELECT 1 FROM lesson_blocks b WHERE b.block_type='image' AND b.content_json->>'assetId'=m.id)
     AND NOT EXISTS (SELECT 1 FROM media_default_rules r WHERE r.asset_id=m.id)
     AND NOT EXISTS (SELECT 1 FROM system_settings s WHERE s.key='public_page_visuals' AND s.value::text LIKE ('%' || m.id || '%'))`)
   return rows.map((row) => row.id)
@@ -37,6 +38,13 @@ export async function mediaUsage(tx: Prisma.TransactionClient, assetId: string):
     result.push(...history.map((row) => ({ ...row, type })))
   }
   const defaults = await tx.mediaDefaultRule.findMany({ where: { assetId }, select: { id: true, contentType: true, categoryKey: true } })
+  const lessons = await tx.$queryRaw<Array<{ id: string; title: string; usage: 'draft' | 'published' | 'history' }>>`
+    SELECT DISTINCT v.id,c.title,CASE WHEN c.published_version_id=v.id AND c.status='published' AND c.deleted_at IS NULL THEN 'published'
+      WHEN c.current_draft_version_id=v.id THEN 'draft' ELSE 'history' END AS usage
+    FROM lesson_blocks b JOIN course_lessons l ON l.id=b.lesson_id JOIN course_chapters ch ON ch.id=l.chapter_id
+    JOIN course_versions v ON v.id=ch.course_version_id JOIN courses c ON c.id=v.course_id
+    WHERE b.block_type='image' AND b.content_json->>'assetId'=${assetId}`
+  result.push(...lessons.filter((row) => !result.some((item) => item.type === 'course' && item.id === row.id)).map((row) => ({ ...row, type: 'course' })))
   result.push(...defaults.map((rule) => ({ type: rule.contentType, id: rule.id, title: rule.categoryKey, usage: 'default' as const })))
   const settings = await tx.systemSetting.findMany({ where: { key: 'public_page_visuals' }, select: { key: true, value: true } })
   if (settings.some((setting) => JSON.stringify(setting.value).includes(assetId))) result.push({ type: 'page_hero', id: 'public_page_visuals', title: '页面视觉资源', usage: 'setting' })

@@ -1,4 +1,7 @@
-.topics-board { width: 100%; min-width: 0; overflow-x: clip; }
+.topics-board { width: 100%; min-width: 0; overflow-x: clip; container-type: inline-size; container-name: topics; }
+@media (min-width: 992px) {
+  .community-wide .page-container.topics-board { width: min(calc(100% - 32px), 1180px); }
+}
 .topics-section-heading > div, .topics-section-heading > div > div { min-width: 0; }
 .topics-section-heading h2 { margin: 0; }
 .topics-section-heading p { margin: 4px 0 0; color: var(--amc-text-secondary); }
@@ -43,19 +46,22 @@
 .topics-filter-popover label { display: grid; gap: 6px; color: var(--amc-text-secondary); font-size: 12px; font-weight: 650; }
 .topics-filter-popover select { width: 100%; height: 38px; min-height: 38px; font-size: 12px; }
 .topics-filter-popover .text-link { min-height: 30px; justify-self: start; font-size: 12px; }
-.topics-course-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.topics-course-grid, .topics-recommendation-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .topics-course-grid > *, .topics-recommendation-grid > * { min-width: 0; }
-.topics-course-grid .card-cover { aspect-ratio: 16 / 9; }
-.course-card--topics-board .card-body { min-height: 218px; padding: 16px; overflow-wrap: normal; word-break: keep-all; }
-.course-card--topics-board .card-body h3 { min-height: 2.8em; margin: 8px 0 6px; }
-.course-card--topics-board .card-body > p { min-height: 3.45em; margin-bottom: 12px; overflow-wrap: anywhere; }
-.course-card--topics-board .meta { gap: 6px 12px; }
+.course-card--topics-board .card-cover { aspect-ratio: 4 / 3; }
+.course-card.course-card--topics-board .card-body { min-height: 0; padding: 13px; overflow-wrap: normal; word-break: normal; }
+.course-card--topics-board .card-body > a { order: -1; }
+.course-card--topics-board .card-body h3 { min-height: 0; margin: 0 0 8px; font-size: 15px; line-height: 1.4; }
+.course-card--topics-board .card-body > .account-data-placeholder { min-height: 0; margin: 8px 0 0; font-size: 12px; }
+.course-card--topics-board .meta { gap: 4px 8px; font-size: 12px; }
 .course-card--topics-board .meta span { display: inline-flex; align-items: center; gap: 4px; min-width: 0; white-space: nowrap; }
+.course-card--topics-board .meta .app-icon { width: 12px; height: 12px; }
+.course-card--topics-board .progress-wrap { margin-top: 8px; }
 .course-card--topics-board .progress-track { height: 5px; }
-.course-card--topics-board .progress-label { margin-bottom: 5px; }
-.course-card--topics-board .card-actions { padding-top: 12px; }
-.course-card--topics-board .card-actions .button { min-height: 36px; padding: 7px 16px; }
-.course-card--topics-board .card-actions .icon-button { min-width: 36px; min-height: 36px; }
+.course-card--topics-board .progress-label { margin-bottom: 4px; font-size: 12px; }
+.course-card--topics-board .card-actions { padding-top: 10px; }
+.course-card--topics-board .card-actions .button { min-height: 34px; padding: 6px 12px; font-size: 12px; }
+.course-card--topics-board .card-actions .icon-button { width: 34px; height: 34px; min-width: 34px; min-height: 34px; }
 
 .topics-progress-board { padding: 22px; border: 1px solid var(--amc-orange-border); border-radius: var(--amc-radius-card); background: var(--amc-surface-peach); }
 .topics-progress-layout { display: grid; grid-template-columns: 112px minmax(300px, 1fr) minmax(250px, .85fr); align-items: center; gap: 28px; min-width: 0; }
@@ -75,17 +81,20 @@
 .topics-progress-next > a:not(.button) small { color: var(--brand); font-size: 12px; }
 .topics-progress-next .button { align-self: center; white-space: nowrap; }
 
-.topics-recommendation-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-.topics-recommendation-grid .course-card--topics-board .card-body { min-height: 160px; padding: 12px; }
-.topics-recommendation-grid .course-card--topics-board .card-body h3 { min-height: 2.8em; margin: 7px 0 10px; font-size: 14px; }
-.topics-recommendation-grid .course-card--topics-board .card-body > p,
-.topics-recommendation-grid .course-card--topics-board .progress-wrap,
-.topics-recommendation-grid .course-card--topics-board .meta span:not(:last-child) { display: none; }
-.topics-recommendation-grid .course-card--topics-board .card-actions { padding-top: 8px; }
-.topics-recommendation-grid .course-card--topics-board .card-actions .button { padding-inline: 12px; font-size: 12px; }
-
-@media (min-width: 768px) and (max-width: 1279px) {
-  .topics-recommendation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@container topics (min-width: 520px) {
+  .topics-course-grid, .topics-recommendation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container topics (min-width: 760px) {
+  .topics-course-grid, .topics-recommendation-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container topics (min-width: 1050px) {
+  .topics-course-grid, .topics-recommendation-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@container topics (max-width: 759px) {
+  .topics-course-heading { align-items: stretch; flex-direction: column; }
+  .topics-section-heading > .topics-course-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; width: 100%; }
+  .topics-course-search { grid-column: 1 / -1; width: 100%; }
+  .topics-course-tools > select { width: 100%; min-width: 0; }
 }
 
 @media (max-width: 991px) {
@@ -103,11 +112,6 @@
   .topics-progress-board { padding: 17px 14px; }
   .topics-section-heading { align-items: flex-start; }
   .topics-section-heading p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .topics-course-heading { align-items: stretch; flex-direction: column; }
-  .topics-section-heading > .topics-course-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; width: 100%; }
-  .topics-course-search { grid-column: 1 / -1; width: 100%; }
-  .topics-course-tools > select { width: 100%; min-width: 0; }
-  .topics-course-grid, .topics-recommendation-grid { grid-template-columns: minmax(0, 1fr); }
   .topics-progress-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .topics-progress-ring { margin-inline: auto; }
   .topics-progress-stats span { padding-inline: 6px; }

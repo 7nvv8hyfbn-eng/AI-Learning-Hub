@@ -25,6 +25,20 @@ export class MediaService {
     return asset
   }
   async detail(id: string) { return this.present(await this.record(id)) }
+  async pinnedFile(assetId: string, fileId: string, publicOnly: boolean) {
+    if (typeof fileId !== 'string' || !fileId || fileId.length > 80) throw new NotFoundException('课程图片不存在')
+    const published = await this.prisma.courseVersion.count({ where: {
+      snapshot: { path: ['mediaFiles'], array_contains: [{ assetId, fileId }] },
+      ...(publicOnly ? { course: { status: 'published', deletedAt: null } } : {}),
+    } })
+    const draft = !publicOnly && (await this.prisma.mediaAsset.count({ where: { id: assetId, fileId } }) || await this.prisma.lessonBlock.count({ where: {
+      blockType: 'image', AND: [{ content: { path: ['assetId'], equals: assetId } }, { content: { path: ['fileId'], equals: fileId } }],
+    } }))
+    if (!published && !draft) throw new NotFoundException('课程图片不存在')
+    const file = await this.prisma.fileRecord.findFirst({ where: { id: fileId, visibility: 'public', quarantinedAt: null, mimeType: { startsWith: 'image/' } } })
+    if (!file) throw new NotFoundException('课程图片不可读取')
+    return file
+  }
   async list(query: MediaQueryDto) {
     const where: Prisma.MediaAssetWhereInput = {
       deletedAt: null, ...(query.status ? { status: query.status } : {}),

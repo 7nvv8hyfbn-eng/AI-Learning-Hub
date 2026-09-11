@@ -108,7 +108,7 @@ const search = () => courseStore.load({ page: 1, keyword: query.value }, true)
     <PageHero class="topics-hero" eyebrow="通识基础" title="从想法到作品，用 AI 创造无限可能" description="系统化学习 · 实战项目 · 成长看得见" visual-key="topicsHeroAssetId" />
 
     <nav class="topics-theme-nav" aria-label="课程主题分类">
-      <button v-for="item in categories" :key="item" type="button" :class="{ active: category === item }" :title="`${item} · ${themes.find((theme) => theme.title === item)?.data.courseCount || 0} 门课程`" @click="category = item">
+      <button v-for="item in categories" :key="item" type="button" :class="{ active: category === item }" :title="`${item} · ${item === '全部主题' ? themes.reduce((total, theme) => total + Number(theme.data.courseCount || 0), 0) : themes.find((theme) => theme.title === item)?.data.courseCount || 0} 门课程`" @click="category = item">
         <AppIcon :name="`topics-${themes.find((theme) => theme.title === item)?.slug || 'all'}`" :size="18" />
         <span>{{ item }}</span>
         <small v-if="item !== '全部主题'">{{ themes.find((theme) => theme.title === item)?.data.courseCount || 0 }}</small>

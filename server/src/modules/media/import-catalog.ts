@@ -28,10 +28,12 @@ export async function readCatalogFile(asset: CatalogAsset, root = catalogRoot) {
 }
 
 /** 媒体导入与业务Seed分离；所有文件预检通过后才写。现有人工元数据、归档状态和默认选择均保留。 */
-export async function importCatalogAssets(prisma: PrismaClient, storage: StorageService, actorId: string, root = catalogRoot) {
+export async function importCatalogAssets(prisma: PrismaClient, storage: StorageService, actorId: string, root = catalogRoot, assetKeys?: ReadonlySet<string>) {
   if (!await prisma.userRole.count({ where: { userId: actorId, role: { code: { in: ['admin', 'super_admin'] } } } })) throw new Error('素材导入须使用现有初始化管理员')
   const verified: Array<{ asset: CatalogAsset; checksum: string }> = []
-  for (const asset of catalogAssets) verified.push({ asset, checksum: (await readCatalogFile(asset, root)).checksum })
+  const assets = assetKeys ? catalogAssets.filter((asset) => assetKeys.has(asset.assetKey)) : catalogAssets
+  if (assetKeys && assets.length !== assetKeys.size) throw new Error('指定的素材清单不完整')
+  for (const asset of assets) verified.push({ asset, checksum: (await readCatalogFile(asset, root)).checksum })
   let created = 0, updated = 0
   const ids = new Map<string, string>()
   for (const { asset, checksum } of verified) {
@@ -64,7 +66,7 @@ export async function importCatalogAssets(prisma: PrismaClient, storage: Storage
   let rulesCreated = 0
   await prisma.$transaction(async (tx) => {
     await lockFileReferences(tx)
-    for (const asset of catalogAssets) for (const rule of asset.defaultFor || []) {
+    for (const asset of assets) for (const rule of asset.defaultFor || []) {
       const where = { contentType_categoryKey: rule }
       if (await tx.mediaDefaultRule.findUnique({ where })) continue
       const assetId = ids.get(asset.assetKey)!
@@ -82,7 +84,7 @@ export async function bindExistingDemoMedia(prisma: PrismaClient, actorId: strin
   await prisma.$transaction(async (tx) => {
     await lockFileReferences(tx)
     for (const [type, table, versionTable, foreignKey] of catalogTables) {
-      const assets = catalogAssets.filter((asset) => asset.contentType === type && asset.contentSlug)
+      const assets = catalogAssets.filter((asset) => asset.kind === 'cover' && asset.contentType === type && asset.contentSlug)
       for (const asset of assets) {
         const media = await tx.mediaAsset.findUnique({ where: { assetKey: asset.assetKey } })
         if (!media || media.status !== 'active' || media.deletedAt) continue

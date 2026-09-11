@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<{
 const store = useLearningStore()
 const auth = useAuthStore()
 const favorite = computed(() => store.isFavorite('course', props.course.id))
+const progress = computed(() => store.courseProgress[props.course.id] ?? props.course.progress ?? 0)
 const accountDataReady = computed(() => dataMode === 'mock' || store.accountSyncState === 'synced')
 const accountDataMessage = computed(() => {
   if (!auth.user) return '登录后查看课程进度'
@@ -31,9 +32,9 @@ const accountDataMessage = computed(() => {
         <span><AppIcon v-if="variant === 'topics-board'" name="users" :size="14" />{{ course.learners == null ? '学习人数 —' : `${(course.learners / 1000).toFixed(1)}k 人` }}</span>
       </div>
       <RouterLink :to="`/courses/${course.id}`"><h3>{{ course.title }}</h3></RouterLink>
-      <p>{{ course.description }}</p>
-      <ProgressBar v-if="accountDataReady" :value="store.courseProgress[course.id] ?? course.progress ?? 0" label="学习进度" />
-      <p v-else class="account-data-placeholder">{{ accountDataMessage }}</p>
+      <p v-if="variant !== 'topics-board'">{{ course.description }}</p>
+      <ProgressBar v-if="accountDataReady && (variant !== 'topics-board' || progress > 0)" :value="progress" label="学习进度" />
+      <p v-if="!accountDataReady" class="account-data-placeholder">{{ accountDataMessage }}</p>
       <div class="card-actions">
         <RouterLink class="button primary ghost-primary" :to="`/courses/${course.id}`">{{ store.courseProgress[course.id] || course.progress ? '继续学习' : '开始学习' }}</RouterLink>
         <button class="icon-button" type="button" :class="{ active: favorite }" :aria-pressed="favorite" :aria-label="favorite ? `取消收藏${course.title}` : `收藏${course.title}`" @click="store.toggleFavorite('course', course.id)"><AppIcon name="bookmark" :size="18" /></button>

@@ -1,7 +1,7 @@
 import data from './manifest.json'
 
 export type CatalogContentType = 'theme' | 'course' | 'lab' | 'resource' | 'article' | 'challenge' | 'page_hero' | 'global'
-export type CatalogAssetKind = 'cover' | 'hero' | 'icon_preview'
+export type CatalogAssetKind = 'cover' | 'hero' | 'illustration' | 'icon_preview'
 export interface CatalogDefaultRule {
   contentType: CatalogContentType
   categoryKey: string
@@ -20,6 +20,8 @@ export interface CatalogAsset {
   focalX: number
   focalY: number
   source: 'image2_seed'
+  knowledgePoint?: string
+  mascot?: boolean
   defaultFor?: CatalogDefaultRule[]
 }
 export interface CatalogManifest {

@@ -6,7 +6,7 @@ import { ArticleService } from '../src/modules/articles/article.service'
 
 describe('媒体快照相关结构写入的事务边界', () => {
   it('课程发布结构首次编辑克隆草稿并映射块ID，原发布记录不被修改', async () => {
-    const version = { id: 'published', courseId: 'course1', snapshot: { data: { coverAssetId: 'cover-old' } }, chapters: [{ id: 'chapter-old', title: '旧章节', description: '', sortOrder: 0, lessons: [{ id: 'lesson-old', title: '旧课时', summary: '', lessonType: 'article', durationMinutes: 10, sortOrder: 0, blocks: [{ id: 'block-old', blockType: 'paragraph', sortOrder: 0, content: { text: '旧正文' } }] }] }] }
+    const version = { id: 'published', courseId: 'course1', snapshot: { data: { coverAssetId: 'cover-old' }, mediaFiles: [{ assetId: 'image-old', fileId: 'file-old' }], publishedAt: '2026-09-01' }, chapters: [{ id: 'chapter-old', title: '旧章节', description: '', sortOrder: 0, lessons: [{ id: 'lesson-old', title: '旧课时', summary: '', lessonType: 'article', durationMinutes: 10, sortOrder: 0, blocks: [{ id: 'block-old', blockType: 'paragraph', sortOrder: 0, content: { text: '旧正文' } }] }] }] }
     const tx = {
       course: { findUnique: vi.fn(async () => ({ id: 'course1', currentDraftVersionId: 'published', publishedVersionId: 'published', currentDraftVersion: version, _count: { versions: 1 } })), update: vi.fn() },
       lessonBlock: { findUnique: vi.fn(async () => ({ lesson: { chapter: { version } } })), create: vi.fn(async () => ({ id: 'block-new' })), update: vi.fn(async () => ({ id: 'block-new' })) },
@@ -23,6 +23,8 @@ describe('媒体快照相关结构写入的事务边界', () => {
     expect(tx.lessonBlock.update).toHaveBeenCalledWith({ where: { id: 'block-new' }, data: { content: { text: '新正文' } } })
     expect(tx.courseVersion.create.mock.calls[0]).toBeDefined()
     expect(version.chapters[0]!.lessons[0]!.blocks[0]!.content).toEqual({ text: '旧正文' })
+    expect(version.snapshot.mediaFiles).toEqual([{ assetId: 'image-old', fileId: 'file-old' }])
+    expect(tx.courseVersion.create).toHaveBeenCalledWith({ data: { courseId: 'course1', versionNo: 2, snapshot: { data: { coverAssetId: 'cover-old' } } } })
   })
   it('已有其他草稿时拒绝过期发布结构ID，不按位置猜映射', async () => {
     const tx = {

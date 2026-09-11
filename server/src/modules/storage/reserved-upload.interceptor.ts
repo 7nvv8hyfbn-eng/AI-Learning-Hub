@@ -39,7 +39,8 @@ export function ReservedUpload(kind: Exclude<StorageUploadKind, 'processing'>, m
         await mkdir(workspace, { recursive: true, mode: 0o700 })
         const upload = multer({
           storage: kind === 'image' ? memoryStorage() : diskStorage({ destination: workspace, filename: (_req, _file, done) => done(null, randomUUID()) }),
-          limits: { fileSize: maximum, files: 1, fields: 5, fieldSize: 16 * 1024, parts: 6 },
+          // Busboy 到达 parts 数就报错；单文件加五个字段共六段，下一段才应拒绝。
+          limits: { fileSize: maximum, files: 1, fields: 5, fieldSize: 16 * 1024, parts: 7 },
           fileFilter: (_req, file, done) => { request.once('aborted', () => file.stream?.destroy()); done(null, true) },
         }).single('file')
         await Promise.race([aborted, new Promise<void>((resolve, reject) => upload(request, response, (error: unknown) => error ? reject(error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE' ? new PayloadTooLargeException('文件超过单文件限制') : new BadRequestException('上传文件格式或表单不合法')) : resolve()))])

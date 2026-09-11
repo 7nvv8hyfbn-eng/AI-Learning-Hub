@@ -14,7 +14,7 @@ const source = (path) => readFileSync(`${root}${path}`, 'utf8')
 const evaluate = (code, modules = {}, globals = {}) => {
   const exports = {}, module = { exports }
   const js = ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText
-  runInNewContext(js, { exports, module, require: (name) => modules[name] || (name.endsWith('.vue') ? { render: () => null } : require(name)), console, Error, AbortController, URL, URLSearchParams, FormData, ...globals })
+  runInNewContext(js, { exports, module, require: (name) => modules[name] || (name.endsWith('.vue') ? { render: () => null } : require(name)), console, Error, AbortController, AbortSignal, URL, URLSearchParams, FormData, ...globals })
   return module.exports
 }
 const component = (path, modules, globals) => evaluate(compileScript(parse(source(path)).descriptor, { id: path }).content, modules, globals).default
@@ -32,21 +32,24 @@ const check = (name, job) => Promise.resolve().then(job).then(() => { checks++; 
 await check('预览请求携带Bearer、共享刷新且保留AbortSignal', async () => {
   const tokens = new Map([['admin-access-token', 'old-test-token']]), calls = []
   const refreshGate = deferred()
-  const api = evaluate(source('src/services/api.ts').replace("import.meta.env.VITE_API_BASE_URL || '/api/v1'", "'/api/v1'"), {}, {
+  const globals = {
     sessionStorage: { getItem: (key) => tokens.get(key), setItem: (key, value) => tokens.set(key, value) },
     fetch: async (url, init) => {
       calls.push({ url, init })
       if (url.endsWith('/denied')) return Response.json({ code: 403, message: '拒绝预览' }, { status: 403 })
-      if (url.endsWith('/auth/refresh')) { await refreshGate.promise; return Response.json({ code: 0, data: { accessToken: 'fresh-test-token' } }) }
+      if (url.endsWith('/admin-auth/refresh')) { await refreshGate.promise; return Response.json({ code: 0, data: { accessToken: 'fresh-test-token' } }) }
       return init.headers.authorization === 'Bearer fresh-test-token' ? new Response(new Blob(['image-bytes'], { type: 'image/webp' })) : new Response('', { status: 401 })
     },
-  })
+  }
+  const session = evaluate(source('../packages/contracts/browser/session.ts').replaceAll('import.meta.url', "'https://test.invalid/session.ts'"), { '../src/auth': require('@ai-learning-hub/contracts') }, { ...globals, navigator: { locks: { request: (_name, send) => send() } } })
+  const api = evaluate(source('src/services/api.ts').replace("import.meta.env.VITE_API_BASE_URL || '/api/v1'", "'/api/v1'"), { '../../../packages/contracts/browser/session': session }, globals)
   const abort = new AbortController(), pending = [api.apiBlob('/admin/media-assets/a/preview', abort.signal), api.apiBlob('/admin/media-assets/b/preview')]
   await flush(); refreshGate.resolve()
   const blobs = await Promise.all(pending)
-  assert.equal(calls.filter((call) => call.url.endsWith('/auth/refresh')).length, 1)
+  assert.equal(calls.filter((call) => call.url.endsWith('/admin-auth/refresh')).length, 1)
   assert.equal(await blobs[0].text(), 'image-bytes')
-  assert.equal(calls.filter((call) => call.url.endsWith('/a/preview')).at(-1).init.signal, abort.signal)
+  const signal = calls.filter((call) => call.url.endsWith('/a/preview')).at(-1).init.signal
+  assert.equal(signal.aborted, false); abort.abort(); assert.equal(signal.aborted, true)
   assert.ok(calls.every((call) => call.init.credentials === 'include'))
   await assert.rejects(api.api('/test-denied'), /请求失败/)
   await assert.rejects(api.apiBlob('/denied'), /拒绝预览/)

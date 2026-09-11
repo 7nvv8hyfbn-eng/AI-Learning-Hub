@@ -4,7 +4,9 @@
 .community-discussion > h2 { font-size: var(--amc-font-section-title); }
 .community-comment { padding: 18px 0; border-bottom: 1px solid var(--amc-divider); }
 .community-comment.reply { margin-left: 34px; background: var(--amc-surface-warm); padding-inline: 14px; border-left: 2px solid var(--amc-border); }
-.community-comment header { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; font-size: 14px; flex-wrap: wrap; }
+.community-comment header { display: flex; align-items: center; gap: 9px; min-width: 0; margin-bottom: 10px; font-size: 14px; }
+.community-comment header > strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.community-comment header > .community-post-menu { flex-shrink: 0; align-self: center; }
 .community-comment header small { font-size: 12px; color: var(--amc-text-secondary); }
 .community-comment footer { display: flex; gap: 15px; flex-wrap: wrap; }
 .community-comment footer button { font-size: 12px; min-height: 30px; }

@@ -20,6 +20,7 @@ import { hash } from 'bcryptjs'
 import { isDeepStrictEqual } from 'node:util'
 import { createRequire } from 'node:module'
 import { seedCommunity } from './seed-community'
+import { createCurriculumVersion, curriculumPayload } from './course-curriculum'
 import { upgradeLanding } from '../src/modules/homepage/upgrade-landing'
 import { bootstrapDatabase } from '../src/modules/persistence/bootstrap'
 import { ConfigService } from '@nestjs/config'
@@ -195,7 +196,10 @@ async function seed() {
 
   const themeIds = new Map<string, string>()
   const courseIds = new Map<string, string>()
+  const newThemeIds = new Set<string>()
   for (const [index, fixture] of themes.entries()) {
+    const existing = await prisma.theme.findUnique({ where: { slug: fixture.slug } })
+    if (existing) { themeIds.set(fixture.slug, existing.id); continue }
     const payload = {
       coverAssetId: coverId(fixture.coverAssetKey),
       accent: fixture.accent,
@@ -206,10 +210,8 @@ async function seed() {
       courseCount: fixture.courseCount,
       hours: fixture.hours,
     }
-    const theme = await prisma.theme.upsert({
-      where: { slug: fixture.slug },
-      update: { coverAssetId: payload.coverAssetId, dataOrigin: 'demo_seed', title: fixture.title, summary: fixture.summary, payload, sortOrder: index, status: PublishStatus.published },
-      create: {
+    const theme = await prisma.theme.create({
+      data: {
         coverAssetId: payload.coverAssetId, dataOrigin: 'demo_seed',
         slug: fixture.slug, title: fixture.title, summary: fixture.summary, status: PublishStatus.published, sortOrder: index,
         publishedAt: new Date(), payload,
@@ -221,80 +223,26 @@ async function seed() {
       create: { themeId: theme.id, versionNo: 1, snapshot: { title: fixture.title, summary: fixture.summary, data: payload, paths: [] } },
     })
     themeIds.set(fixture.slug, theme.id)
+    newThemeIds.add(theme.id)
   }
 
   for (const [courseIndex, fixture] of courses.entries()) {
-    const theme = themes.find((item) => item.slug === fixture.theme)
-    const payload = {
-      coverAssetId: coverId(fixture.coverAssetKey),
-      category: theme?.title,
-      level: fixture.level,
-      hours: fixture.hours,
-      durationMinutes: fixture.durationMinutes,
-      mode: fixture.mode,
-      icon: fixture.icon,
-      coverVariant: fixture.coverVariant,
-      learners: fixture.learners,
-      rating: fixture.rating,
-      chapters: fixture.chapters,
-      instructor: { name: fixture.instructor, title: 'AI 创客课程讲师' },
-      certificate: `${theme?.title || 'AI'} 学习证书`,
-      recommended: fixture.recommended,
-      progress: fixture.progress,
-    }
-    const course = await prisma.course.upsert({
-      where: { slug: fixture.slug },
-      update: { coverAssetId: payload.coverAssetId, dataOrigin: 'demo_seed', title: fixture.title, summary: fixture.summary, themeId: themeIds.get(fixture.theme), payload, sortOrder: courseIndex, status: PublishStatus.published },
-      create: {
-        coverAssetId: payload.coverAssetId, dataOrigin: 'demo_seed',
-        slug: fixture.slug, title: fixture.title, summary: fixture.summary, themeId: themeIds.get(fixture.theme), status: PublishStatus.published,
-        sortOrder: courseIndex, publishedAt: new Date(), payload,
-      },
-    })
+    const existing = await prisma.course.findUnique({ where: { slug: fixture.slug } })
+    if (existing) { courseIds.set(fixture.slug, existing.id); continue }
+    const course = await prisma.$transaction(async (tx) => {
+      const created = await tx.course.create({ data: {
+        slug: fixture.slug, title: fixture.title, summary: fixture.summary, dataOrigin: 'demo_seed',
+        themeId: themeIds.get(fixture.theme), sortOrder: courseIndex,
+        payload: curriculumPayload(fixture, coverId(fixture.coverAssetKey)),
+      } })
+      await createCurriculumVersion(tx, created, fixture, importedMedia.assetIds, 1)
+      return created
+    }, { timeout: 60000 })
     courseIds.set(fixture.slug, course.id)
-    const contentVersion = await prisma.courseVersion.upsert({
-      where: { courseId_versionNo: { courseId: course.id, versionNo: 1 } },
-      update: { snapshot: { title: fixture.title, summary: fixture.summary, data: payload } },
-      create: { courseId: course.id, versionNo: 1, snapshot: { title: fixture.title, summary: fixture.summary, data: payload } },
-    })
-    const chapterNames = ['概念与目标', '核心方法', '受控实践', '复盘与验证']
-    for (const [chapterIndex, chapterName] of chapterNames.entries()) {
-      let chapter = await prisma.courseChapter.findFirst({ where: { courseVersionId: contentVersion.id, sortOrder: chapterIndex + 1 } })
-      chapter = chapter
-        ? await prisma.courseChapter.update({ where: { id: chapter.id }, data: { title: `${chapterIndex + 1}. ${chapterName}`, description: `${fixture.title}的${chapterName}学习单元。` } })
-        : await prisma.courseChapter.create({ data: { courseVersionId: contentVersion.id, title: `${chapterIndex + 1}. ${chapterName}`, description: `${fixture.title}的${chapterName}学习单元。`, sortOrder: chapterIndex + 1 } })
-      const lessonNames = chapterIndex === 0 ? ['建立问题意识', '理解关键术语', '明确学习成果']
-        : chapterIndex === 1 ? ['拆解核心原理', '阅读结构图解', '辨析常见误区']
-          : chapterIndex === 2 ? ['准备实践环境', '完成受控操作', '检查运行结果']
-            : ['整理关键要点', '完成知识测验', '规划下一步学习']
-      for (const [lessonIndex, lessonName] of lessonNames.entries()) {
-        let lesson = await prisma.courseLesson.findFirst({ where: { chapterId: chapter.id, sortOrder: lessonIndex + 1 } })
-        lesson = lesson
-          ? await prisma.courseLesson.update({ where: { id: lesson.id }, data: { title: lessonName, summary: `${fixture.summary}${lessonName}。`, durationMinutes: Math.max(12, Math.round(fixture.durationMinutes / 12)) } })
-          : await prisma.courseLesson.create({ data: { chapterId: chapter.id, title: lessonName, summary: `${fixture.summary}${lessonName}。`, durationMinutes: Math.max(12, Math.round(fixture.durationMinutes / 12)), sortOrder: lessonIndex + 1 } })
-        if (await prisma.lessonBlock.count({ where: { lessonId: lesson.id } }) === 0) {
-          await prisma.lessonBlock.createMany({
-            data: [
-              { lessonId: lesson.id, blockType: 'heading', sortOrder: 1, content: { text: `${fixture.title}：${lessonName}` } },
-              { lessonId: lesson.id, blockType: 'paragraph', sortOrder: 2, content: { text: fixture.summary } },
-              { lessonId: lesson.id, blockType: 'diagram', sortOrder: 3, content: { title: '学习结构', nodes: ['输入', '方法', '结果', '验证'] } },
-              { lessonId: lesson.id, blockType: 'code', sortOrder: 4, content: { language: 'text', code: `目标: ${lessonName}\n检查: 能够解释并完成对应练习` } },
-              { lessonId: lesson.id, blockType: 'key_points', sortOrder: 5, content: { items: ['理解关键概念', '完成受控练习', '记录验证证据'] } },
-              { lessonId: lesson.id, blockType: 'quiz', sortOrder: 6, content: { question: `如何验证“${lessonName}”已经完成？`, answer: '用可复核的结果和学习记录验证。' } },
-              { lessonId: lesson.id, blockType: 'resource', sortOrder: 7, content: { title: '配套学习资料', route: '/resources' } },
-              { lessonId: lesson.id, blockType: 'next_lesson', sortOrder: 8, content: { title: lessonNames[lessonIndex + 1] || '进入下一章节' } },
-            ],
-          })
-        }
-      }
-    }
-    await prisma.course.update({
-      where: { id: course.id },
-      data: { currentDraftVersionId: contentVersion.id, publishedVersionId: contentVersion.id },
-    })
   }
 
   for (const [themeSlug, themeId] of themeIds) {
+    if (!newThemeIds.has(themeId)) continue
     const fixture = themes.find((item) => item.slug === themeSlug)
     if (!fixture) continue
     const path = await prisma.learningPath.upsert({
@@ -309,20 +257,13 @@ async function seed() {
         create: { pathId: path.id, stageKey: stage.key, name: stage.name, description: stage.description, stageType: stage.type, sortOrder: index, unlockRule: { countLabel: stage.countLabel, hours: stage.hours } },
       })
     }
-    const firstCourse = courses.find((course) => course.theme === themeSlug)
-    if (firstCourse) {
-      const firstStage = await prisma.learningPathStage.findUnique({ where: { pathId_stageKey: { pathId: path.id, stageKey: fixture.path[0]!.key } } })
-      const courseId = courseIds.get(firstCourse.slug)
-      if (firstStage && courseId) {
-        await prisma.pathContent.upsert({
-          where: { stageId_targetType_targetId: { stageId: firstStage.id, targetType: 'course', targetId: courseId } },
-          update: {},
-          create: { stageId: firstStage.id, targetType: 'course', targetId: courseId },
-        })
-      }
+    for (const fixtureCourse of courses.filter((course) => course.theme === themeSlug)) {
+      const stage = await prisma.learningPathStage.findUnique({ where: { pathId_stageKey: { pathId: path.id, stageKey: fixtureCourse.slug } } })
+      const courseId = courseIds.get(fixtureCourse.slug)
+      if (stage && courseId) await prisma.pathContent.create({ data: { stageId: stage.id, targetType: 'course', targetId: courseId } })
     }
   }
-  for (const themeId of themeIds.values()) {
+  for (const themeId of newThemeIds) {
     const theme = await prisma.theme.findUnique({
       where: { id: themeId },
       include: { paths: { orderBy: { sortOrder: 'asc' }, include: { stages: { orderBy: { sortOrder: 'asc' }, include: { contents: true } } } } },

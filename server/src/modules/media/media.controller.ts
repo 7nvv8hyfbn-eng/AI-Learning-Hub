@@ -17,10 +17,10 @@ import { MediaDefaultDto, MediaQueryDto, MediaResolveDto, MediaUpdateDto, MediaU
 @Controller()
 export class MediaFileController {
   constructor(private readonly media: MediaService, private readonly visibility: CommunityVisibilityPolicyService, @Inject(STORAGE_SERVICE) private readonly storage: StorageService) {}
-  private async send(id: string, publicOnly: boolean, response: Response, actorId?: string) {
+  private async send(id: string, publicOnly: boolean, response: Response, actorId?: string, fileId?: string) {
     const asset = await this.media.record(id)
-    if (publicOnly && (asset.status !== 'active' || asset.deletedAt || asset.file.visibility !== 'public')) throw new NotFoundException('素材不存在')
-    const file = asset.file
+    if (!fileId && publicOnly && (asset.status !== 'active' || asset.deletedAt || asset.file.visibility !== 'public')) throw new NotFoundException('素材不存在')
+    const file = fileId ? await this.media.pinnedFile(id, fileId, publicOnly) : asset.file
     await this.visibility.assertMediaEligibility(file.uploadedBy)
     if (actorId) { await this.visibility.assertMediaEligibility(actorId); await this.visibility.auditAdminRead(actorId, 'media_asset', id) }
     response.set({ 'Content-Type': file.mimeType, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "default-src 'none'; sandbox", 'Cross-Origin-Resource-Policy': 'same-origin' })
@@ -31,8 +31,10 @@ export class MediaFileController {
   }
   @Get('public/media/:id') @RawResponse()
   publicFile(@Param('id') id: string, @Res({ passthrough: true }) response: Response) { return this.send(id, true, response) }
+  @Get('public/media/:id/files/:fileId') @RawResponse()
+  courseFile(@Param('id') id: string, @Param('fileId') fileId: string, @Res({ passthrough: true }) response: Response) { return this.send(id, true, response, undefined, fileId) }
   @Get('admin/media-assets/:id/preview') @UseGuards(AuthGuard, PermissionsGuard) @Permissions('media.read') @RawResponse()
-  preview(@Param('id') id: string, @Res({ passthrough: true }) response: Response, @CurrentUser() user: AuthUser) { return this.send(id, false, response, user.id) }
+  preview(@Param('id') id: string, @Res({ passthrough: true }) response: Response, @CurrentUser() user: AuthUser, @Query('fileId') fileId?: string) { return this.send(id, false, response, user.id, fileId) }
 }
 
 @Controller('admin')

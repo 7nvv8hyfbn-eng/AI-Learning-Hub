@@ -4,6 +4,8 @@ import { ContentSupportService } from '../../common/content/content-support.serv
 import { PrismaService } from '../../prisma/prisma.service'
 import type { PageQueryDto } from '../../common/content/page-query.dto'
 import type { CreateCourseDto, UpdateCourseDto } from './course.dto'
+import { courseImageUrl, freezeCourseImages } from './course-images'
+import { mediaObject } from '../media/media-resolver.service'
 
 const dataFields = ['category', 'level', 'coverAssetId', 'mode', 'hours', 'durationMinutes', 'certificate']
 
@@ -82,7 +84,12 @@ export class CourseService {
         currentDraftVersionId: item.currentDraftVersionId,
         publishedVersionId: item.publishedVersionId,
       } : {}),
-      chapters: (publicOnly ? item.publishedVersion : item.currentDraftVersion)?.chapters || [],
+      chapters: ((publicOnly ? item.publishedVersion : item.currentDraftVersion)?.chapters || []).map((chapter) => ({
+        ...chapter, lessons: chapter.lessons.map((lesson) => ({ ...lesson, blocks: lesson.blocks.map((block) => {
+          const content = this.support.data(block.content)
+          return block.blockType === 'image' ? { ...block, content: { ...content, url: courseImageUrl(content, !publicOnly) } } : block
+        }) })),
+      })),
       relatedResources: item.resources.map((link) => ({
         ...(!publicOnly ? { id: link.resource.id } : {}),
         slug: link.resource.slug,
@@ -131,7 +138,11 @@ export class CourseService {
         payload: this.support.sanitize(data), version: { increment: 1 },
       } })
       const draft = await tx.courseVersion.findUniqueOrThrow({ where: { id: draftId } })
-      await tx.courseVersion.update({ where: { id: draftId }, data: { snapshot: this.support.json({ ...this.support.data(draft.snapshot), title: course.title, summary: course.summary, data }) } })
+      const previousCover = mediaObject(this.snapshot(draft.snapshot).data.coverImage)
+      const snapshotData = { ...data }
+      if (previousCover.assetId === data.coverAssetId) snapshotData.coverImage = previousCover
+      else delete snapshotData.coverImage
+      await tx.courseVersion.update({ where: { id: draftId }, data: { snapshot: this.support.json({ ...this.support.data(draft.snapshot), title: course.title, summary: course.summary, data: snapshotData }) } })
       return course
     })
     await this.support.audit(actorId, 'update', 'courses', id)
@@ -143,6 +154,10 @@ export class CourseService {
       await this.support.binding(tx, undefined)
       const draftId = published ? await this.ensureDraft(id, tx) : null
       if (published && !draftId) throw new BadRequestException('课程没有可发布草稿版本')
+      if (draftId) {
+        const course = await tx.course.findUniqueOrThrow({ where: { id } })
+        await freezeCourseImages(tx, draftId, course.coverAssetId)
+      }
       return tx.course.update({ where: { id }, data: published
         ? { status: PublishStatus.published, publishedAt: new Date(), publishedVersionId: draftId, version: { increment: 1 } }
         : { status: PublishStatus.archived, version: { increment: 1 } } })
@@ -177,11 +192,14 @@ export class CourseService {
     if (!course) throw new NotFoundException('课程不存在')
     if (course.currentDraftVersionId && course.currentDraftVersionId !== course.publishedVersionId) return course.currentDraftVersionId
       const source = course.currentDraftVersion
+      const snapshot = source ? { ...mediaObject(source.snapshot) } : { title: course.title, summary: course.summary, data: mediaObject(course.payload) } as Record<string, unknown>
+      delete snapshot.mediaFiles
+      delete snapshot.publishedAt
       const version = await tx.courseVersion.create({
         data: {
           courseId,
           versionNo: course._count.versions + 1,
-          snapshot: (source?.snapshot || { title: course.title, summary: course.summary, data: this.support.data(course.payload) }) as Prisma.InputJsonValue,
+          snapshot: snapshot as Prisma.InputJsonValue,
         },
       })
       for (const chapter of source?.chapters || []) {

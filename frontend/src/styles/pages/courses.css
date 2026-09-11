@@ -11,13 +11,22 @@
 .outline-title { display: flex; justify-content: space-between; width: 100%; min-height: 42px; border: 0; background: transparent; cursor: pointer; }
 .outline-title span { color: var(--muted); }
 .lesson-list { display: grid; gap: 5px; margin-top: 10px; }
+.lesson-chapter { display: grid; gap: 4px; min-width: 0; }
+.lesson-chapter h3 { margin: 12px 8px 4px; font-size: 13px; line-height: 1.5; }
 .lesson-list button { display: flex; align-items: center; gap: 10px; min-height: 47px; padding: 8px; color: var(--secondary); text-align: left; border: 0; border-left: 3px solid transparent; background: transparent; cursor: pointer; }
 .lesson-list button span { display: grid; place-items: center; min-width: 29px; height: 29px; border: 1px solid var(--border); border-radius: 50%; font-size: var(--amc-font-meta); }
-.lesson-list button.done { color: var(--green); }
 .lesson-list button.active { color: var(--brand); border-left-color: var(--brand); background: var(--brand-soft); }
 .certificate-card { margin-top: 20px; padding: 15px; color: #5643b5; background: #f0edff; border-radius: 12px; font-size: .77rem; line-height: 1.6; }
 .lesson-content { min-width: 0; padding: 30px; border: 1px solid var(--border); border-radius: var(--radius-card); background: white; }
-.lesson-content > p { font-size: 1rem; line-height: 1.9; }
+.lesson-blocks > p { font-size: 1rem; line-height: 1.9; margin-block: 20px; }
+.lesson-figure { margin: 24px 0; }
+.lesson-figure img { display: block; max-width: 100%; width: 100%; height: auto; border-radius: 12px; }
+.lesson-figure figcaption { margin-top: 9px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.lesson-takeaway { margin-block: 24px; padding: 16px 18px; border-left: 3px solid var(--brand); background: var(--brand-soft); border-radius: 0 10px 10px 0; }
+.lesson-takeaway ul { margin: 8px 0 0; padding-left: 20px; line-height: 1.7; }
+.quiz-card details { margin-top: 16px; }
+.quiz-card summary { width: fit-content; padding-block: 8px; color: var(--brand); cursor: pointer; }
+.quiz-card details p { line-height: 1.8; }
 .lesson-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
 .lesson-actions button { color: var(--secondary); border: 1px solid var(--border); border-radius: 8px; background: white; cursor: pointer; }
 .lesson-actions button.active { color: var(--brand); border-color: #ffc4b2; background: var(--brand-soft); }
@@ -25,16 +34,10 @@
 .lesson-nav button { min-height: 40px; border: 0; background: transparent; cursor: pointer; }
 .concept-diagram { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 28px 0; padding: 22px; overflow-x: auto; border-radius: 14px; background: #f6f5ff; }
 .concept-diagram div { min-width: 110px; padding: 17px; text-align: center; background: white; border: 1px solid #dcd5ff; border-radius: 10px; font-weight: 700; }
-.video-placeholder { position: relative; margin: 30px 0; overflow: hidden; border-radius: 16px; }
-.video-placeholder .category-cover { filter: brightness(.55); }
-.video-placeholder button { position: absolute; inset: 0; margin: auto; width: fit-content; height: fit-content; padding: 13px 18px; color: white; border: 1px solid rgba(255,255,255,.55); border-radius: 9px; background: rgba(0,0,0,.45); cursor: pointer; }
 .code-card { max-width: 100%; margin: 30px 0; overflow: hidden; color: #dae9f6; border-radius: 14px; background: #0b1722; }
 .code-card > div { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #293847; }
 .code-card button { color: #b8cbdc; border: 0; background: transparent; cursor: pointer; }
 .code-card pre { margin: 0; padding: 22px; overflow: auto; line-height: 1.7; }
-.key-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.key-grid article { padding: 17px; border: 1px solid var(--border); border-radius: 12px; }
-.key-grid p { margin-bottom: 0; font-size: .8rem; }
 .quiz-card { margin-top: 30px; padding: 24px; border-radius: 16px; background: #fffaf3; }
 .quiz-card label { display: flex; align-items: center; gap: 10px; min-height: 48px; margin: 8px 0; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: white; cursor: pointer; }
 .quiz-card label.selected { border-color: #ffbda9; background: var(--brand-soft); }
