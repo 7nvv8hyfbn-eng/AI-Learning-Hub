@@ -37,12 +37,12 @@ npm run content:verify
 
 所有服务器使用同一入口，不依赖某台服务器的数据库备份，不再配置 `COMMUNITY_STARTER_PACK`。保持 `LOAD_DEMO_DATA=false`。
 
-先构建并保存固定提交对应的镜像。将 `ENV_FILE` 指向该环境私有配置，`APP_COMMIT_SHA` 指向已推送的完整提交，`APP_IMAGE_TAG` 指向对应镜像标签，然后执行：
+先按 [应用版本流程](../README.md#版本与发布) 发布 main 和对应标签，再构建并保存固定提交对应的镜像。应用版本由根目录 `version.md` 维护，独立于本内容包版本；镜像构建须传入相同 `APP_COMMIT_SHA`，各端生成 `dist/version.json`。将 `ENV_FILE` 指向该环境私有配置，`APP_COMMIT_SHA` 指向已推送的完整提交，`APP_IMAGE_TAG` 指向对应镜像标签，然后执行：
 
 ```sh
 bash deploy/compose/release.sh
 ```
 
-顺序固定为停写与备份、迁移、基础初始化、三类内容同步、校验、开放服务。Compose 的 `content-sync` 是 API 依赖；API 启动也核验当前镜像的完成记录，绕过 Compose 不能跳过内容同步。使用环境自有的外部持久卷时，通过受控 Compose 配置指向已有卷，不创建替代业务库。
+发布入口先核对三端镜像的应用版本及提交，写入 `release-version.json`，任何不一致都在停写之前拒绝。之后顺序固定为停写与备份、迁移、基础初始化、三类内容同步、校验、开放服务。Compose 的 `content-sync` 是 API 依赖；API 启动也核验当前镜像的完成记录，绕过 Compose 不能跳过内容同步。使用环境自有的外部持久卷时，通过受控 Compose 配置指向已有卷，不创建替代业务库。
 
 备份目录包含数据库、上传文件、镜像列表、私有环境配置及内容报告，权限为仅部署操作者可读。保留旧镜像、分包和备份；不要运行 `down -v`、Seed 或导入测试账号脚本。回退代码不自动降级内容，须明确核对旧代码兼容性；需要恢复数据时使用对应备份并审查新增业务数据，禁止自动恢复覆盖。

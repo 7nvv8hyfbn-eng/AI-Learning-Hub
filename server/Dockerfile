@@ -10,7 +10,11 @@ COPY packages/catalog-assets packages/catalog-assets
 COPY frontend/public/demo/resource-hub /workspace/frontend/public/demo/resource-hub
 COPY server/package.json server/package-lock.json server/
 RUN cd server && npm ci
+COPY version.md ./version.md
+COPY scripts/version.mjs ./scripts/version.mjs
 COPY server server
+ARG APP_COMMIT_SHA=development
+ENV APP_COMMIT_SHA=${APP_COMMIT_SHA}
 RUN cd server && npx prisma generate && npm run build
 
 FROM node:22.14.0-bookworm-slim@sha256:1c18d9ab3af4585870b92e4dbc5cac5a0dc77dd13df1a5905cea89fc720eb05b AS runtime

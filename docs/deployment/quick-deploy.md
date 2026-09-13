@@ -34,16 +34,9 @@ docker compose --env-file deploy/compose/.env \
 
 ## 注册与邮件
 
-默认开放学生邮箱注册。启动依次执行 `migrate`、`bootstrap`、API，不重播演示 Seed。`bootstrap` 补必要角色、权限、设置和首个管理员；配置模板还启用[社区初始化资源](../../server/resources/community-starter/README.md)，持久导入100篇原创图文、30个托管账号和200条回复。`COMMUNITY_STARTER_PACK=none`关闭内容包，旧环境缺省不导入；`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` 不覆盖已有账号。首次开放注册前，管理员须创建并发布至少三个学习方向，供首次引导选择；注册设置在「系统设置」维护。
+默认开放学生邮箱注册。正式发布先按 [版本流程](../../README.md#版本与发布) 提交并推送固定版本，再通过 `deploy/compose/release.sh` 依次核验制品版本、备份、迁移、`bootstrap`、同步三类项目内容、校验并启动服务。`bootstrap` 补必要角色、权限、设置和首个管理员，`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` 不覆盖已有账号；[项目内容同步](../../deploy/PROJECT_CONTENT.md) 不携带测试账号。首次开放注册前，管理员须创建并发布至少三个学习方向，供首次引导选择；注册设置在「系统设置」维护。
 
-如需演示内容，仅在独立体验库显式执行：
-
-```bash
-LOAD_DEMO_DATA=true docker compose --env-file deploy/compose/.env \
-  -f deploy/compose/docker-compose.yml --profile demo run --rm seed-demo
-```
-
-演示 Seed 还需配置 `.env` 中的学生样例凭据。正常启动保留 `LOAD_DEMO_DATA=false`，不得对真实业务库重播演示数据。
+正式部署保持 `LOAD_DEMO_DATA=false`，不得对真实业务库重播演示数据。开发测试夹具与正式内容入口分离。
 
 邮箱验证与找回密码需配置 `SMTP_HOST`、`SMTP_PORT`、`SMTP_FROM`、`FRONTEND_URL`，认证邮件服务另填 `SMTP_USER`、`SMTP_PASSWORD`。默认强制 TLS；`SMTP_ALLOW_INSECURE=true` 仅用于隔离邮件验收。注册邮件失败不会撤销已创建账号，可通过 `/auth/email/resend` 重发。找回邮件异步发送，发送期间进程重启需重新申请；不宣称邮件已送达。
 

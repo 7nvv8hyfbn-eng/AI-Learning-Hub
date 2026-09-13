@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { api } from '../services/api'
 import { useSessionStore } from '../stores/session'
 import AdminIcon from './AdminIcon.vue'
+import { appVersion } from '../version'
 
 const session = useSessionStore()
 const router = useRouter()
@@ -42,7 +43,7 @@ onMounted(async () => {
     </el-dropdown>
     <el-dropdown>
       <button class="admin-user" type="button"><span>{{ session.user?.displayName.slice(0, 1) }}</span><strong>{{ session.user?.displayName }}<small>{{ session.user?.roles.join('、') || '管理账号' }}</small></strong><AdminIcon name="chevron-down" :size="15" /></button>
-      <template #dropdown><el-dropdown-menu><el-dropdown-item @click="router.push('/account/security')">账号安全</el-dropdown-item><el-dropdown-item @click="logout">退出登录</el-dropdown-item></el-dropdown-menu></template>
+      <template #dropdown><el-dropdown-menu><el-dropdown-item @click="router.push('/account/security')">账号安全</el-dropdown-item><el-dropdown-item @click="logout">退出登录</el-dropdown-item><li class="app-version account-version" role="presentation" aria-label="应用版本">{{ appVersion }}</li></el-dropdown-menu></template>
     </el-dropdown>
     <el-dropdown v-if="quickCreates.length">
       <button class="quick-create" type="button"><AdminIcon name="plus" :size="15" />快速创建<AdminIcon name="chevron-down" :size="14" /></button>

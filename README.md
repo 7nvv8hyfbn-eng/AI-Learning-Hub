@@ -19,10 +19,26 @@
 ## 开发验证
 
 ```bash
+node scripts/release.mjs install
+node --test scripts/release.test.mjs
 (cd server && npm ci && npm run check)
 (cd admin-web && npm ci && npm run check)
 (cd frontend && npm ci && VITE_DATA_MODE=api npm run check)
 ```
+
+## 版本与发布
+
+[version.md](version.md) 记录应用版本和更新摘要。每个新克隆先安装上述仓库级推送检查；已有自定义钩子需整合后再安装。
+
+功能改动精确提交并合并到 `main`，工作树干净且检查通过后，使用统一入口：
+
+```bash
+node scripts/release.mjs publish --summary "本批更新摘要"
+```
+
+每批 `main` 发布只递增一次补丁版本，同步三端应用清单和锁文件，创建版本提交及附注标签，再原子推送并核验远端。普通分支推送、重复部署不递增。推送失败时原命令可重试；保留未发布提交和标签，不重复加号。远端变化或标签冲突须先检查并解决，禁止强制覆盖。钩子拦截缺少正确版本记录或标签的 `main` 推送；不要使用 `--no-verify` 绕过。
+
+三端构建会检查版本一致性并生成 `dist/version.json`，固定提交构建通过 `APP_COMMIT_SHA` 注入完整 SHA。页面显示各自构建版本；`GET /api/v1/version` 返回服务端 `version`、`commit` 和 `environment`。应用版本与项目内容包版本独立，版本发布不改写用户数据。
 
 正式发布通过 [统一入口](deploy/PROJECT_CONTENT.md) 依次备份、迁移、`bootstrap`、同步三类项目内容并校验，不加载演示账号。初始管理员由环境变量设置；首次开放注册前，需在后台配置并发布至少三个学习方向。社区写入使用事务、幂等键和修订号；用户、草稿、互动及文件元数据以 PostgreSQL 为准。
 

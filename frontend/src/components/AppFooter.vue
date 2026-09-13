@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { dataMode } from '../services/api/client'
+import { appVersion } from '../version'
 </script>
 
 <template>
@@ -14,6 +15,6 @@ import { dataMode } from '../services/api/client'
       <div><strong>资源</strong><RouterLink to="/resources">教程中心</RouterLink><RouterLink to="/frontier">AI 前沿</RouterLink></div>
       <div><strong>成长</strong><RouterLink to="/assessments">挑战与测评</RouterLink><RouterLink to="/profile">个人中心</RouterLink></div>
     </div>
-    <p class="copyright">© 2026 AI MAKER CAMPUS · {{ dataMode === 'api' ? '内容来自已发布数据' : '当前内容为演示数据' }}</p>
+    <p class="copyright">© 2026 AI MAKER CAMPUS · {{ dataMode === 'api' ? '内容来自已发布数据' : '当前内容为演示数据' }} · <span class="app-version" aria-label="应用版本">{{ appVersion }}</span></p>
   </footer>
 </template>

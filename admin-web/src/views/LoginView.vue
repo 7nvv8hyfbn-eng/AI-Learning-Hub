@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AdminIcon from '../components/AdminIcon.vue'
+import { appVersion } from '../version'
 import { onBeforeUnmount, reactive, ref, watch } from 'vue'
 import type { MfaHintDto } from '@ai-learning-hub/contracts'
 import { api } from '../services/api'
@@ -81,6 +82,7 @@ const enter = async () => {
         <button class="admin-primary" type="submit" :disabled="session.loading">{{ session.loading ? '正在验证…' : session.mfa ? '验证并登录' : '登录管理后台' }}</button>
       </form>
       <small>账号由环境初始化流程创建，页面不内置默认凭据。</small>
+      <small class="app-version" aria-label="应用版本">{{ appVersion }}</small>
     </section>
   </main>
 </template>

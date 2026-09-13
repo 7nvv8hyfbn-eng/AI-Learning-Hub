@@ -1,0 +1,3 @@
+#!/bin/sh
+# 只检查待推送提交，不在 Git 已解析推送引用后修改提交。
+exec node "$(git rev-parse --show-toplevel)/scripts/release.mjs" pre-push "$@"

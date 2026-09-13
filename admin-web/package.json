@@ -8,9 +8,10 @@
     "lint": "eslint .",
     "typecheck": "vue-tsc --noEmit --skipLibCheck",
     "test:media": "node scripts/check-media.mjs",
-    "build": "npm run typecheck && vite build",
+    "build": "npm run version:check && npm run typecheck && vite build && node ../scripts/version.mjs artifact admin-web",
     "check": "npm run lint && npm run typecheck && npm run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "version:check": "node ../scripts/version.mjs check admin-web"
   },
   "dependencies": {
     "@ai-learning-hub/contracts": "file:../packages/contracts",

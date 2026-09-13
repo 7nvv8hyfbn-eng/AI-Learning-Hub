@@ -1,5 +1,9 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common'
 import { OperationsService } from './modules/persistence/operations.service'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+const appVersion: string = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8')).version
 
 @Controller()
 export class AppController {
@@ -16,6 +20,6 @@ export class AppController {
 
   @Get('version')
   version() {
-    return { commit: process.env.APP_COMMIT_SHA || 'development', environment: process.env.NODE_ENV || 'development' }
+    return { version: appVersion, commit: process.env.APP_COMMIT_SHA || 'development', environment: process.env.NODE_ENV || 'development' }
   }
 }

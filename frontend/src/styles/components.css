@@ -322,3 +322,7 @@ label:has(> input[type="checkbox"]:disabled) { color: var(--amc-text-secondary);
 .back-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 40px; height: 40px; min-width: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; vertical-align: middle; }
 .back-button:hover { color: var(--brand); }
 .back-button > svg { width: 32px; height: 32px; flex: 0 0 32px; }
+/* 构建版本与当前页面一同更新，不请求服务端版本替代本地版本。 */
+.app-version { color: var(--amc-text-secondary, #6f6b67); font-size: 12px; font-weight: 400; line-height: 1.5; white-space: nowrap; }
+.community-account > .app-version { display: block; margin-top: 8px; text-align: center; }
+.immersive-version { padding: 12px 24px; color: #aaaeb8; text-align: center; }

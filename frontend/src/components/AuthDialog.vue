@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { appVersion } from '../version'
 import AppIcon from './base/AppIcon.vue'
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -58,4 +59,5 @@ const submit = async () => {
     <button v-if="forgot" type="button" class="back-button" @click="forgot = false" aria-label="返回登录" title="返回登录"><AppIcon name="back" /></button>
     <p v-if="auth.registrationConfig?.mode === 'closed'" class="muted">注册已关闭，请联系管理员创建账号。</p>
   </form>
+  <p class="app-version" aria-label="应用版本">{{ appVersion }}</p>
 </AppDialog></template>

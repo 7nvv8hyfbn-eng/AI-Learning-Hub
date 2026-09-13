@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CommunityUserBadges from '../community/CommunityUserBadges.vue'
+import { appVersion } from '../version'
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { LANDING_DEFAULT_CONFIG, type HomepageResolvedItemDto, type LandingConfigMap, type LandingModuleKey, type LandingPublicAuthor, type PublicHomepageDto } from '@ai-learning-hub/contracts'
@@ -103,7 +104,7 @@ const learnMore = () => capabilities.value?.scrollIntoView({ behavior: window.ma
       </article>
     </section>
     <section v-if="moduleFor('landing_bottom_cta')" class="landing-bottom-cta landing-container" aria-labelledby="landing-cta-title"><div><h2 id="landing-cta-title">{{ cta.title }}</h2><p>{{ cta.description }}</p><button class="button primary landing-login" type="button" @click="navigate()">{{ auth.user ? '进入社区' : cta.buttonLabel }}<AppIcon name="arrow-right" :size="20" /></button></div><img :src="landingAsset(cta.image, 'ctaRobot')" alt="" width="1200" height="600" loading="lazy" /></section>
-    <footer class="landing-footer landing-container"><strong>{{ hero.brandName }}</strong><span>© {{ new Date().getFullYear() }} AI数智化学习平台</span><RouterLink to="/terms">用户协议</RouterLink><RouterLink to="/privacy">隐私政策</RouterLink></footer>
+    <footer class="landing-footer landing-container"><strong>{{ hero.brandName }}</strong><span>© {{ new Date().getFullYear() }} AI数智化学习平台 · <span class="app-version" aria-label="应用版本">{{ appVersion }}</span></span><RouterLink to="/terms">用户协议</RouterLink><RouterLink to="/privacy">隐私政策</RouterLink></footer>
   </div>
   <section v-else class="landing-container landing-empty"><h1>社区落地页正在准备中</h1><p>请稍后再来，或登录后继续学习。</p><button class="button primary" @click="navigate()">登录 / 注册</button></section>
 </template>

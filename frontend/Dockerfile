@@ -8,6 +8,8 @@ COPY packages/demo-fixtures/src packages/demo-fixtures/src
 COPY packages/catalog-assets packages/catalog-assets
 COPY frontend/package.json frontend/package-lock.json frontend/
 RUN cd frontend && npm ci
+COPY version.md ./version.md
+COPY scripts/version.mjs ./scripts/version.mjs
 COPY frontend frontend
 ARG VITE_DATA_MODE=api
 ARG VITE_API_BASE_URL=/api/v1
@@ -15,6 +17,8 @@ ARG VITE_ADMIN_PREVIEW_ORIGINS
 ENV VITE_DATA_MODE=${VITE_DATA_MODE}
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 ENV VITE_ADMIN_PREVIEW_ORIGINS=${VITE_ADMIN_PREVIEW_ORIGINS}
+ARG APP_COMMIT_SHA=development
+ENV APP_COMMIT_SHA=${APP_COMMIT_SHA}
 RUN cd frontend && npm run build
 
 FROM nginx@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46

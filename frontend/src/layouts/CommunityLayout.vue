@@ -13,6 +13,7 @@ import CommunityRightRail from '../community/CommunityRightRail.vue'
 import CommunityPostMenu from '../community/CommunityPostMenu.vue'
 import { provideCommunityScrollRoot } from '../community/composables/useCommunityScrollRoot'
 import { useCommunityAccess } from '../community/composables/useCommunityAccess'
+import { appVersion } from '../version'
 const auth = useAuthStore(), store = useCommunityStore(), router = useRouter(), route = useRoute()
 const { canPost, decision, message, nextAction } = useCommunityAccess()
 const collapsed = ref(false), menuOpen = ref(false)
@@ -56,6 +57,7 @@ onBeforeUnmount(() => { window.clearInterval(polling) })
       <div class="community-account">
         <CommunityPostMenu label="账户菜单"><template #trigger><CommunityAvatar :src="auth.user?.avatarUrl" :username="auth.user?.username" :name="auth.user?.displayName || '学习者'" /><span class="nav-label"><strong>{{ auth.user?.displayName }}</strong><small>{{ auth.dataMode === 'mock' ? '显式演示模式' : '统一学习账号' }}</small></span><AppIcon class="nav-label account-more" name="more-circle" :size="18" /></template><RouterLink :to="profileRoute" role="menuitem">个人主页</RouterLink><RouterLink :to="`${profileRoute}?settings=1`" role="menuitem">账号设置</RouterLink><button type="button" role="menuitem" @click="logout">退出登录</button></CommunityPostMenu>
         <RouterLink class="text-link nav-label portal-link" to="/welcome">查看品牌门户 <AppIcon name="arrow-right" :size="14" /></RouterLink>
+        <small class="app-version" aria-label="应用版本" :title="appVersion">{{ appVersion }}</small>
       </div>
       <img v-bind="communityArt.sidebarPlanet" class="sidebar-decoration" alt="" loading="lazy" />
     </aside>
@@ -63,7 +65,7 @@ onBeforeUnmount(() => { window.clearInterval(polling) })
     <main id="main-content" ref="mainScroll" class="community-main" tabindex="-1"><aside v-if="(!canPost || store.accessNotice) && route.path !== '/community/verification'" class="community-verification-banner" :class="{ 'is-prompt': !!store.accessNotice }" role="status"><span>{{ accessMessage }}<small v-if="postAvailableAt">{{ postAvailableAt }}</small></span><div class="community-access-actions"><RouterLink v-if="accessAction" class="button secondary" :to="accessAction.route">{{ accessAction.label }}</RouterLink><button v-if="store.accessNotice" class="button secondary" @click="store.accessNotice = null">继续浏览</button></div></aside><slot /></main>
     <CommunityRightRail v-if="!wide" />
     <nav class="community-bottom-nav" aria-label="移动主导航"><RouterLink v-for="item in communityNavigation.filter((item) => item.mobile).sort((a, b) => a.mobileOrder - b.mobileOrder)" :key="item.path" :to="item.path" :class="{ active: communityNavActive(route.path, item.path) }" :style="{ order: item.mobileOrder }"><AppIcon :name="item.icon" :size="21" /><span>{{ item.label.replace('首页', '').replace('主题', '').replace('项目', '').replace('消息', '').replace('成长', '') }}</span></RouterLink><button class="mobile-publish-button" @click="publish"><AppIcon name="plus" :size="24" /><span>发布</span></button></nav>
-    <AppDialog v-model="menuOpen" title="学习社区"><nav class="community-more"><RouterLink v-for="item in communityNavigation" :key="item.path" :to="item.path" @click="menuOpen = false">{{ item.label }}</RouterLink><RouterLink to="/welcome" @click="menuOpen = false">品牌门户</RouterLink><button class="text-link" @click="logout">退出登录</button></nav></AppDialog>
+    <AppDialog v-model="menuOpen" title="学习社区"><nav class="community-more"><RouterLink v-for="item in communityNavigation" :key="item.path" :to="item.path" @click="menuOpen = false">{{ item.label }}</RouterLink><RouterLink to="/welcome" @click="menuOpen = false">品牌门户</RouterLink><button class="text-link" @click="logout">退出登录</button></nav><p class="app-version" aria-label="应用版本">{{ appVersion }}</p></AppDialog>
     <button class="community-floating-publish" aria-label="快捷发布" @click="publish"><AppIcon name="plus" /></button>
   </div>
 </template>

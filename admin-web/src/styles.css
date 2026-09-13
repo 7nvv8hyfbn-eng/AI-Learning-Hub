@@ -545,3 +545,32 @@ label:has(> input[type="checkbox"]:disabled) { color: var(--muted); cursor: not-
 .back-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 40px; height: 40px; min-width: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; vertical-align: middle; }
 .back-button:hover { color: var(--brand); }
 .back-button > svg { width: 32px; height: 32px; flex: 0 0 32px; }
+
+.app-version { color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.5; white-space: nowrap; }
+.sidebar-version { flex: 0 0 auto; margin: 0 12px 12px; text-align: center; }
+.account-version { display: none; padding: 8px 16px; border-top: 1px solid var(--line); }
+.admin-sidebar nav { min-height: 0; overflow-y: auto; }
+.admin-brand, .sidebar-note { flex-shrink: 0; }
+
+@media (max-width: 767px) {
+  html, body, #app { min-width: 0; }
+  .admin-shell { display: block; }
+  .admin-sidebar { position: static; width: 100%; border-right: 0; border-bottom: 1px solid var(--line); }
+  .admin-brand { height: 64px; }
+  .admin-sidebar nav { display: flex; gap: 6px; margin: 0; padding: 8px 12px; overflow-x: auto; }
+  .admin-sidebar .admin-nav-group { display: contents; }
+  .admin-sidebar .admin-nav-group h2, .sidebar-note, .sidebar-version { display: none; }
+  .admin-sidebar nav a { flex: 0 0 auto; white-space: nowrap; }
+  .admin-header { flex-wrap: wrap; height: auto; gap: 8px; padding: 12px; }
+  .admin-header form { order: 1; flex: 1 0 100%; min-width: 0; width: 100%; }
+  .admin-header .quick-create { padding-inline: 8px; }
+  .admin-content { padding: 16px 12px; overflow-x: auto; }
+  /* 保留业务表格和图表的原有列宽，仅内容区域横向浏览。 */
+  .admin-content > * { min-width: 920px; }
+  .account-version { display: block; }
+  .login-page { padding: 24px 16px; }
+  .login-card { width: min(100%, 440px); min-width: 0; padding: 24px; }
+  .login-brand { align-items: flex-start; }
+  .login-brand > span { flex-shrink: 0; }
+  .login-brand small { overflow-wrap: anywhere; }
+}

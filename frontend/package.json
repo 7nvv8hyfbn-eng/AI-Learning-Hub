@@ -11,9 +11,10 @@
     "build:catalog": "tsc -p ../packages/catalog-assets/tsconfig.json",
     "typecheck": "npm run build:catalog && vue-tsc --noEmit",
     "test": "vitest run",
-    "build": "npm run typecheck && vite build",
+    "build": "npm run version:check && npm run typecheck && vite build && node ../scripts/version.mjs artifact frontend",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "version:check": "node ../scripts/version.mjs check frontend"
   },
   "dependencies": {
     "@ai-learning-hub/catalog-assets": "file:../packages/catalog-assets",
