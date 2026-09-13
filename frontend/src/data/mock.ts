@@ -24,7 +24,7 @@ const themeMeta = {
   security: { category: 'AI 安全', accent: '#16a67a' },
 } as const
 
-export const courses = reactive<Course[]>(demoCourses.map((item) => ({
+export const courses = /* @__PURE__ */ reactive<Course[]>(demoCourses.map((item) => ({
   id: item.slug,
   title: item.title,
   description: item.summary,
@@ -48,7 +48,7 @@ const labCategory = {
   project: '综合项目',
 } as const
 
-export const labs = reactive<Lab[]>(demoLabs.map((item) => ({
+export const labs = /* @__PURE__ */ reactive<Lab[]>(demoLabs.map((item) => ({
   id: item.slug,
   title: item.title,
   description: item.summary,
@@ -63,7 +63,7 @@ export const labs = reactive<Lab[]>(demoLabs.map((item) => ({
   icon: item.icon,
 })))
 
-export const resources = reactive<ResourceItem[]>(demoResources.map((item) => ({
+export const resources = /* @__PURE__ */ reactive<ResourceItem[]>(demoResources.map((item) => ({
   id: item.slug,
   title: item.title,
   category: item.category,
@@ -78,7 +78,7 @@ export const resources = reactive<ResourceItem[]>(demoResources.map((item) => ({
   icon: item.icon,
 })))
 
-export const articles = reactive<Article[]>(demoArticles.map((item) => ({
+export const articles = /* @__PURE__ */ reactive<Article[]>(demoArticles.map((item) => ({
   id: item.slug,
   title: item.title,
   summary: item.summary,
@@ -91,7 +91,7 @@ export const articles = reactive<Article[]>(demoArticles.map((item) => ({
   icon: item.icon,
 })))
 
-export const makerProjects = reactive(demoLabs.filter((item) => item.labType === 'project').slice(0, 3).map((item) => ({
+export const makerProjects = /* @__PURE__ */ reactive(demoLabs.filter((item) => item.labType === 'project').slice(0, 3).map((item) => ({
   id: item.slug,
   title: item.title,
   description: item.summary,
@@ -103,21 +103,21 @@ export const makerProjects = reactive(demoLabs.filter((item) => item.labType ===
   icon: item.icon,
 })))
 
-export const studentActivities = reactive(demoActivities.slice(0, 6).map((item, index) => ({
+export const studentActivities = /* @__PURE__ */ reactive(import.meta.env.PROD && import.meta.env.VITE_DATA_MODE === 'api' ? [] : demoActivities.slice(0, 6).map((item, index) => ({
   student: item.student,
   action: item.action,
   time: ['刚刚', '6 分钟前', '18 分钟前', '32 分钟前', '48 分钟前', '1 小时前'][index],
   points: `+${item.points} 经验值`,
 })))
 
-export const assessmentAchievements = reactive(demoAchievements.map((item, index) => ({
+export const assessmentAchievements = /* @__PURE__ */ reactive(demoAchievements.map((item, index) => ({
   title: item.name,
   icon: item.code,
   unlocked: index < 4,
   description: item.description,
 })))
 
-export const userProfile = reactive({
+export const userProfile = /* @__PURE__ */ reactive(import.meta.env.PROD && import.meta.env.VITE_DATA_MODE === 'api' ? { name: '', school: '', program: '', level: 0, experience: 0, streak: 0, weeklyHours: 0, points: 0 } : {
   name: '造梦少年',
   school: '高校认证',
   program: 'AI 创客学院 · 计算机科学与技术 · 大二',

@@ -118,7 +118,7 @@ export class CommunityContextService {
     if (relations.some((row) => row.userId === user.id && row.feedbackType === 'block')) throw new NotFoundException('用户不存在')
     const muted = relations.some((row) => row.userId === userId && row.feedbackType === 'mute_author')
     const blocked = relations.some((row) => row.userId === userId && row.feedbackType === 'block')
-    const visibleWhere = await this.visibility.where(userId)
+    const visibleWhere: Prisma.CommunityPostWhereInput = { AND: [await this.visibility.where(userId), { OR: [{ sourceType: null }, { sourceType: { not: 'project_content' } }] }] }
     const excluded = (await this.visibility.authorExclusions(userId)).authors
     const [topics, following, followedBy, postCount, replyCount, likes, followerCount, followingCount, pinned] = await Promise.all([
       this.prisma.communityTopic.findMany({ where: { status: 'active', follows: { some: { userId: user.id } } }, include: { follows: { where: { userId } } }, orderBy: [{ recommended: 'desc' }, { sortOrder: 'asc' }], take: 200 }),
@@ -285,7 +285,7 @@ export class CommunityContextService {
       }
     }
     const media = query.tab === 'media' ? { contentBlocks: { array_contains: [{ type: 'image' }] } } as Prisma.CommunityPostWhereInput : {}
-    const liked = query.tab === 'liked' ? { reactions: { some: { userId: profile.id, reactionType: 'like' as const } } } : { authorId: profile.id }
+    const liked = query.tab === 'liked' ? { reactions: { some: { userId: profile.id, reactionType: 'like' as const } } } : { authorId: profile.id, OR: [{ sourceType: null }, { sourceType: { not: 'project_content' } }] }
     const rows = await this.prisma.communityPost.findMany({
       where: { AND: [
         await this.visibility.where(userId),

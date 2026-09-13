@@ -122,7 +122,7 @@ export class CommunityPostRelationsService {
       const blocks = target.contentBlocks as CommunityContentBlock[]
       // 摘要不含媒体块和原帖的引用对象；文件仍由原帖自己的访问策略校验。
       const excerpt = target.plainText.slice(0, 280).replace(/[#@][\p{L}\p{N}_]*$/u, '')
-      previews.set(target.id, { id: target.id, available: true, author: authorDto(target.author, badgeContext), publishedAt: target.publishedAt!.toISOString(), title: target.title, contentBlocks: [{ type: 'paragraph', text: excerpt }], inlineReferences: links.get(JSON.stringify(target.inlineReferences)) || [], thumbnailFileId: blocks.find((block) => block.type === 'image')?.fileId || undefined })
+      previews.set(target.id, { id: target.id, available: true, author: authorDto(target.author, badgeContext, target.sourceType), publishedAt: target.publishedAt!.toISOString(), title: target.title, contentBlocks: [{ type: 'paragraph', text: excerpt }], inlineReferences: links.get(JSON.stringify(target.inlineReferences)) || [], thumbnailFileId: blocks.find((block) => block.type === 'image')?.fileId || undefined })
     }
     return { previews, counts: new Map(counts.map((row) => [row.quotedPostId, row._count._all])) }
   }

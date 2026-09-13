@@ -34,7 +34,7 @@ export const communityAvatars: Record<string, string> = {
 }
 
 const studentKeys = ['student-male-01', 'student-male-02', 'student-male-03', 'student-female-01', 'student-female-02', 'student-female-03']
-const officialKeys: Record<string, string> = { 'campus-guide-1': 'ai-learning-assistant', 'campus-guide-2': 'official-teacher', 'community-teacher': 'official-teacher', 'community-mentor': 'official-teacher' }
+const officialKeys: Record<string, string> = import.meta.env.PROD && import.meta.env.VITE_DATA_MODE === 'api' ? {} : { 'campus-guide-1': 'ai-learning-assistant', 'campus-guide-2': 'official-teacher', 'community-teacher': 'official-teacher', 'community-mentor': 'official-teacher' }
 
 /** 用户名稳定映射，不依赖列表顺序、刷新时间或随机数；无身份键时保留文字回退。 */
 export function communityAvatarSource(username?: string, avatarKey?: string) {

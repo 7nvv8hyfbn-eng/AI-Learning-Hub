@@ -71,6 +71,7 @@ export class CommunityPostService {
     return { clean, plainText }
   }
   async save(userId: string, input: PostDto, id?: string, audit?: { actorId: string; action: string; reason: string }, key?: string, ip?: string) {
+    if (input.sourceType && !['note', 'lab_run', 'challenge', 'article'].includes(input.sourceType)) throw new BadRequestException('投稿不能声明平台内容身份')
     if (input.status === 'published') await this.visibility.assertOperation(userId, 'post')
     const viewer = await this.visibility.viewer(userId)
     const current = id ? await this.prisma.communityPost.findUnique({ where: { id }, include: { contribution: true } }) : null
@@ -162,7 +163,7 @@ export class CommunityPostService {
       if (input.status === 'published' && latest?.status !== 'published') await this.visibility.consumeQuota(tx, userId, 'post', ip)
       await this.relations.quote(tx, userId, quotedPostId, latest, input.status === 'published')
       const oldTopicIds = current ? (await tx.communityPostTopic.findMany({ where: { postId: current.id } })).map((row) => row.topicId) : []
-      const data = { quotedPostId, authorId: userId, postType: input.type, status, visibility: input.visibility, portalConsent: input.portalConsent === true && input.visibility === 'public', schoolId: viewer.schoolId, title: input.title?.trim() || null, body: plainText, plainText, contentBlocks: json(clean), coverFileId, contentHash, sourceType: input.sourceType || null, sourceId: input.sourceId || null, publishedAt: status === 'published' ? current?.publishedAt || new Date() : null, ...(id ? { editedAt: new Date() } : {}) }
+      const data = { quotedPostId, authorId: userId, postType: input.type, status, visibility: input.visibility, portalConsent: input.portalConsent === true && input.visibility === 'public', schoolId: viewer.schoolId, title: input.title?.trim() || null, body: plainText, plainText, contentBlocks: json(clean), coverFileId, contentHash, sourceType: current?.sourceType === 'project_content' ? current.sourceType : input.sourceType || null, sourceId: current?.sourceType === 'project_content' ? current.sourceId : input.sourceId || null, publishedAt: status === 'published' ? current?.publishedAt || new Date() : null, ...(id ? { editedAt: new Date() } : {}) }
       if (latest) await postRevision(tx, latest.id, userId, 'user', '编辑前版本')
       const saved = id ? await tx.communityPost.update({ where: { id, revision: latest!.revision }, data: { ...data, revision: { increment: 1 } } }) : await tx.communityPost.create({ data })
       if (detection) await this.detection.record(tx, { type: 'post', id: saved.id, revision: saved.revision, authorId: userId, submittedById: audit?.actorId || userId }, detection)
@@ -276,14 +277,14 @@ export class CommunityPostService {
       id: row.id, revision: row.revision, type: row.postType, status: row.status, visibility: row.visibility, portalConsent: row.portalConsent, title: row.title,
       mediaCount: (row.contentBlocks as CommunityContentBlock[]).filter((block) => block.type === 'image').length + (row.coverFileId ? 1 : 0),
       body: row.body, bodyPreview: row.plainText.slice(0, 320), contentBlocks: row.contentBlocks as CommunityContentBlock[], coverFileId: row.coverFileId,
-      author: authorDto(row.author, badgeContext),
+      author: authorDto(row.author, badgeContext, row.sourceType),
       bindings: [...new Map(row.bindings.map((ref) => {
         if (ref.targetType === 'lab_run' && row.authorId !== userId) return runRefs.get(ref.targetId)
         return references.get(`${ref.targetType}:${ref.targetId}`) || { type: ref.targetType as CommunityBindingInput['type'], id: ref.targetId, title: '关联内容已下架', route: '', status: 'unavailable' }
       }).filter((ref): ref is NonNullable<typeof ref> => !!ref).map((ref) => [`${ref.type}:${ref.id}`, ref])).values()],
       topics: row.topics.filter((ref) => ref.topic.status === 'active').map(({ topic }): CommunityTopicDto => ({ ...topic, following: topicFollows.some((follow) => follow.topicId === topic.id) })),
       stats: { likes: row.likeCount, useful: row.usefulCount, comments: commentCounts.find((count) => count.postId === row.id)?._count._all || 0, bookmarks: row.bookmarkCount, views: row.impressionCount, quotes: quotes.counts.get(row.id) || 0 },
-      viewerState: { liked: reactions.some((r) => r.postId === row.id && r.reactionType === 'like'), markedUseful: reactions.some((r) => r.postId === row.id && r.reactionType === 'useful'), bookmarked: bookmarks.some((b) => b.postId === row.id), followingAuthor: follows.some((f) => f.followeeId === row.authorId) },
+      viewerState: { liked: reactions.some((r) => r.postId === row.id && r.reactionType === 'like'), markedUseful: reactions.some((r) => r.postId === row.id && r.reactionType === 'useful'), bookmarked: bookmarks.some((b) => b.postId === row.id), followingAuthor: row.sourceType !== 'project_content' && follows.some((f) => f.followeeId === row.authorId) },
       recommendationReasons: [], labels: row.status === 'limited' ? [...row.labels, '内容正在人工复核'] : row.labels,
       question: row.question ? { status: row.question.status === 'solved' && !acceptedComments.some((comment) => comment.id === row.question!.acceptedCommentId) ? 'open' : row.question.status as 'open' | 'solved' | 'closed', acceptedCommentId: acceptedComments.some((comment) => comment.id === row.question!.acceptedCommentId) ? row.question.acceptedCommentId : null, teacherAnswered: teachers.some((c) => c.postId === row.id) } : null,
       publishedAt: (row.publishedAt || row.createdAt).toISOString(), editedAt: row.editedAt?.toISOString() || null,

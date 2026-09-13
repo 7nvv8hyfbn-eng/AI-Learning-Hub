@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build:contracts": "tsc --project ../packages/contracts/tsconfig.json && tsc --project ../packages/catalog-assets/tsconfig.json",
-    "build": "npm run build:contracts && nest build && npm run check:runtime",
+    "build": "npm run content:check-source && npm run build:contracts && nest build && npm run check:runtime",
     "check:runtime": "node scripts/check-runtime-imports.cjs",
     "check:seed-runtime": "node scripts/check-seed-runtime.cjs",
     "start": "node dist/main.js",
@@ -41,7 +41,14 @@
     "community:import-lcz": "tsx prisma/import-lcz-curated-posts.ts",
     "preresource:import-demo": "npm run build",
     "resource:import-demo": "tsx prisma/import-resource-hub-demo.ts",
-    "resource:cleanup-demo": "tsx prisma/import-resource-hub-demo.ts --delete"
+    "resource:cleanup-demo": "tsx prisma/import-resource-hub-demo.ts --delete",
+    "content:prepare": "tsx scripts/build-project-content.ts --write",
+    "content:check-source": "tsx scripts/build-project-content.ts",
+    "content:check": "node dist/modules/project-content/sync.js --check",
+    "content:preview": "node dist/modules/project-content/sync.js --preview",
+    "content:sync": "node dist/modules/project-content/sync.js",
+    "content:verify": "node dist/modules/project-content/sync.js --verify",
+    "test:project-content-isolated": "node test/project-content-isolated.cjs"
   },
   "dependencies": {
     "@ai-learning-hub/catalog-assets": "file:../packages/catalog-assets",

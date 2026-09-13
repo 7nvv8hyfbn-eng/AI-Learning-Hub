@@ -15,7 +15,7 @@ import type { GovernanceQueryDto } from './governance.dto'
 
 const openStatuses = ['pending', 'reviewing']
 const sanctionActions = Object.keys(sanctionLabels)
-type Target = GovernanceTargetDto & { subjectId: string; postId?: string; commentId?: string; collectionId?: string; profileId?: string; scope?: ModeratorScope; contentPostId?: string }
+type Target = GovernanceTargetDto & { platform?: boolean; subjectId: string; postId?: string; commentId?: string; collectionId?: string; profileId?: string; scope?: ModeratorScope; contentPostId?: string }
 type Tx = Prisma.TransactionClient
 
 @Injectable()
@@ -32,18 +32,18 @@ export class CommunityGovernanceService {
       const row = await tx.communityPost.findUnique({ where: { id }, include: { contribution: { select: { postId: true } } } })
       if (!row || type === 'resource' && !row.contribution) throw new NotFoundException('举报对象不存在')
       const available = row.status !== 'draft' && (!!row.publishedAt || !!await tx.contentReview.count({ where: { targetType: 'post', targetId: id } }))
-      return { type: row.contribution ? 'resource' : 'post', scope: row.contribution ? 'tutorials' : 'community', id, subjectId: row.authorId, postId: id, revision: row.revision, title: available ? row.title || row.plainText.slice(0, 160) : '内容当前未公开', text: available ? row.plainText : undefined, available, route: available ? `/community/post/${id}` : null }
+      return { type: row.contribution ? 'resource' : 'post', scope: row.contribution ? 'tutorials' : 'community', id, subjectId: row.authorId, platform: row.sourceType === 'project_content', postId: id, revision: row.revision, title: available ? row.title || row.plainText.slice(0, 160) : '内容当前未公开', text: available ? row.plainText : undefined, available, route: available ? `/community/post/${id}` : null }
     }
     if (type === 'comment') {
       const row = await tx.communityComment.findUnique({ where: { id }, include: { post: { select: { status: true, publishedAt: true, contribution: { select: { postId: true } } } } } })
       if (!row) throw new NotFoundException('举报对象不存在')
       const available = row.post.status !== 'draft' && (!!row.post.publishedAt || !!await tx.contentReview.count({ where: { targetType: 'post', targetId: row.postId } }))
-      return { type, scope: row.post.contribution ? 'tutorials' : 'community', contentPostId: row.postId, id, subjectId: row.authorId, commentId: id, revision: row.revision, title: available ? row.body.slice(0, 160) : '所属动态当前未公开', text: available ? row.body : undefined, available, route: available ? `/community/post/${row.postId}#comment-${id}` : null }
+      return { type, scope: row.post.contribution ? 'tutorials' : 'community', contentPostId: row.postId, id, subjectId: row.authorId, platform: row.sourceType === 'project_content', commentId: id, revision: row.revision, title: available ? row.body.slice(0, 160) : '所属动态当前未公开', text: available ? row.body : undefined, available, route: available ? `/community/post/${row.postId}#comment-${id}` : null }
     }
     if (type === 'collection') {
       const row = await tx.learningCollection.findUnique({ where: { id } })
       if (!row) throw new NotFoundException('举报对象不存在')
-      return { type, id, subjectId: row.ownerId, collectionId: id, revision: row.revision, title: row.visibility === 'community' ? row.name : '合集当前为私人内容', text: row.visibility === 'community' ? `${row.description}\n${row.learningGoal}` : undefined, available: row.visibility === 'community', route: row.visibility === 'community' ? `/resources/collections/${id}` : null }
+      return { type, id, subjectId: row.ownerId, platform: row.systemKind === 'project_content', collectionId: id, revision: row.revision, title: row.visibility === 'community' ? row.name : '合集当前为私人内容', text: row.visibility === 'community' ? `${row.description}\n${row.learningGoal}` : undefined, available: row.visibility === 'community', route: row.visibility === 'community' ? `/resources/collections/${id}` : null }
     }
     if (type === 'profile') {
       const row = await tx.user.findUnique({ where: { id }, select: { id: true, username: true, displayName: true, communityProfile: { select: { revision: true, bio: true, headline: true, websiteUrl: true } } } })
@@ -189,12 +189,12 @@ export class CommunityGovernanceService {
   private async moderatorGrant(tx: Tx, actor: AuthUser, target: Target, action?: string) {
     if (actor.sessionClient !== 'student' || actor.permissions.length || !target.scope) throw new ForbiddenException('此入口仅供已授权的前台版主使用')
     const grant = await tx.frontendModeratorGrant.findUnique({ where: { userId_scope: { userId: actor.id, scope: target.scope } } })
-    const actions = grant?.enabled ? moderatorActions(grant) : []
+    const actions = (grant?.enabled ? moderatorActions(grant) : []).filter(a => !target.platform || a === 'takedown')
     if (!actions.length || action && !actions.includes(action as ModeratorAction)) throw new ForbiddenException('没有此板块的对应管理权限，或授权已撤销')
     await this.visibility.assertOperation(actor.id, 'post', tx)
-    if (target.subjectId === actor.id) throw new ForbiddenException('不能处理自己的内容或账号')
+    if (!target.platform && target.subjectId === actor.id) throw new ForbiddenException('不能处理自己的内容或账号')
     const protectedAccount = await tx.user.count({ where: { id: target.subjectId, OR: [{ userType: 'admin' }, { userRoles: { some: { role: { OR: [{ code: { in: ['admin', 'super_admin'] } }, { permissions: { some: {} } }] } } } }] } })
-    if (protectedAccount) throw new ForbiddenException('前台版主不能处理受保护的管理账号')
+    if (!target.platform && protectedAccount) throw new ForbiddenException('前台版主不能处理受保护的管理账号')
     return actions
   }
   private async moderatorVisible(tx: Tx, actor: AuthUser, target: Target) {
@@ -208,7 +208,7 @@ export class CommunityGovernanceService {
       const target = await this.target(tx, type, id)
       const actions = await this.moderatorGrant(tx, actor, target)
       await this.moderatorVisible(tx, actor, target)
-      const author = await tx.user.findUniqueOrThrow({ where: { id: target.subjectId }, select: { id: true, displayName: true } })
+      const author = target.platform ? { id: 'platform-content', displayName: '平台内容' } : await tx.user.findUniqueOrThrow({ where: { id: target.subjectId }, select: { id: true, displayName: true } })
       return { type: target.type as ModeratorTargetDto['type'], id, title: target.title, revision: target.revision!, author, scope: target.scope!, actions }
     })
   }
@@ -219,14 +219,15 @@ export class CommunityGovernanceService {
     return this.decideTarget(actor, type as GovernanceTarget, id, { ...input, ruleCode: 'frontend_moderation' }, key, 'student')
   }
   private async apply(tx: Tx, actor: AuthUser, target: Target, input: GovernanceDecisionInput, startsAt = new Date(), source: 'admin' | 'student' = 'admin') {
+    if (target.platform && !['takedown', 'warn', 'reject'].includes(input.action)) throw new BadRequestException('平台内容不能用于处罚内部关联账号')
     if (source === 'admin') this.permission(actor, 'community.moderate')
     else await this.moderatorGrant(tx, actor, target, input.action)
     if (input.action === 'reject') throw new BadRequestException('驳回必须关联举报')
     if (!target.available) throw new ConflictException('内容已变为私人草稿，不能读取或处置当前草稿')
     if (input.action === 'ban' && source === 'admin') this.permission(actor, 'user.write', 'user.session.revoke')
-    if (target.subjectId === actor.id) throw new ForbiddenException('不能处理自己的内容或账号')
+    if (!target.platform && target.subjectId === actor.id) throw new ForbiddenException('不能处理自己的内容或账号')
     const protectedTarget = await tx.userRole.count({ where: { userId: target.subjectId, role: { code: { in: ['admin', 'super_admin'] } } } })
-    if (protectedTarget && !actor.roles.includes('super_admin')) throw new ForbiddenException('处理管理员需要超级管理员权限')
+    if (!target.platform && protectedTarget && !actor.roles.includes('super_admin')) throw new ForbiddenException('处理管理员需要超级管理员权限')
     const expiresAt = input.expiresAt ? new Date(input.expiresAt) : null
     if (expiresAt && (expiresAt <= new Date() || expiresAt.getTime() > Date.now() + 365 * 86400000)) throw new BadRequestException('期限必须在未来且不超过一年')
     if (['restrict', 'mute'].includes(input.action) && !expiresAt) throw new BadRequestException('单项限制与临时禁言必须填写期限')

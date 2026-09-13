@@ -14,7 +14,7 @@ async function check() {
   assert.equal(typeof require('../dist/modules/media/import-catalog.js').importCatalogAssets, 'function')
   assert.equal(typeof require('../dist/modules/media/media-gc.js').collectArchivedMedia, 'function')
   assert.equal(typeof require('../dist/modules/persistence/bootstrap.js').bootstrapApplication, 'function')
-  await require('../dist/modules/community/import-starter.js').readStarterBundle()
+  await require('../dist/modules/project-content/bundle.js').readBundle()
   console.log(JSON.stringify({ check: 'runtime-imports', node: process.version, contracts: 'compiled-commonjs', commonjs: true, esm: true, upgrade: true, appModule: true, networkStarted: false }))
 }
 

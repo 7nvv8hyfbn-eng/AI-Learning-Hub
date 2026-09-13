@@ -1,3 +1,5 @@
+import { assertContentReady } from './modules/project-content/bundle'
+import { PrismaService } from './prisma/prisma.service'
 import 'reflect-metadata'
 import { NestFactory } from '@nestjs/core'
 import { ConfigService } from '@nestjs/config'
@@ -21,6 +23,7 @@ async function bootstrap() {
   app.enableShutdownHooks()
   validateDeployment(config)
   await app.get(PersistenceService).preflight()
+  await assertContentReady(app.get(PrismaService))
   const trustedProxies = csv(config.get('TRUSTED_PROXY_CIDRS'))
   if (trustedProxies.length) app.getHttpAdapter().getInstance().set('trust proxy', trustedProxies)
   const origins = (config.get<string>('CORS_ORIGINS') || '').split(',').map((item) => item.trim()).filter(Boolean)

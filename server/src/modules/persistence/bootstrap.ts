@@ -49,14 +49,10 @@ export async function bootstrapDatabase(prisma: PrismaClient) {
     }
   }, { timeout: 20000 })
 }
-/** 正式初始化入口：基础元数据与版本化内容包分别幂等，旧环境缺省不追加内容。 */
+/** 正式初始化只处理本环境基础元数据；三类内容由独立同步步骤处理。 */
 export async function bootstrapApplication(prisma: PrismaClient) {
-  const selected = process.env.COMMUNITY_STARTER_PACK || 'none'
-  if (!['none', 'ai-discussions-v1'].includes(selected)) throw new Error('COMMUNITY_STARTER_PACK 只允许 none 或 ai-discussions-v1')
   await bootstrapDatabase(prisma)
-  if (selected === 'none') return { community: 'disabled' }
-  const { importCommunityStarter } = await import('../community/import-starter')
-  return { community: await importCommunityStarter(prisma) }
+  return { bootstrap: 'complete' }
 }
 // CommonJS runtime 与 tsx CLI 均可直接执行，不依赖其他应用源码。
 if (require.main === module) {

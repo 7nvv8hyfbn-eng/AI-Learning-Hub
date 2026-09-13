@@ -271,22 +271,7 @@ export const demoKnowledgeConcepts = [
   ['ai-ethics', '生成式 AI 伦理', '审查数据、偏差、版权和责任边界'],
 ] as const
 
-export const demoStudents = [
-  ['student', '造梦少年', '20260001', '计算机科学与技术', '大二'],
-  ['lin-yu', '林宇', '20260002', '人工智能', '大二'],
-  ['zhou-nan', '周楠', '20260003', '软件工程', '大三'],
-  ['chen-xi', '陈曦', '20260004', '数据科学', '大二'],
-  ['yang-fan', '杨帆', '20260005', '自动化', '大三'],
-  ['su-qing', '苏晴', '20260006', '数字媒体技术', '大一'],
-  ['he-chuan', '贺川', '20260007', '计算机科学与技术', '大二'],
-  ['zhao-yue', '赵玥', '20260008', '网络空间安全', '大三'],
-  ['gu-an', '顾安', '20260009', '人工智能', '大一'],
-  ['shen-yi', '沈一', '20260010', '电子信息工程', '大二'],
-  ['lu-yao', '陆遥', '20260011', '物联网工程', '大三'],
-  ['cheng-ning', '程宁', '20260012', '软件工程', '大二'],
-  ['ye-lan', '叶岚', '20260013', '数据科学', '大一'],
-  ['wu-tong', '吴桐', '20260014', '计算机科学与技术', '大三'],
-].map(([username, displayName, studentNo, major, grade]) => ({ username, displayName, studentNo, major, grade }))
+export { demoStudents } from './accounts'
 
 export const demoAchievements = [
   ['first-course', '学习启程', '完成第一门课程'],
@@ -321,28 +306,7 @@ export const demoLearningPlans = [
   ['整理个人 AI 项目作品集', 20],
 ].map(([title, progress], index) => ({ id: `demo-plan-${index + 1}`, title: String(title), progress: Number(progress) }))
 
-export const demoActivities = [
-  ['林宇', '完成模型部署实训', 'model-service', 120],
-  ['周楠', '解锁 Agent 构建者徽章', 'agent-builder', 80],
-  ['陈曦', '通过本周 AI 能力挑战', 'weekly-ai', 150],
-  ['杨帆', '发布校园问答助手成果', 'campus-agent', 100],
-  ['苏晴', '完成提示词设计入门课程', 'prompt-basics', 60],
-  ['贺川', '完成 Linux 命令训练', 'linux-command', 90],
-  ['赵玥', '收藏 AI 安全实践清单', 'ai-security-list', 20],
-  ['顾安', '开始大模型基础学习路径', 'llm', 20],
-  ['沈一', '完成传感器数据采集模拟', 'sensor-data', 110],
-  ['陆遥', '解锁硬件创客徽章', 'hardware-maker', 80],
-  ['程宁', '完成 Function Calling 课程', 'function-calling', 70],
-  ['叶岚', '阅读多模态模型对齐文章', 'multimodal', 20],
-  ['吴桐', '完成模型服务健康检查', 'service-health', 100],
-  ['造梦少年', '提交 RAG 知识库实训', 'rag-lab', 120],
-  ['林宇', '创建模型部署学习计划', 'demo-plan-5', 20],
-  ['周楠', '完成 Agent 记忆课程', 'agent-memory', 70],
-  ['陈曦', '收藏 Transformer 图解', 'transformer-visual', 20],
-  ['杨帆', '进入本周排行榜前十', 'weekly-ai', 100],
-  ['苏晴', '完成生成式 AI 伦理课程', 'generative-ethics', 60],
-  ['贺川', '开始 Docker 与模型容器化课程', 'docker-models', 20],
-].map(([student, action, reference, points]) => ({ student: String(student), action: String(action), reference: String(reference), points: Number(points) }))
+export { demoActivities } from './accounts'
 
 export const demoHomepageModules = [
   {

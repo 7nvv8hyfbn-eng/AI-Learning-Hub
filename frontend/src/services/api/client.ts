@@ -3,7 +3,7 @@ import { randomId } from './random-id'
 import { browserSession, serializedRefresh } from '../../../../packages/contracts/browser/session'
 import { ACCOUNT_BANNED, SESSION_REPLACED, SESSION_REPLACED_MESSAGE } from '@ai-learning-hub/contracts'
 export const studentSession = browserSession('student')
-export const dataMode = resolveDataMode(import.meta.env.VITE_DATA_MODE, import.meta.env.PROD, import.meta.env.MODE)
+export const dataMode = import.meta.env.PROD && import.meta.env.VITE_DATA_MODE === 'api' ? 'api' : resolveDataMode(import.meta.env.VITE_DATA_MODE, import.meta.env.PROD, import.meta.env.MODE)
 const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 
 interface Envelope<T> {

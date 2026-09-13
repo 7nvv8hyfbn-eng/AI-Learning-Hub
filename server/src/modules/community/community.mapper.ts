@@ -4,7 +4,8 @@ import { badgeUserInclude, publicIdentityHidden, trustedVerifiedType, userBadgeS
 export const authorInclude = { ...badgeUserInclude, school: true } satisfies Prisma.UserInclude
 export type CommunityAuthor = Prisma.UserGetPayload<{ include: typeof authorInclude }>
 export const profileMediaUrl = (fileId?: string | null) => fileId ? `/api/v1/files/profile/${encodeURIComponent(fileId)}` : null
-export function authorDto(user: CommunityAuthor, context?: BadgeContext): CommunityAuthorDto {
+export function authorDto(user: CommunityAuthor, context?: BadgeContext, sourceType?: string | null): CommunityAuthorDto {
+  if (sourceType === 'project_content') return { kind: 'platform', id: 'platform-content', username: '', displayName: '平台内容', avatar: null, school: null, major: null, verifiedType: 'none', badges: [] }
   if (publicIdentityHidden(user, context?.now)) return { id: user.id, username: '', displayName: '账号资料暂不可见', avatar: null, school: null, major: null, verifiedType: 'none', badges: [] }
   return { id: user.id, username: user.username, displayName: user.displayName, avatar: profileMediaUrl(user.communityProfile?.avatarFileId), school: user.school?.name || null, major: user.major, verifiedType: trustedVerifiedType(user), badges: userBadgeSettings(user, context).badges }
 }

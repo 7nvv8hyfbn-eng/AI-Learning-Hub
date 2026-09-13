@@ -20,14 +20,15 @@ node deploy/compose/init-env.mjs production .env.production
 
 ```sh
 export ENV_FILE="$(pwd)/.env.production"
+export APP_COMMIT_SHA="$(git rev-parse HEAD)"
+export APP_IMAGE_TAG="$APP_COMMIT_SHA"
 docker compose --env-file "$ENV_FILE" -f deploy/compose/docker-compose.yml build
-docker compose --env-file "$ENV_FILE" -f deploy/compose/docker-compose.yml run --rm --no-deps preflight
-docker compose --env-file "$ENV_FILE" -f deploy/compose/docker-compose.yml up -d
+bash deploy/compose/release.sh
 ```
 
 预检失败列出具体配置项，并阻止迁移和 API 启动。配置预检不能证明外部 DNS、证书、浏览器或校方代理已经正确。
 
-两种配置模板均启用[社区初始化资源](../../server/resources/community-starter/README.md)：100篇原创图文、30个托管账号、200条回复和20张图片，保存在真实数据库和上传卷中。`COMMUNITY_STARTER_PACK=none`可关闭；旧环境未配置时不追加。首次随机账号凭据保存在仅供bootstrap挂载的`initialization_data`卷，文件权限0600；妥善提取并备份，不通过Web访问。升级保留该卷，重复执行不重置密码、覆盖帖子或修改已有推荐设置。
+两种配置均使用[三类项目内容同步](../PROJECT_CONTENT.md)：100 篇社区帖子与 200 条回复、24 门通识课程、24 条教程及媒体和公共播放列表。内容统一署名“平台内容”，不创建测试用户；新部署与增量发布都必须同步，并保留人工修改、删除和业务数据。
 
 进程和就绪探针 `/api/v1/health/live`、`/api/v1/health/ready` 允许内部 HTTP，仅返回状态；运维详情仍受管理网、MFA 和权限限制。已有备份部署须同时合并 `deploy/operations/compose.operations.yml`，保留原运维目录和配置；备份容器通过内部 `data` 网络连接数据库，通过 `edge` 网络访问独立备份仓库。
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
 import CommunityUserBadges from '../community/CommunityUserBadges.vue'
 import type { ResourceHubItemDto } from '@ai-learning-hub/contracts'
 import { computed, ref } from 'vue'
@@ -35,10 +36,10 @@ const duration = computed(() => {
       <RouterLink class="resource-hub-card-title" :to="item.route">{{ item.title }}</RouterLink>
       <p v-if="variant === 'featured' && item.kind !== 'video'">{{ item.summary }}</p>
       <footer>
-        <RouterLink v-if="item.author" class="resource-hub-author" :to="`/community/user/${item.author.username}`">
+        <component :is="item.author?.kind === 'platform' ? 'span' : RouterLink" v-if="item.author" class="resource-hub-author" :to="item.author.kind === 'platform' ? undefined : `/community/user/${item.author.username}`">
           <CommunityAvatar :src="item.author.avatar" :username="item.author.username" :name="item.author.displayName" size="xs" />
           <span class="resource-hub-author-name">{{ item.author.displayName }}</span><CommunityUserBadges :badges="item.author.badges" :verified-type="item.author.verifiedType" />
-        </RouterLink>
+        </component>
         <span v-else class="resource-hub-author">平台资源</span>
         <div class="resource-hub-actions">
           <small :title="item.kind === 'video' ? '有效播放次数' : '浏览次数'"><span><AppIcon :name="item.kind === 'video' ? 'play' : 'eye'" :size="14" />{{ item.stats.views.toLocaleString() }}</span><time :datetime="item.publishedAt">{{ relativeTime(item.publishedAt) }}</time></small>

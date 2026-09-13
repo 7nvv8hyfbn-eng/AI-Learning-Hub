@@ -8,6 +8,7 @@ export default defineConfig(({ command, mode }) => {
   resolveDataMode(process.env.VITE_DATA_MODE ?? env.VITE_DATA_MODE, command === 'build', mode)
   return {
   plugins: [vue()],
+  build: { rollupOptions: { treeshake: { moduleSideEffects: (id) => !id.includes('/packages/demo-fixtures/') && !/\.mock\.ts$/.test(id) } } },
   resolve: { alias: [{ find: /^@ai-learning-hub\/contracts$/, replacement: '@ai-learning-hub/contracts/src/index.ts' }] },
   server: { host: '127.0.0.1' },
   preview: { host: '127.0.0.1' },

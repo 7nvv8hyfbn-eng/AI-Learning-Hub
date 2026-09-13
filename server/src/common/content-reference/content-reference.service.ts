@@ -18,7 +18,7 @@ export class ContentReferenceService {
     if (type === 'community_post') {
       const row = await this.prisma.communityPost.findFirst({ where: { id, ...visiblePublicPost(), portalConsent: true }, include: { author: { include: authorInclude } } })
       if (!row) return null
-      const author = this.publicAuthor(row.author, await loadBadgeContext(this.prisma))
+      const author = this.publicAuthor(row.author, await loadBadgeContext(this.prisma), row.sourceType)
       const commentCount = await this.prisma.communityComment.count({ where: { postId: row.id, status: 'published', deletedAt: null, ...visibleComment() } })
       return { targetType: type, slug: row.id, title: row.title || row.plainText.slice(0, 60), summary: row.plainText.slice(0, 160), data: { route: `/community/post/${row.id}`, postType: row.postType, author, publishedAt: row.publishedAt?.toISOString(), commentCount, likeCount: row.likeCount, bookmarkCount: row.bookmarkCount } }
     }
@@ -29,7 +29,7 @@ export class ContentReferenceService {
       return { targetType: type, slug: row.slug, title: row.name, summary: row.description, data: { id: row.id, route: `/community/topic/${row.slug}`, postCount, followerCount: row.followerCount, recommended: row.recommended } }
     }
     if (type === 'community_user') {
-      const user = await this.prisma.user.findFirst({ where: { OR: [{ id }, { username: id }], ...visibleProfile(), communityProfile: { isNot: null }, communityPosts: { some: { ...visiblePublicPost(), portalConsent: true } } }, include: authorInclude })
+      const user = await this.prisma.user.findFirst({ where: { OR: [{ id }, { username: id }], ...visibleProfile(), communityProfile: { isNot: null }, communityPosts: { some: { ...visiblePublicPost(), portalConsent: true, OR: [{ sourceType: null }, { sourceType: { not: 'project_content' } }] } } }, include: authorInclude })
       if (!user) return null
       const author = this.publicAuthor(user, await loadBadgeContext(this.prisma))
       // 公开创作者必须有公开作品；后台身份本身不构成允许展示。
@@ -39,8 +39,8 @@ export class ContentReferenceService {
     return null
   }
 
-  private publicAuthor(user: Parameters<typeof authorDto>[0], context: BadgeContext): LandingPublicAuthor {
-    const author = authorDto(user, context)
+  private publicAuthor(user: Parameters<typeof authorDto>[0], context: BadgeContext, sourceType?: string | null): LandingPublicAuthor {
+    const author = authorDto(user, context, sourceType)
     return { id: author.id, username: author.username, displayName: author.displayName, verifiedType: author.verifiedType, badges: author.badges, headline: author.username ? user.communityProfile?.headline.slice(0, 100) || user.communityProfile?.bio.slice(0, 100) || '' : '', followerCount: author.username ? user.communityProfile?.followerCount || 0 : 0 }
   }
 

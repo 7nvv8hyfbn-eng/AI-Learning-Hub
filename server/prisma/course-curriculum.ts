@@ -1,16 +1,8 @@
 import { Prisma, type Course } from '@prisma/client'
 import { curriculumVersion, demoThemes, getCourseCurriculum, type DemoCourse } from '@ai-learning-hub/demo-fixtures'
 import { createRequire } from 'node:module'
-import { isDeepStrictEqual } from 'node:util'
 
-export const curriculumInclude = {
-  coverAsset: true,
-  versions: { orderBy: { versionNo: 'asc' }, include: { chapters: { orderBy: { sortOrder: 'asc' }, include: {
-    lessons: { orderBy: { sortOrder: 'asc' }, include: { blocks: { orderBy: { sortOrder: 'asc' } } } },
-  } } } },
-} as const satisfies Prisma.CourseInclude
-export type ExistingCurriculum = Prisma.CourseGetPayload<{ include: typeof curriculumInclude }>
-const object = (value: unknown): Record<string, unknown> => value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+export { curriculumInclude, curriculumUpgradeReason, type ExistingCurriculum } from '../src/modules/project-content/legacy-course'
 const json = (value: unknown): Prisma.InputJsonObject => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonObject
 
 export function curriculumPayload(fixture: DemoCourse, coverAssetId: string) {
@@ -55,49 +47,4 @@ export async function createCurriculumVersion(tx: Prisma.TransactionClient, cour
     publishedAt: new Date(), ...(versionNo > 1 ? { version: { increment: 1 } } : {}),
   } })
   return version
-}
-
-/** 对照旧 Seed 的完整结构；任何人工改动或新版本都保守跳过。 */
-export function curriculumUpgradeReason(course: ExistingCurriculum | null, fixture: DemoCourse): string | null {
-  if (!course) return '课程不存在'
-  if (course.dataOrigin !== 'demo_seed') return '来源为 ' + course.dataOrigin
-  if (course.versions.some((version) => object(version.snapshot).curriculumVersion === curriculumVersion)) return '已升级'
-  if (course.deletedAt || course.status !== 'published') return '课程已删除、归档或未发布'
-  const version = course.versions[0]
-  if (course.version !== 1 || course.versions.length !== 1 || version?.versionNo !== 1 ||
-    course.currentDraftVersionId !== version.id || course.publishedVersionId !== version.id) return '已有编辑或人工发布版本'
-  if (course.title !== fixture.title || course.summary !== fixture.summary) return '标题或简介已修改'
-  const snapshot = object(version.snapshot), payload = object(course.payload)
-  if (snapshot.title !== fixture.title || snapshot.summary !== fixture.summary || !isDeepStrictEqual(snapshot.data, payload)) return '基础信息与原始快照不一致'
-  const cover = course.coverAsset
-  if (!cover || cover.assetKey !== 'course--' + fixture.slug || cover.source !== 'image2_seed' || cover.revision !== 1 || cover.status !== 'active' || cover.deletedAt ||
-    payload.coverAssetId !== cover.id || course.coverAssetId !== cover.id) return '原始封面已修改或不可用'
-  if (typeof payload.durationMinutes !== 'number' || payload.durationMinutes <= 0) return '原始时长无效'
-  const chapterNames = ['概念与目标', '核心方法', '受控实践', '复盘与验证']
-  const lessonNames = [
-    ['建立问题意识', '理解关键术语', '明确学习成果'], ['拆解核心原理', '阅读结构图解', '辨析常见误区'],
-    ['准备实践环境', '完成受控操作', '检查运行结果'], ['整理关键要点', '完成知识测验', '规划下一步学习'],
-  ]
-  if (version.chapters.length !== chapterNames.length) return '章节结构已修改'
-  for (const [ci, chapter] of version.chapters.entries()) {
-    if (chapter.title !== (ci + 1) + '. ' + chapterNames[ci] || chapter.description !== fixture.title + '的' + chapterNames[ci] + '学习单元。' ||
-      chapter.sortOrder !== ci + 1 || chapter.lessons.length !== 3) return '章节内容已修改'
-    for (const [li, lesson] of chapter.lessons.entries()) {
-      const name = lessonNames[ci][li]
-      if (lesson.title !== name || lesson.summary !== fixture.summary + name + '。' || lesson.lessonType !== 'article' ||
-        lesson.sortOrder !== li + 1 || lesson.durationMinutes !== Math.max(12, Math.round(payload.durationMinutes / 12))) return '课时内容已修改'
-      const expected = [
-        ['heading', { text: fixture.title + '：' + name }], ['paragraph', { text: fixture.summary }],
-        ['diagram', { title: '学习结构', nodes: ['输入', '方法', '结果', '验证'] }],
-        ['code', { language: 'text', code: '目标: ' + name + '\n检查: 能够解释并完成对应练习' }],
-        ['key_points', { items: ['理解关键概念', '完成受控练习', '记录验证证据'] }],
-        ['quiz', { question: '如何验证“' + name + '”已经完成？', answer: '用可复核的结果和学习记录验证。' }],
-        ['resource', { title: '配套学习资料', route: '/resources' }],
-        ['next_lesson', { title: lessonNames[ci][li + 1] || '进入下一章节' }],
-      ]
-      if (lesson.blocks.length !== expected.length || lesson.blocks.some((block, bi) =>
-        block.sortOrder !== bi + 1 || block.blockType !== expected[bi][0] || !isDeepStrictEqual(block.content, expected[bi][1]))) return '正文、练习或内容块已修改'
-    }
-  }
-  return null
 }

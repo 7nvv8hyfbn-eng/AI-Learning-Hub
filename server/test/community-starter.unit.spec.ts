@@ -8,7 +8,7 @@ let root: string
 const source = path.resolve('resources/community-starter')
 beforeAll(async () => { root = await mkdtemp(path.join(tmpdir(), 'community-starter-unit-')); await cp(source, root, { recursive: true }) })
 afterAll(async () => { await rm(root, { recursive: true, force: true }) })
-describe('社区正式初始化资源', () => {
+describe('旧社区账号夹具（仅显式隔离测试）', () => {
   it('核对实际100帖、30账号、200回复和20张图片的完整资源', async () => {
     const bundle = await readStarterBundle()
     expect(bundle.content.posts).toHaveLength(100)
@@ -30,10 +30,14 @@ describe('社区正式初始化资源', () => {
     await expect(readStarterBundle(root)).rejects.toThrow('符号链接')
     await rm(file); await writeFile(file, original)
   })
-  it('不接受错误的初始化配置，且尚未触及数据库', async () => {
+  it('基础初始化不再选择旧账号内容导入器', async () => {
     const old = process.env.COMMUNITY_STARTER_PACK
     process.env.COMMUNITY_STARTER_PACK = 'unexpected'
-    try { await expect(bootstrapApplication({} as never)).rejects.toThrow('COMMUNITY_STARTER_PACK') }
+    try {
+      const tx = { role: { findMany: async () => [], upsert: async () => ({}) }, permission: { findMany: async () => [], upsert: async () => ({}) }, userRole: { count: async () => 1 }, systemSetting: { upsert: async () => ({}) } }
+      const db = { ...tx, $transaction: async (fn: (value: unknown) => unknown) => fn(tx) }
+      await expect(bootstrapApplication(db as never)).resolves.toEqual({ bootstrap: 'complete' })
+    }
     finally { if (old === undefined) delete process.env.COMMUNITY_STARTER_PACK; else process.env.COMMUNITY_STARTER_PACK = old }
   })
 })

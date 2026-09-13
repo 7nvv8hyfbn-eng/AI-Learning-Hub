@@ -46,9 +46,9 @@ export interface HomepageRepository {
   load(): Promise<PublicHomepageDto>
 }
 
-export const homepageRepository = (mode: 'mock' | 'api') => mode === 'api' ? ApiHomepageRepository : MockHomepageRepository
+export const homepageRepository = (mode: 'mock' | 'api') => import.meta.env.PROD && import.meta.env.VITE_DATA_MODE === 'api' ? ApiHomepageRepository : mode === 'api' ? ApiHomepageRepository : MockHomepageRepository
 
-export const MockHomepageRepository: HomepageRepository = {
+const FixtureHomepageRepository: HomepageRepository = {
   async load() {
     const fixture = createCommunityFixtures({ courses: demoCourses, labs: demoLabs, articles: demoArticles, themes: demoThemes, students: demoStudents }, new Date('2026-08-31T00:00:00Z'))
     const creators: LandingPublicAuthor[] = fixture.users.slice(0, 4).map((user) => ({ id: user.username, username: user.username, displayName: user.displayName, verifiedType: user.verifiedType, badges: user.verifiedType === 'none' ? [] : [{ code: user.verifiedType, label: ({ official: '官方', teacher: '认证教师', mentor: '学习导师' })[user.verifiedType], tone: user.verifiedType === 'official' ? 'orange' : 'blue' }], headline: `${user.major} · 学习与实践`, followerCount: fixture.follows.filter((follow) => follow.followee === user.username).length }))
@@ -73,3 +73,6 @@ export const MockHomepageRepository: HomepageRepository = {
 export const ApiHomepageRepository: HomepageRepository = {
   load: () => request<PublicHomepageDto>('/public/homepage'),
 }
+
+export const MockHomepageRepository: HomepageRepository = import.meta.env.PROD && import.meta.env.VITE_DATA_MODE === 'api'
+  ? { async load() { throw new Error('正式环境不提供测试内容') } } : FixtureHomepageRepository

@@ -340,7 +340,7 @@ export class ResourceHubService {
     const [page, collections] = await Promise.all([
       this.list(viewerId, { ...query, authorId: userId }),
       this.prisma.learningCollection.findMany({
-        where: { ownerId: userId, AND: [viewerId === userId ? {} : visibleCollection(), ...(cursor ? [{ OR: [{ updatedAt: { lt: cursor.at } }, { updatedAt: cursor.at, id: { lt: cursor.id } }] }] : [])] },
+        where: { ownerId: userId, AND: [{ OR: [{ systemKind: null }, { systemKind: { not: 'project_content' } }] }, viewerId === userId ? {} : visibleCollection(), ...(cursor ? [{ OR: [{ updatedAt: { lt: cursor.at } }, { updatedAt: cursor.at, id: { lt: cursor.id } }] }] : [])] },
         include: { owner: { include: authorInclude } },
         orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
         take: 19,
@@ -741,7 +741,7 @@ export class ResourceHubService {
     const keyword = query.keyword.trim()
     const postFilters = [scope, Prisma.sql`COALESCE(p.published_at, p.created_at) <= ${asOf}`, Prisma.sql`(c.kind <> 'video' OR v.status = 'ready')`]
     if (query.category) postFilters.push(Prisma.sql`category.code = ${query.category}`)
-    if (query.authorId) postFilters.push(Prisma.sql`p.author_id = ${query.authorId}`)
+    if (query.authorId) postFilters.push(Prisma.sql`p.author_id = ${query.authorId} AND p.source_type IS DISTINCT FROM 'project_content'`)
     if (query.kind !== 'all') postFilters.push(Prisma.sql`c.kind::text = ${query.kind}`)
     if (options.sourceType === 'legacy_resource') postFilters.push(Prisma.sql`FALSE`)
     if (options.postIds) postFilters.push(options.postIds.length ? Prisma.sql`p.id IN (${Prisma.join(options.postIds)})` : Prisma.sql`FALSE`)
@@ -800,7 +800,7 @@ export class ResourceHubService {
     ])
     const commentCounts = !userId && rows.length ? await this.prisma.communityComment.groupBy({ by: ['postId'], where: { postId: { in: rows.map(row => row.id) }, status: 'published', deletedAt: null, ...visibleComment() }, _count: { _all: true } }) : []
     const badgeContext = await loadBadgeContext(this.prisma)
-    const summaries = !rows.length ? [] : userId ? await this.posts.mapMany(userId, rows) : rows.map(row => ({ id: row.id, author: authorDto(row.author, badgeContext), publishedAt: (row.publishedAt || row.createdAt).toISOString(), stats: { comments: commentCounts.find(count => count.postId === row.id)?._count._all || 0 } }))
+    const summaries = !rows.length ? [] : userId ? await this.posts.mapMany(userId, rows) : rows.map(row => ({ id: row.id, author: authorDto(row.author, badgeContext, row.sourceType), publishedAt: (row.publishedAt || row.createdAt).toISOString(), stats: { comments: commentCounts.find(count => count.postId === row.id)?._count._all || 0 } }))
     const contributions = rows.length ? await this.mapContributions(userId, rows, summaries, asOf) : []
     const mapped = new Map<string, ResourceHubItemDto>(contributions.map((item) => [`contribution:${item.id}`, item]))
     for (const item of legacy.items) mapped.set(`legacy_resource:${item.slug}`, {
@@ -834,7 +834,7 @@ export class ResourceHubService {
         category: contribution.category ? { id: contribution.category.id, code: contribution.category.code, name: contribution.category.name, description: contribution.category.description, icon: contribution.category.icon, sortOrder: contribution.category.sortOrder } : null,
         tags: contribution.tags,
         coverUrl: coverFileId ? row.visibility === 'public' && row.status === 'published' ? this.publicCoverUrl(coverFileId) : this.mediaUrl(coverFileId, userId) : null,
-        author: userId ? post.author : null,
+        author: userId || row.sourceType === 'project_content' ? post.author : null,
         stats: { views: views.get(`${row.id}:${contribution.kind === 'video' ? 'resource_valid_watch' : 'community_post_click'}`) || 0, plays: contribution.kind === 'video' ? views.get(`${row.id}:resource_valid_watch`) || 0 : null, impressions: row.impressionCount, likes: row.likeCount, comments: post.stats.comments, bookmarks: row.bookmarkCount, downloads: 0 },
         durationSeconds: contribution.videoAsset?.durationSeconds || null,
         videoAssetId: contribution.videoAssetId,
@@ -877,8 +877,8 @@ export class ResourceHubService {
       systemKind: row.systemKind === 'watch_later' ? 'watch_later' : null,
       learningGoal: row.learningGoal,
       ...counts,
-      owner: authorDto(row.owner, badgeContext),
-      isOwner: row.ownerId === userId,
+      owner: authorDto(row.owner, badgeContext, row.systemKind),
+      isOwner: row.systemKind !== 'project_content' && row.ownerId === userId,
       revision: row.revision,
       updatedAt: row.updatedAt.toISOString(),
     }

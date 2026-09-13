@@ -2048,6 +2048,7 @@ model CommunityQuestionState {
 }
 
 model CommunityComment {
+  sourceType String? @map("source_type")
   moderationActions CommunityModerationAction[]
   id            String                     @id @default(cuid())
   revision      Int                        @default(1)

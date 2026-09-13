@@ -15,7 +15,7 @@ import { ContentReferenceService } from '../../common/content-reference/content-
 import type { CommunityBindingInput } from '@ai-learning-hub/contracts'
 
 export interface FeedCandidateRef { postId: string; source: string; reasonCodes: string[] }
-interface ScoredCandidate extends FeedCandidateRef { total: number; dimensions: Record<string, number>; authorId: string; postType: string; official: boolean; publishedAt: string; contentHash?: string; bindingIds?: string[] }
+interface ScoredCandidate extends FeedCandidateRef { platform?: boolean; total: number; dimensions: Record<string, number>; authorId: string; postType: string; official: boolean; publishedAt: string; contentHash?: string; bindingIds?: string[] }
 interface SessionEntry { type: 'post'; id: string; score: ScoredCandidate }
 type StoredEntry = SessionEntry | Exclude<FeedUnitDto, { type: 'post' }>
 const normalized = (value: number) => Math.max(0, Math.min(1, value))
@@ -67,7 +67,7 @@ export class LearningFeedPipeline {
     const interestTopics = [...new Set([...topicIds, ...highAffinityTopics, ...relatedTopics.map((row) => row.topicId), ...viewer.communityProfile?.expertiseTopics || []])]
     const interestThemes = relatedCourses.flatMap((row) => row.themeId ? [row.themeId] : [])
     const base: Prisma.CommunityPostWhereInput = { AND: [await this.visibility.where(userId), { publishedAt: { lte: now }, ...(query.type !== 'all' ? { postType: query.type } : {}) }] }
-    const following: Prisma.CommunityPostWhereInput = { OR: [{ authorId: { in: authorIds } }, { topics: { some: { topicId: { in: topicIds } } } }] }
+    const following: Prisma.CommunityPostWhereInput = { OR: [{ authorId: { in: authorIds }, OR: [{ sourceType: null }, { sourceType: { not: 'project_content' } }] }, { topics: { some: { topicId: { in: topicIds } } } }] }
     if (query.mode !== 'for_you') {
       const rows = await this.prisma.communityPost.findMany({ where: { AND: [base, ...(query.mode === 'following' ? [following] : [])] }, select: { id: true }, orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }], take: 300 })
       return { candidates: rows.map((row) => ({ postId: row.id, source: query.mode, reasonCodes: [] })), authorIds, topicIds, learnedIds, viewer, snapshot }
@@ -109,7 +109,7 @@ export class LearningFeedPipeline {
     const scored = collected.candidates.flatMap((candidate): ScoredCandidate[] => {
       const row = rowMap.get(candidate.postId)
       if (!row) return []
-      const source = candidate.reasonCodes, blocks = row.contentBlocks as Array<{ type: string }>, author = authorDto(row.author)
+      const source = candidate.reasonCodes, blocks = row.contentBlocks as Array<{ type: string }>, author = authorDto(row.author, undefined, row.sourceType)
       const overlap = row.bindings.some((ref) => collected.learnedIds.includes(ref.targetId)), topicOverlap = row.topics.some((ref) => collected.topicIds.includes(ref.topicId))
       const topicStrength = Math.max(0, ...row.topics.map((ref) => affinity(collected.snapshot.topicAffinity)[ref.topicId] || 0))
       const contentStrength = Math.max(0, ...row.bindings.map((ref) => affinity(collected.snapshot.learningContentAffinity)[`${ref.targetType}:${ref.targetId}`] || 0))
@@ -118,7 +118,7 @@ export class LearningFeedPipeline {
       const dimensions = {
         learning: normalized((overlap ? 0.6 : 0) + (topicOverlap ? 0.3 : 0) + topicStrength / 50 + contentStrength / 100),
         quality: normalized((row.plainText.length > 80 ? 0.3 : 0.05) + (row.bindings.length ? 0.2 : 0) + (blocks.some((b) => b.type === 'code' || b.type === 'image') ? 0.15 : 0) + (row.question?.acceptedCommentId ? 0.2 : 0) + (teacherAnswered || ['teacher', 'mentor'].includes(author.verifiedType) ? 0.15 : 0)),
-        relationship: normalized((collected.authorIds.includes(row.authorId) ? 0.7 : 0) + (row.author.schoolId && row.author.schoolId === collected.viewer.schoolId ? 0.2 : 0) + (row.author.departmentId && row.author.departmentId === collected.viewer.departmentId ? 0.1 : 0)),
+        relationship: row.sourceType === 'project_content' ? 0 : normalized((collected.authorIds.includes(row.authorId) ? 0.7 : 0) + (row.author.schoolId && row.author.schoolId === collected.viewer.schoolId ? 0.2 : 0) + (row.author.departmentId && row.author.departmentId === collected.viewer.departmentId ? 0.1 : 0)),
         useful: normalized((row.usefulCount * 4 + row.bookmarkCount * 3 + row.commentCount * 2 + row.likeCount) / (row.impressionCount + 30)),
         freshness: normalized(Math.exp(-(now.getTime() - (row.publishedAt || row.createdAt).getTime()) / (freshnessHours[row.postType] * 3600000))),
         social: normalized(socialCount / 10),
@@ -127,7 +127,7 @@ export class LearningFeedPipeline {
       }
       const penalties = (seen.some((r) => r.postId === row.id) ? policy.penalties.seen : 0) + (row.status === 'limited' ? policy.penalties.limited : 0) + normalized(row._count.reports / 10) * policy.penalties.report + (row.plainText.length < 30 ? policy.penalties.short : 0) + ((row.plainText.match(/https?:\/\//g) || []).length > 3 ? policy.penalties.links : 0)
       const total = normalized(Object.entries(dimensions).reduce((sum, [key, value]) => sum + value * (policy.weights[key] || 0), 0) - penalties)
-      return [{ ...candidate, reasonCodes: [...candidate.reasonCodes, ...(teacherAnswered ? ['teacher_answered'] : [])], total, dimensions, authorId: row.authorId, postType: row.postType, official: author.verifiedType === 'official', publishedAt: (row.publishedAt || row.createdAt).toISOString(), contentHash: row.contentHash, bindingIds: row.bindings.map((binding) => binding.targetId) }]
+      return [{ ...candidate, reasonCodes: [...candidate.reasonCodes, ...(teacherAnswered ? ['teacher_answered'] : [])], total, dimensions, authorId: row.authorId, ...(row.sourceType === 'project_content' ? { platform: true } : {}), postType: row.postType, official: author.verifiedType === 'official', publishedAt: (row.publishedAt || row.createdAt).toISOString(), contentHash: row.contentHash, bindingIds: row.bindings.map((binding) => binding.targetId) }]
     })
     return scored.sort((a, b) => (query.mode === 'for_you' ? b.total - a.total : 0) || b.publishedAt.localeCompare(a.publishedAt) || b.postId.localeCompare(a.postId))
   }
@@ -145,7 +145,7 @@ export class LearningFeedPipeline {
         if (!personalized) return true
         const window = ordered.slice(-(policy.diversity.authorWindowSize - 1))
         const last = ordered.slice(-policy.diversity.maxSameTypeConsecutive)
-        return window.filter((item) => item.authorId === row.authorId).length < policy.diversity.maxSameAuthorInWindow
+        return (row.platform || window.filter((item) => !item.platform && item.authorId === row.authorId).length < policy.diversity.maxSameAuthorInWindow)
           && (!row.official || window.filter((item) => item.official).length < policy.diversity.maxOfficialInWindow)
           && !(contentType === 'all' && last.length === policy.diversity.maxSameTypeConsecutive && last.every((item) => item.postType === row.postType))
           && !(contentType === 'all' && ordered.length === 9 && !ordered.some((item) => ['question', 'lab_result'].includes(item.postType)) && !['question', 'lab_result'].includes(row.postType) && remaining.some((item) => ['question', 'lab_result'].includes(item.postType)))
@@ -184,7 +184,7 @@ export class LearningFeedPipeline {
       catch {
         degraded = true
         const rows = await this.prisma.communityPost.findMany({ where: { AND: [await this.visibility.where(userId), { publishedAt: { lte: now }, ...(query.type !== 'all' ? { postType: query.type } : {}) }, ...(query.mode === 'following' ? [{ OR: [{ authorId: { in: (await this.prisma.communityUserFollow.findMany({ where: { followerId: userId } })).map((f) => f.followeeId) } }, { topics: { some: { topic: { follows: { some: { userId } } } } } }] }] : [])] }, orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }], take: 300 })
-        candidates = rows.map((row) => ({ postId: row.id, source: 'safe_chronological_fallback', reasonCodes: [], dimensions: {}, total: 0, authorId: row.authorId, postType: row.postType, official: false, publishedAt: (row.publishedAt || row.createdAt).toISOString() }))
+        candidates = rows.map((row) => ({ postId: row.id, source: 'safe_chronological_fallback', reasonCodes: [], dimensions: {}, total: 0, authorId: row.authorId, ...(row.sourceType === 'project_content' ? { platform: true } : {}), postType: row.postType, official: false, publishedAt: (row.publishedAt || row.createdAt).toISOString() }))
       }
       session = await this.prisma.communityFeedSession.create({ data: { viewerId: userId, mode: query.mode, contentType: query.type, policyVersion: policy.version, entries: json(this.assemble(candidates, policy, context, query.mode === 'for_you' && !degraded, query.type)), context: json(context), degraded, expiresAt: new Date(now.getTime() + 3600000) } })
       await this.prisma.communityFeedSession.deleteMany({ where: { expiresAt: { lt: now } } })

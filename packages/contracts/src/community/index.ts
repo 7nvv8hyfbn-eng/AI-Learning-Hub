@@ -62,6 +62,7 @@ export interface CommunityBindingInput { type: LearningContentType; id: string }
 export type CommunityBindingDto = LearningContentReferenceDto
 export interface CommunityBindingContextDto { binding: CommunityBindingDto; topicIds: string[] }
 export interface CommunityAuthorDto {
+  kind?: 'platform'
   badges?: import('./badges').CommunityUserBadge[]
   id: string; username: string; displayName: string; avatar: string | null
   school: string | null; major: string | null; verifiedType: CommunityVerifiedType
