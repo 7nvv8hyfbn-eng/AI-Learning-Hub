@@ -1,3 +1,5 @@
+import { BRAND_NAME, BRAND_SLOGAN, BRAND_SLOGAN_LINES } from './brand'
+
 export const LANDING_MODULE_KEYS = ['landing_hero', 'landing_capabilities', 'landing_featured', 'landing_community_overview', 'landing_bottom_cta'] as const
 export type LandingModuleKey = typeof LANDING_MODULE_KEYS[number]
 export const LANDING_MODULE_LABELS: Record<LandingModuleKey, string> = {
@@ -22,7 +24,7 @@ export interface LandingConfigMap {
 }
 export interface LandingPublicAuthor { badges?: import('./community/badges').CommunityUserBadge[]; id: string; username: string; displayName: string; avatarUrl?: string; verifiedType: import('./community').CommunityVerifiedType; headline: string; followerCount: number }
 export const LANDING_DEFAULT_CONFIG: LandingConfigMap = {
-  landing_hero: { brandName: 'AI MAKER CAMPUS', brandSubtitle: '高校 AI 创客学习平台', eyebrow: '连接学习者，激发 AI 创造力', titleFirst: '加入 AI 创客社区', titleSecond: '一起学习 · 实践 · 成长', description: '和同学、学长、导师一起探索 AI 的边界，用项目实践想法，让学习真正发生。', primaryLabel: '登录 / 注册', secondaryLabel: '了解社区', image: 'heroArms', memberDisplay: 'count' },
+  landing_hero: { brandName: BRAND_NAME, brandSubtitle: BRAND_SLOGAN, eyebrow: '连接学习者，激发 AI 创造力', titleFirst: BRAND_SLOGAN_LINES[0], titleSecond: BRAND_SLOGAN_LINES[1], description: '和同学、学长、导师一起探索 AI 的边界，用项目实践想法，让学习真正发生。', primaryLabel: '登录 / 注册', secondaryLabel: '了解社区', image: 'heroArms', memberDisplay: 'count' },
   landing_capabilities: { title: '你可以在社区做什么', items: [
     { title: '学习与提问', description: '提出问题，获得同学与导师的解答建议', icon: 'learningQuestion' },
     { title: '笔记与分享', description: '记录学习笔记，分享知识与实战经验', icon: 'noteSharing' },
@@ -33,7 +35,7 @@ export const LANDING_DEFAULT_CONFIG: LandingConfigMap = {
   ] },
   landing_featured: { title: '热门内容精选' },
   landing_community_overview: { topicsTitle: '本周热门话题', creatorsTitle: '优秀创作者' },
-  landing_bottom_cta: { title: '现在就加入 AI 创客社区', description: '和更多学习者一起，开启你的 AI 创造之旅。', buttonLabel: '登录 / 注册', image: 'ctaRobot' },
+  landing_bottom_cta: { title: `现在就加入 ${BRAND_NAME}`, description: '和更多学习者一起，开启你的 AI 创造之旅。', buttonLabel: '登录 / 注册', image: 'ctaRobot' },
 }
 export const isLandingModuleKey = (key: string): key is LandingModuleKey => (LANDING_MODULE_KEYS as readonly string[]).includes(key)
 export const landingTargetTypes = (key: LandingModuleKey): readonly LandingTargetType[] =>

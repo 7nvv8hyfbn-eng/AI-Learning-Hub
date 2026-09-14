@@ -1,3 +1,4 @@
+import { BRAND_NAME } from '@ai-learning-hub/contracts'
 import { loadBadgeContext } from '../community/user-badges'
 import { BadRequestException, ConflictException, ForbiddenException, HttpException, Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -204,7 +205,7 @@ export class AuthService {
     const secret = user.mfaEnabledAt ? undefined : generateSecret()
     const challenge = await this.jwt.signAsync({ id: user.id, version: user.sessionVersion, purpose: 'admin-mfa', nonce: randomBytes(24).toString('base64url') }, { secret: this.config.getOrThrow('JWT_SECRET'), algorithm: 'HS256', expiresIn: 300 })
     await tx.user.update({ where: { id: user.id }, data: { mfaChallengeHash: hashToken(challenge), ...(secret ? { mfaSecretEncrypted: encryptMfa(secret, this.config.get('MFA_DATA_KEY'), user.id) } : {}) } })
-    return { mfaRequired: true, challenge, enrollment: !user.mfaEnabledAt, ...(this.config.get('DEPLOYMENT_PROFILE') === 'experience' ? { experienceHint: true } : {}), ...(secret ? { secret, uri: generateURI({ issuer: 'AI Learning Hub', label: user.username, secret }) } : {}) }
+    return { mfaRequired: true, challenge, enrollment: !user.mfaEnabledAt, ...(this.config.get('DEPLOYMENT_PROFILE') === 'experience' ? { experienceHint: true } : {}), ...(secret ? { secret, uri: generateURI({ issuer: BRAND_NAME, label: user.username, secret }) } : {}) }
   }
 
   async mfaHint(challenge: string, ip: string) {

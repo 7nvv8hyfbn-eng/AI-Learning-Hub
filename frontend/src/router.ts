@@ -1,3 +1,4 @@
+import { BRAND_NAME } from '@ai-learning-hub/contracts'
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { useAuthUiStore } from './stores/authUi'
@@ -12,8 +13,8 @@ const router = createRouter({
   routes: [
     { path: '/community/governance', component: () => import('./community/CommunityGovernanceView.vue'), meta: { title: '处理与申诉', layout: 'community', communityMode: 'wide', requiresAuth: true } },
     { path: '/account-recovery', component: () => import('./community/CommunityGovernanceView.vue'), meta: { title: '账号恢复与申诉', layout: 'public', requiresAuth: false } },
-    { path: '/', name: 'home', component: () => import('./views/HomeView.vue'), meta: { title: 'AI 创客社区', layout: 'landing', requiresAuth: false } },
-    { path: '/welcome', name: 'welcome', component: () => import('./views/HomeView.vue'), meta: { title: 'AI 创客社区', layout: 'landing', requiresAuth: false } },
+    { path: '/', name: 'home', component: () => import('./views/HomeView.vue'), meta: { title: '探索首页', layout: 'landing', requiresAuth: false } },
+    { path: '/welcome', name: 'welcome', component: () => import('./views/HomeView.vue'), meta: { title: '探索首页', layout: 'landing', requiresAuth: false } },
     { path: '/community', component: () => import('./community/CommunityFeedView.vue'), meta: { title: '学习社区', requiresAuth: true, layout: 'community', communityMode: 'feed' } },
     { path: '/community/post/:postId', component: () => import('./community/CommunityPostView.vue'), meta: { title: '学习讨论', requiresAuth: true, layout: 'community', communityMode: 'feed' } },
     { path: '/community/topic/:slug', component: () => import('./community/CommunityCollectionView.vue'), meta: { title: '学习话题', communityView: 'topic', requiresAuth: true, layout: 'community', communityMode: 'feed' } },
@@ -59,7 +60,7 @@ router.beforeEach(async (to, from) => {
 })
 
 router.afterEach((to) => {
-  document.title = `${String(to.meta.title)}｜AI数智化学习平台`
+  document.title = `${String(to.meta.title)}｜${BRAND_NAME}`
 })
 
 export default router

@@ -1,3 +1,4 @@
+import { BRAND_NAME, BRAND_SLOGAN } from '@ai-learning-hub/contracts'
 import { PrismaClient, PublishStatus, LabType, QuestionType } from '@prisma/client'
 import {
   demoAchievements,
@@ -517,8 +518,8 @@ async function seed() {
     })
   }
   const publicSettings: Array<[string, string | number | boolean | string[]]> = [
-    ['platform_name', 'AI数智化学习平台'],
-    ['platform_subtitle', '高校 AI 创客学习平台'],
+    ['platform_name', BRAND_NAME],
+    ['platform_subtitle', BRAND_SLOGAN],
     ['upload_max_mb', 20],
     ['allowed_file_types', ['pdf', 'docx', 'pptx', 'zip', 'txt', 'png', 'jpg', 'webp']],
     ['session_minutes', 10080],
@@ -530,10 +531,10 @@ async function seed() {
     await prisma.systemSetting.upsert({ where: { key }, update: {}, create: { key, value, sensitive: false } })
   }
 
-  const notification = await prisma.notification.findFirst({ where: { title: '欢迎使用 AI 数智化学习平台' } })
+  const notification = await prisma.notification.findFirst({ where: { title: `欢迎使用 ${BRAND_NAME}` } })
   if (!notification) {
     await prisma.notification.create({
-      data: { title: '欢迎使用 AI 数智化学习平台', content: '从学习主题开始，完成一次课程或受控实训。', status: PublishStatus.published, publishedAt: new Date() },
+      data: { title: `欢迎使用 ${BRAND_NAME}`, content: '从学习主题开始，完成一次课程或受控实训。', status: PublishStatus.published, publishedAt: new Date() },
     })
   }
 

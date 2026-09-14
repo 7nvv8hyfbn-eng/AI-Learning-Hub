@@ -1,3 +1,4 @@
+import { BRAND_NAME, BRAND_SLOGAN_LINES } from '../../contracts/src/brand'
 import { catalogAssets, getDefaultAssetKeys } from '../../catalog-assets/manifest'
 import { getCourseCurriculum } from './curriculum'
 export { courseCurricula, curriculumVersion, getCourseCurriculum } from './curriculum'
@@ -312,8 +313,8 @@ export const demoHomepageModules = [
   {
     moduleKey: 'hero_banner', name: '首屏 Banner',
     config: {
-      eyebrow: '面向高校学生的 AI 学习与实训平台',
-      titleLines: ['学 AI，不止是听懂。', '还要亲手做出来。'],
+      eyebrow: BRAND_NAME,
+      titleLines: [...BRAND_SLOGAN_LINES],
       highlightWords: ['AI', '做出来'],
       subtitle: '从基础知识、前沿趋势，到模型部署、AI Agent、命令行与智能硬件实践。',
       primaryAction: { label: '开始学习', route: '/topics' },

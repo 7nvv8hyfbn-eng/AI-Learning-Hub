@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BRAND_NAME, BRAND_SLOGAN } from '@ai-learning-hub/contracts'
 import { ElMessage } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 import AdminPageHeader from '../components/AdminPageHeader.vue'
@@ -50,8 +51,8 @@ const saveRegistration = async () => {
 }
 const notification = reactive({ title: '', content: '' })
 const form = reactive<Record<string, string | number | boolean | string[]>>({
-  platform_name: 'AI MAKER CAMPUS',
-  platform_subtitle: '高校 AI 创客学习平台',
+  platform_name: BRAND_NAME,
+  platform_subtitle: BRAND_SLOGAN,
   upload_max_mb: 20,
   allowed_file_types: ['pdf','docx','pptx','zip','txt','png','jpg','webp'],
   session_minutes: 10080,

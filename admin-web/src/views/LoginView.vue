@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN } from '@ai-learning-hub/contracts'
 import AdminIcon from '../components/AdminIcon.vue'
 import { appVersion } from '../version'
 import { onBeforeUnmount, reactive, ref, watch } from 'vue'
@@ -53,7 +54,7 @@ const enter = async () => {
 <template>
   <main class="login-page">
     <section class="login-card">
-      <div class="login-brand"><span>A</span><div><strong>AI MAKER CAMPUS</strong><small>高校 AI 创客学习平台｜管理后台</small></div></div>
+      <div class="login-brand"><span>{{ BRAND_MARK }}</span><div><strong>{{ BRAND_NAME }}</strong><small>{{ BRAND_SLOGAN }}</small></div></div>
       <div><p class="eyebrow">统一数据管理</p><h1>欢迎回来</h1><p>登录后管理课程、实训、资源和学习成长数据。</p></div>
       <section v-if="session.recoveryCodes.length" aria-label="一次性恢复码">
         <h2>保存恢复码</h2><p>每个恢复码只能使用一次。请离线妥善保存，关闭后不会再次显示。</p>

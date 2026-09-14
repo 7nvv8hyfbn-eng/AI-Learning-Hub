@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BRAND_NAME, BRAND_SLOGAN } from '@ai-learning-hub/contracts'
 import CommunityUserBadges from './CommunityUserBadges.vue'
 import { computed, ref } from 'vue'
 import { useCommunityStore } from '../stores/community'
@@ -42,6 +43,6 @@ const follow = async (id: string, topic: boolean, active: boolean) => { error.va
     <RouterLink class="text-link rail-more" to="/community/search?type=users">查看更多：搜索学习者</RouterLink>
   </section>
   <p v-if="error" class="community-error" role="alert">{{ error }}</p>
-  <small class="community-rail-footer">AI MAKER CAMPUS · 让学习留下作品</small>
+  <small class="community-rail-footer">{{ BRAND_NAME }} · {{ BRAND_SLOGAN }}</small>
   </template>
 </aside></template>

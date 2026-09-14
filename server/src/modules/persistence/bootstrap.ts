@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { hash } from 'bcryptjs'
-import { passwordProblem } from '@ai-learning-hub/contracts'
+import { BRAND_NAME, BRAND_SLOGAN, passwordProblem } from '@ai-learning-hub/contracts'
+import { upgradeBrand } from './upgrade-brand'
 
 export const requiredPermissions = [
   'dashboard.read', 'homepage.read', 'homepage.write', 'homepage.publish', 'platform.manage',
@@ -37,7 +38,7 @@ export async function bootstrapDatabase(prisma: PrismaClient) {
         : []
       await tx.rolePermission.createMany({ data: allPermissions.filter((p) => grants.includes(p.code) && (!oldRoles.has(role.code) || !oldPermissions.has(p.code))).map((p) => ({ roleId: role.id, permissionId: p.id })), skipDuplicates: true })
     }
-    for (const [key, value] of Object.entries({ platform_name: 'AI数智化学习平台', registration: { mode: 'open', emailVerification: false, agreementVersion: '2026-08-30', passwordMinLength: 8, schoolRequired: false, registrationRateWindowMinutes: 15, registrationMaxAttemptsPerIp: 120, registrationMaxAttemptsPerIdentifier: 8, registrationMaxSuccessPerIp: 30 } })) {
+    for (const [key, value] of Object.entries({ platform_name: BRAND_NAME, platform_subtitle: BRAND_SLOGAN, registration: { mode: 'open', emailVerification: false, agreementVersion: '2026-08-30', passwordMinLength: 8, schoolRequired: false, registrationRateWindowMinutes: 15, registrationMaxAttemptsPerIp: 120, registrationMaxAttemptsPerIdentifier: 8, registrationMaxSuccessPerIp: 30 } })) {
       await tx.systemSetting.upsert({ where: { key }, update: {}, create: { key, value } })
     }
     if (!await tx.userRole.count({ where: { role: { code: { in: ['admin', 'super_admin'] } } } })) {
@@ -52,7 +53,7 @@ export async function bootstrapDatabase(prisma: PrismaClient) {
 /** 正式初始化只处理本环境基础元数据；三类内容由独立同步步骤处理。 */
 export async function bootstrapApplication(prisma: PrismaClient) {
   await bootstrapDatabase(prisma)
-  return { bootstrap: 'complete' }
+  return { bootstrap: 'complete', brand: await upgradeBrand(prisma) }
 }
 // CommonJS runtime 与 tsx CLI 均可直接执行，不依赖其他应用源码。
 if (require.main === module) {

@@ -99,7 +99,7 @@ describe('学习社区视觉契约', () => {
     expect(route('/welcome')).toContain("layout: 'landing'")
     expect(route('/terms')).toContain("layout: 'public'")
     expect(route('/labs/:labId')).toContain("layout: 'immersive'")
-    expect(router).toContain('｜AI数智化学习平台')
+    expect(router).toContain('｜${BRAND_NAME}')
   })
 
   it('学习主题页使用真实数据链路组成课程任务看板且不修改左侧导航', () => {

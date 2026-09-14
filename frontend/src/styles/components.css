@@ -1,8 +1,9 @@
 .brand { display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.brand-mark { display: grid; place-items: center; width: 38px; height: 38px; color: white; background: var(--brand); border-radius: var(--amc-radius-control); font-weight: 900; font-size: 1.25rem; box-shadow: inset 0 0 0 1px rgba(255,255,255,.28); }
+.brand-mark { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 38px; color: white; background: var(--brand); border-radius: var(--amc-radius-control); font-weight: 900; font-size: 1.25rem; box-shadow: inset 0 0 0 1px rgba(255,255,255,.28); }
 .brand strong, .brand small { display: block; }
 .brand strong { font-size: .94rem; letter-spacing: -.02em; }
-.brand small { margin-top: 3px; color: var(--amc-text-secondary); font-size: 12px; }
+.brand small { max-width: 24em; margin-top: 3px; color: var(--amc-text-secondary); font-size: 12px; white-space: normal; line-height: 1.6; }
+.brand-slogan { color: var(--amc-text-secondary); font-size: 12px; line-height: 1.6; }
 .header-actions, .hero-actions, .card-actions, .lab-hero-actions { display: flex; align-items: center; gap: 10px; }
 .icon-button { display: inline-grid; place-items: center; min-width: 40px; min-height: 40px; border: 1px solid var(--amc-border); border-radius: 50%; background: var(--amc-surface); cursor: pointer; transition: color var(--amc-duration-control) var(--amc-ease), background var(--amc-duration-control) var(--amc-ease); }
 .icon-button:hover { border-color: var(--amc-orange-border); background: var(--amc-bg-soft); }

@@ -7,10 +7,11 @@
 .landing-brand { display: flex; gap: 13px; align-items: center; margin-bottom: 78px; }
 .landing-brand .brand-mark { width: 46px; height: 46px; border-radius: 12px; }
 .landing-brand strong { display: block; font-size: 18px; letter-spacing: -.5px; }
-.landing-brand small { display: block; color: var(--amc-text-secondary); font-size: 12px; margin-top: 5px; letter-spacing: 1px; }
+.landing-brand small { display: block; color: var(--amc-text-secondary); font-size: 12px; margin-top: 5px; line-height: 1.6; }
+.landing-brand > div, .landing-hero-copy { min-width: 0; }
 .landing-eyebrow { display: inline-block; padding: 8px 14px; background: #fff0e8; color: #c3441c; font-weight: 600; font-size: 13px; border-radius: 12px; margin-bottom: 23px; }
 .landing-hero h1 { font-size: clamp(30px, 3.05vw, 44px); letter-spacing: -1.8px; line-height: 1.45; font-weight: 750; }
-.landing-hero h1 span { display: block; white-space: nowrap; }
+.landing-hero h1 span { display: block; }
 .landing-description { max-width: 435px; margin-top: 22px !important; line-height: 1.9; font-size: 16px; color: var(--amc-text-body); }
 .landing-actions { display: flex; gap: 14px; align-items: center; margin-top: 34px; }
 .landing-actions .button, .landing-bottom-cta .button { min-height: 54px; padding: 13px 26px; }

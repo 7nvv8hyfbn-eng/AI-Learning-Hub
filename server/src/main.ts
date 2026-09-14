@@ -1,3 +1,4 @@
+import { BRAND_NAME } from '@ai-learning-hub/contracts'
 import { assertContentReady } from './modules/project-content/bundle'
 import { PrismaService } from './prisma/prisma.service'
 import 'reflect-metadata'
@@ -40,7 +41,7 @@ async function bootstrap() {
 
   if (!production(config) && config.get('SWAGGER_ENABLED') === 'true') {
     const document = SwaggerModule.createDocument(app, new DocumentBuilder()
-    .setTitle('AI 数智化学习平台 API')
+    .setTitle(`${BRAND_NAME} API`)
     .setDescription('学生端、管理后台与《题盒》适配层的统一接口')
     .setVersion('1.0')
     .addBearerAuth()

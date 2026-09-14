@@ -63,10 +63,11 @@ label:has(> input[type="checkbox"]:disabled) { color: var(--muted); cursor: not-
   border-right: 1px solid var(--line);
   background: rgba(255, 255, 255, .96);
 }
-.admin-brand { display: flex; align-items: center; gap: 10px; height: 72px; padding: 0 18px; border-bottom: 1px solid var(--line); }
+.admin-brand { display: flex; align-items: center; gap: 10px; min-height: 88px; padding: 12px 18px; border-bottom: 1px solid var(--line); }
 .admin-brand > span, .login-brand > span {
   display: grid;
   place-items: center;
+  flex-shrink: 0;
   width: 40px;
   height: 40px;
   border-radius: 9px;
@@ -76,8 +77,8 @@ label:has(> input[type="checkbox"]:disabled) { color: var(--muted); cursor: not-
   font-size: 24px;
   font-weight: 900;
 }
-.admin-brand strong { font-size: 13px; line-height: 1.2; letter-spacing: -.02em; white-space: nowrap; }
-.admin-brand small { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.admin-brand strong { min-width: 0; font-size: 13px; line-height: 1.2; letter-spacing: -.02em; }
+.admin-brand small { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.6; }
 .admin-sidebar nav { display: grid; gap: 5px; padding: 18px 10px; }
 .admin-sidebar nav a {
   display: flex;
@@ -289,8 +290,9 @@ label:has(> input[type="checkbox"]:disabled) { color: var(--muted); cursor: not-
 .login-page { display: grid; place-items: center; min-height: 100vh; padding: 30px; background: radial-gradient(circle at 15% 20%, #fff0e9, transparent 30%), radial-gradient(circle at 85% 80%, #eee9ff, transparent 35%), #fbfaf7; }
 .login-card { display: grid; gap: 28px; width: 430px; padding: 36px; border: 1px solid var(--line); border-radius: 20px; background: rgba(255,255,255,.96); box-shadow: 0 26px 80px rgba(34, 30, 26, .1); }
 .login-brand { display: flex; align-items: center; gap: 12px; }
+.login-brand > div { min-width: 0; }
 .login-brand strong { display: block; font-size: 15px; }
-.login-brand small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+.login-brand small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .login-card h1 { margin-bottom: 8px; font-size: 31px; }
 .login-card p { color: var(--muted); font-size: 12px; line-height: 1.7; }
 .login-card .eyebrow { margin-bottom: 7px; color: var(--brand); font-size: 12px; font-weight: 900; letter-spacing: .12em; }
@@ -556,7 +558,7 @@ label:has(> input[type="checkbox"]:disabled) { color: var(--muted); cursor: not-
   html, body, #app { min-width: 0; }
   .admin-shell { display: block; }
   .admin-sidebar { position: static; width: 100%; border-right: 0; border-bottom: 1px solid var(--line); }
-  .admin-brand { height: 64px; }
+  .admin-brand { min-height: 88px; }
   .admin-sidebar nav { display: flex; gap: 6px; margin: 0; padding: 8px 12px; overflow-x: auto; }
   .admin-sidebar .admin-nav-group { display: contents; }
   .admin-sidebar .admin-nav-group h2, .sidebar-note, .sidebar-version { display: none; }

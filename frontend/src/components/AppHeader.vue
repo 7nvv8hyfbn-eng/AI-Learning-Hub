@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN } from '@ai-learning-hub/contracts'
 import CommunityAvatar from './base/CommunityAvatar.vue'
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -40,9 +41,9 @@ watch(() => route.query.login, (value) => { if (value === '1') { authUi.open({ r
   <a class="skip-link" href="#main-content">跳到主要内容</a>
   <header class="app-header">
     <div class="header-inner">
-      <RouterLink class="brand" to="/welcome" aria-label="AI MAKER CAMPUS 首页">
-        <span class="brand-mark" aria-hidden="true">A</span>
-        <span><strong>AI MAKER CAMPUS</strong><small>高校 AI 创客学习平台</small></span>
+      <RouterLink class="brand" to="/welcome" :aria-label="`${BRAND_NAME} 首页`">
+        <span class="brand-mark" aria-hidden="true">{{ BRAND_MARK }}</span>
+        <span><strong>{{ BRAND_NAME }}</strong><small>{{ BRAND_SLOGAN }}</small></span>
       </RouterLink>
       <nav id="main-navigation" class="main-nav" :class="{ 'mobile-open': navOpen }" aria-label="主导航">
         <RouterLink v-for="[label, path] in navigation" :key="path" :to="path" @click="navOpen = false">{{ label }}</RouterLink>

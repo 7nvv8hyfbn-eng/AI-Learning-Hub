@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BRAND_NAME, BRAND_SLOGAN_LINES } from '@ai-learning-hub/contracts'
 import type { Component } from 'vue'
 import type { PublicHomepageModuleDto } from '@ai-learning-hub/contracts'
 import { onBeforeUnmount, onErrorCaptured, onMounted, ref } from 'vue'
@@ -32,7 +33,7 @@ onBeforeUnmount(() => observer?.disconnect())
 <template>
   <div ref="root" class="homepage-module-boundary" :class="{ visible }">
     <section v-if="failed && module.moduleKey === 'hero_banner'" class="home-hero hero-fallback">
-      <div class="hero-copy"><span class="eyebrow">高校 AI 创客学习平台</span><h1><span>学 AI，不止是听懂。</span><span>还要亲手做出来。</span></h1><p>从基础知识到真实项目，建立学习、实践与验证闭环。</p><RouterLink class="button primary" to="/topics">开始学习</RouterLink></div>
+      <div class="hero-copy"><span class="eyebrow">{{ BRAND_NAME }}</span><h1><span v-for="line in BRAND_SLOGAN_LINES" :key="line">{{ line }}</span></h1><p>从基础知识到真实项目，建立学习、实践与验证闭环。</p><RouterLink class="button primary" to="/topics">开始学习</RouterLink></div>
     </section>
     <component :is="component" v-else-if="!failed" :module="module" />
   </div>

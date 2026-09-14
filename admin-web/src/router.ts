@@ -1,3 +1,4 @@
+import { BRAND_NAME } from '@ai-learning-hub/contracts'
 import { createRouter, createWebHistory } from 'vue-router'
 import AdminLayout from './components/AdminLayout.vue'
 import { useSessionStore } from './stores/session'
@@ -34,7 +35,7 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  document.title = `${String(to.meta.title || '管理后台')}｜AI数智化学习平台`
+  document.title = `${String(to.meta.title || '管理后台')}｜${BRAND_NAME}`
   const session = useSessionStore()
   if (!session.initialized) await session.restore()
   const landing = visibleAdminNavigation(session.user?.permissions || [])[0]?.items[0]?.[2] || '/search'
