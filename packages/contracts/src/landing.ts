@@ -1,4 +1,4 @@
-import { BRAND_NAME, BRAND_SLOGAN, BRAND_SLOGAN_LINES } from './brand'
+import { BRAND_NAME } from './brand'
 
 export const LANDING_MODULE_KEYS = ['landing_hero', 'landing_capabilities', 'landing_featured', 'landing_community_overview', 'landing_bottom_cta'] as const
 export type LandingModuleKey = typeof LANDING_MODULE_KEYS[number]
@@ -24,7 +24,7 @@ export interface LandingConfigMap {
 }
 export interface LandingPublicAuthor { badges?: import('./community/badges').CommunityUserBadge[]; id: string; username: string; displayName: string; avatarUrl?: string; verifiedType: import('./community').CommunityVerifiedType; headline: string; followerCount: number }
 export const LANDING_DEFAULT_CONFIG: LandingConfigMap = {
-  landing_hero: { brandName: BRAND_NAME, brandSubtitle: BRAND_SLOGAN, eyebrow: '连接学习者，激发 AI 创造力', titleFirst: BRAND_SLOGAN_LINES[0], titleSecond: BRAND_SLOGAN_LINES[1], description: '和同学、学长、导师一起探索 AI 的边界，用项目实践想法，让学习真正发生。', primaryLabel: '登录 / 注册', secondaryLabel: '了解社区', image: 'heroArms', memberDisplay: 'count' },
+  landing_hero: { brandName: BRAND_NAME, brandSubtitle: '破盒启智 交互赋能 数训筑基 共创未来', eyebrow: '连接学习者，激发 AI 创造力', titleFirst: '破盒启智∙交互赋能', titleSecond: '数训筑基∙共创未来', description: '和同学、学长、导师一起探索 AI 的边界，用项目实践想法，让学习真正发生。', primaryLabel: '登录 / 注册', secondaryLabel: '了解社区', image: 'heroArms', memberDisplay: 'count' },
   landing_capabilities: { title: '你可以在社区做什么', items: [
     { title: '学习与提问', description: '提出问题，获得同学与导师的解答建议', icon: 'learningQuestion' },
     { title: '笔记与分享', description: '记录学习笔记，分享知识与实战经验', icon: 'noteSharing' },
