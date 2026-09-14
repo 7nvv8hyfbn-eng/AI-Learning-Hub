@@ -4,6 +4,7 @@
 .brand strong { font-size: .94rem; letter-spacing: -.02em; }
 .brand small { max-width: 24em; margin-top: 3px; color: var(--amc-text-secondary); font-size: 12px; white-space: normal; line-height: 1.6; }
 .brand-slogan { color: var(--amc-text-secondary); font-size: 12px; line-height: 1.6; }
+.brand-slogan-lines, .brand small.brand-slogan-lines { white-space: pre; }
 .header-actions, .hero-actions, .card-actions, .lab-hero-actions { display: flex; align-items: center; gap: 10px; }
 .icon-button { display: inline-grid; place-items: center; min-width: 40px; min-height: 40px; border: 1px solid var(--amc-border); border-radius: 50%; background: var(--amc-surface); cursor: pointer; transition: color var(--amc-duration-control) var(--amc-ease), background var(--amc-duration-control) var(--amc-ease); }
 .icon-button:hover { border-color: var(--amc-orange-border); background: var(--amc-bg-soft); }

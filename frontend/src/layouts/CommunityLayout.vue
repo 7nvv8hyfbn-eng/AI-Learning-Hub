@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN } from '@ai-learning-hub/contracts'
+import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN_LINES } from '@ai-learning-hub/contracts'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '../components/base/AppIcon.vue'
@@ -51,7 +51,7 @@ onBeforeUnmount(() => { window.clearInterval(polling) })
   <div class="community-shell" :class="{ 'sidebar-collapsed': collapsed, 'community-wide': wide }">
     <a class="skip-link" href="#main-content" @click.prevent="focusMainEntry">跳到主要内容</a>
     <aside class="community-sidebar">
-      <RouterLink class="brand community-brand" to="/community"><span class="brand-mark">{{ BRAND_MARK }}</span><span class="nav-label"><strong>{{ BRAND_NAME }}</strong><small>{{ BRAND_SLOGAN }}</small></span></RouterLink>
+      <RouterLink class="brand community-brand" to="/community"><span class="brand-mark">{{ BRAND_MARK }}</span><span class="nav-label"><strong>{{ BRAND_NAME }}</strong><small class="brand-slogan-lines">{{ BRAND_SLOGAN_LINES.join('\n') }}</small></span></RouterLink>
       <button class="sidebar-collapse icon-button" type="button" :aria-label="collapsed ? '展开侧栏' : '收起侧栏'" @click="collapsed = !collapsed"><AppIcon name="sidebar-menu" :size="20" /></button>
       <nav class="community-sidebar-nav" aria-label="学习社区导航"><section v-for="group in groups" :key="group.label" class="community-nav-group"><h2 class="nav-label">{{ group.label }}</h2><RouterLink v-for="item in group.items" :key="item.path" :to="item.path" :title="item.label" :class="{ active: communityNavActive(route.path, item.path) }" :aria-current="communityNavActive(route.path, item.path) ? 'page' : undefined"><AppIcon :name="item.icon" :size="21" /><span class="nav-label">{{ item.label }}</span><b v-if="item.path === '/notifications' && store.unread" class="notification-count">{{ store.unread }}</b></RouterLink></section></nav>
       <button class="button primary community-publish" type="button" title="发布内容" @click="publish"><AppIcon name="plus" :size="20" /><span class="nav-label">发布内容</span></button>
@@ -66,7 +66,7 @@ onBeforeUnmount(() => { window.clearInterval(polling) })
     <main id="main-content" ref="mainScroll" class="community-main" tabindex="-1"><aside v-if="(!canPost || store.accessNotice) && route.path !== '/community/verification'" class="community-verification-banner" :class="{ 'is-prompt': !!store.accessNotice }" role="status"><span>{{ accessMessage }}<small v-if="postAvailableAt">{{ postAvailableAt }}</small></span><div class="community-access-actions"><RouterLink v-if="accessAction" class="button secondary" :to="accessAction.route">{{ accessAction.label }}</RouterLink><button v-if="store.accessNotice" class="button secondary" @click="store.accessNotice = null">继续浏览</button></div></aside><slot /></main>
     <CommunityRightRail v-if="!wide" />
     <nav class="community-bottom-nav" aria-label="移动主导航"><RouterLink v-for="item in communityNavigation.filter((item) => item.mobile).sort((a, b) => a.mobileOrder - b.mobileOrder)" :key="item.path" :to="item.path" :class="{ active: communityNavActive(route.path, item.path) }" :style="{ order: item.mobileOrder }"><AppIcon :name="item.icon" :size="21" /><span>{{ item.label.replace('首页', '').replace('主题', '').replace('项目', '').replace('消息', '').replace('成长', '') }}</span></RouterLink><button class="mobile-publish-button" @click="publish"><AppIcon name="plus" :size="24" /><span>发布</span></button></nav>
-    <AppDialog v-model="menuOpen" title="学习社区"><nav class="community-more"><RouterLink v-for="item in communityNavigation" :key="item.path" :to="item.path" @click="menuOpen = false">{{ item.label }}</RouterLink><RouterLink to="/welcome" @click="menuOpen = false">品牌门户</RouterLink><button class="text-link" @click="logout">退出登录</button></nav><p class="brand-slogan">{{ BRAND_SLOGAN }}</p><p class="app-version" aria-label="应用版本">{{ appVersion }}</p></AppDialog>
+    <AppDialog v-model="menuOpen" title="学习社区"><nav class="community-more"><RouterLink v-for="item in communityNavigation" :key="item.path" :to="item.path" @click="menuOpen = false">{{ item.label }}</RouterLink><RouterLink to="/welcome" @click="menuOpen = false">品牌门户</RouterLink><button class="text-link" @click="logout">退出登录</button></nav><p class="brand-slogan brand-slogan-lines">{{ BRAND_SLOGAN_LINES.join('\n') }}</p><p class="app-version" aria-label="应用版本">{{ appVersion }}</p></AppDialog>
     <button class="community-floating-publish" aria-label="快捷发布" @click="publish"><AppIcon name="plus" /></button>
   </div>
 </template>

@@ -79,6 +79,7 @@ label:has(> input[type="checkbox"]:disabled) { color: var(--muted); cursor: not-
 }
 .admin-brand strong { min-width: 0; font-size: 13px; line-height: 1.2; letter-spacing: -.02em; }
 .admin-brand small { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; font-weight: 500; line-height: 1.6; }
+.brand-slogan-lines { white-space: pre; }
 .admin-sidebar nav { display: grid; gap: 5px; padding: 18px 10px; }
 .admin-sidebar nav a {
   display: flex;

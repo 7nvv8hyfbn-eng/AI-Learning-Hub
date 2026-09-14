@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN } from '@ai-learning-hub/contracts'
+import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN_LINES } from '@ai-learning-hub/contracts'
 import CommunityAvatar from './base/CommunityAvatar.vue'
 import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -43,7 +43,7 @@ watch(() => route.query.login, (value) => { if (value === '1') { authUi.open({ r
     <div class="header-inner">
       <RouterLink class="brand" to="/welcome" :aria-label="`${BRAND_NAME} 首页`">
         <span class="brand-mark" aria-hidden="true">{{ BRAND_MARK }}</span>
-        <span><strong>{{ BRAND_NAME }}</strong><small>{{ BRAND_SLOGAN }}</small></span>
+        <span><strong>{{ BRAND_NAME }}</strong><small class="brand-slogan-lines">{{ BRAND_SLOGAN_LINES.join('\n') }}</small></span>
       </RouterLink>
       <nav id="main-navigation" class="main-nav" :class="{ 'mobile-open': navOpen }" aria-label="主导航">
         <RouterLink v-for="[label, path] in navigation" :key="path" :to="path" @click="navOpen = false">{{ label }}</RouterLink>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN } from '@ai-learning-hub/contracts'
+import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN_LINES } from '@ai-learning-hub/contracts'
 import { computed } from 'vue'
 import { useSessionStore } from '../stores/session'
 import AdminIcon from './AdminIcon.vue'
@@ -14,7 +14,7 @@ const groups = computed(() => visibleAdminNavigation(session.user?.permissions |
   <aside class="admin-sidebar">
     <RouterLink class="admin-brand" to="/dashboard">
       <span>{{ BRAND_MARK }}</span>
-      <strong>{{ BRAND_NAME }}<small>{{ BRAND_SLOGAN }}</small></strong>
+      <strong>{{ BRAND_NAME }}<small class="brand-slogan-lines">{{ BRAND_SLOGAN_LINES.join('\n') }}</small></strong>
     </RouterLink>
     <nav aria-label="管理导航">
       <section v-for="group in groups" :key="group.label" class="admin-nav-group"><h2>{{ group.label }}</h2><RouterLink v-for="[icon, label, path] in group.items" :key="path" :to="path"><i><AdminIcon :name="icon" :size="19" /></i><span>{{ label }}</span></RouterLink></section>

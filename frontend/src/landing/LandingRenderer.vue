@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BRAND_NAME, BRAND_MARK } from '@ai-learning-hub/contracts'
+import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN, BRAND_SLOGAN_LINES } from '@ai-learning-hub/contracts'
 import CommunityUserBadges from '../community/CommunityUserBadges.vue'
 import { appVersion } from '../version'
 import { computed, ref, watch } from 'vue'
@@ -71,9 +71,9 @@ const learnMore = () => capabilities.value?.scrollIntoView({ behavior: window.ma
   <div v-if="moduleFor('landing_hero')" class="landing-page">
     <section class="landing-hero landing-container" aria-labelledby="landing-title">
       <div class="landing-hero-copy">
-        <div class="landing-brand"><span class="brand-mark">{{ BRAND_MARK }}</span><div><strong>{{ hero.brandName }}</strong><small>{{ hero.brandSubtitle }}</small></div></div>
+        <div class="landing-brand"><span class="brand-mark">{{ BRAND_MARK }}</span><div><strong>{{ hero.brandName }}</strong><small :class="{ 'brand-slogan-lines': hero.brandSubtitle === BRAND_SLOGAN }">{{ hero.brandSubtitle === BRAND_SLOGAN ? BRAND_SLOGAN_LINES.join('\n') : hero.brandSubtitle }}</small></div></div>
         <span class="landing-eyebrow">{{ hero.eyebrow }}</span>
-        <h1 id="landing-title">{{ hero.titleFirst }}<span>{{ hero.titleSecond }}</span></h1>
+        <h1 id="landing-title" :aria-label="[hero.titleFirst, hero.titleSecond].join(' ')">{{ hero.titleFirst }}<span>{{ hero.titleSecond }}</span></h1>
         <p class="landing-description">{{ hero.description }}</p>
         <div class="landing-actions"><button class="button primary landing-login" type="button" @click="navigate()">{{ auth.user ? '进入社区' : hero.primaryLabel }}<AppIcon name="arrow-right" :size="20" /></button><button class="button secondary" type="button" @click="learnMore">{{ hero.secondaryLabel }}</button></div>
         <div v-if="hero.memberDisplay !== 'hidden'" class="landing-social-proof"><div class="landing-avatar-stack"><CommunityAvatar v-for="creator in homepage.community?.creators.slice(0, 4)" :key="creator.id" :name="creator.displayName" :username="creator.username" size="xs" /></div><span v-if="hero.memberDisplay === 'count' && homepage.community"><strong>{{ homepage.community.members.toLocaleString('zh-CN') }}</strong> 位学习者在这里学习与创造</span><span v-else>和更多创作者一起，让想法发生</span></div>

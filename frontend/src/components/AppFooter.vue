@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN } from '@ai-learning-hub/contracts'
+import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN_LINES } from '@ai-learning-hub/contracts'
 import { dataMode } from '../services/api/client'
 import { appVersion } from '../version'
 </script>
@@ -9,7 +9,7 @@ import { appVersion } from '../version'
     <div class="page-container footer-grid">
       <div>
         <div class="brand footer-brand"><span class="brand-mark">{{ BRAND_MARK }}</span><strong>{{ BRAND_NAME }}</strong></div>
-        <small>{{ BRAND_SLOGAN }}</small>
+        <small class="brand-slogan-lines">{{ BRAND_SLOGAN_LINES.join('\n') }}</small>
       </div>
       <div><strong>学习</strong><RouterLink to="/topics">通识基础</RouterLink><RouterLink to="/labs">实训项目</RouterLink></div>
       <div><strong>资源</strong><RouterLink to="/resources">教程中心</RouterLink><RouterLink to="/frontier">AI 前沿</RouterLink></div>

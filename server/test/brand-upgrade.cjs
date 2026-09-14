@@ -17,10 +17,10 @@ async function reset() {
   await db.homepageModule.deleteMany()
   await db.systemSetting.deleteMany({ where: { key: { in: ['platform_name', 'platform_subtitle', 'settings_version'] } } })
 }
-async function fixture(pending = false, custom = false) {
-  const published = snapshot(config)
-  const draft = snapshot({ ...config, description: '尚未发布的人工修改', ...(custom ? { brandSubtitle: '自定义口号' } : {}) })
-  const module = await db.homepageModule.create({ data: { moduleKey: 'landing_hero', name: '首屏设置', status: pending ? 'draft' : 'published', config: pending ? draft.config : config } })
+async function fixture(pending = false, custom = false, source = config) {
+  const published = snapshot(source)
+  const draft = snapshot({ ...source, description: '尚未发布的人工修改', ...(custom ? { brandSubtitle: '自定义口号' } : {}) })
+  const module = await db.homepageModule.create({ data: { moduleKey: 'landing_hero', name: '首屏设置', status: pending ? 'draft' : 'published', config: pending ? draft.config : source } })
   const v1 = await db.homepageModuleVersion.create({ data: { moduleId: module.id, versionNo: 1, snapshot: published } })
   const v2 = pending ? await db.homepageModuleVersion.create({ data: { moduleId: module.id, versionNo: 2, snapshot: draft } }) : v1
   await db.homepageModule.update({ where: { id: module.id }, data: { currentDraftVersionId: v2.id, publishedVersionId: v1.id } })
@@ -59,7 +59,7 @@ async function main() {
   const publication = await db.homepagePublication.findFirst({ orderBy: { version: 'desc' } })
   assert.equal(publication.snapshot[0].config.brandName, BRAND_NAME)
   assert.equal(publication.snapshot[0].config.brandSubtitle, BRAND_SLOGAN)
-  assert.equal(publication.snapshot[0].config.titleFirst + publication.snapshot[0].config.titleSecond, BRAND_SLOGAN)
+  assert.equal([publication.snapshot[0].config.titleFirst, publication.snapshot[0].config.titleSecond].join(' '), BRAND_SLOGAN)
   assert.deepEqual(publication.snapshot[0].items, old.pub.snapshot[0].items)
   assert.deepEqual(await db.homepageModuleVersion.findUnique({ where: { id: old.v1.id } }), old.v1)
   assert.deepEqual(await db.homepageModuleVersion.findUnique({ where: { id: old.v2.id } }), old.v2)
@@ -71,6 +71,29 @@ async function main() {
   assert.deepEqual(await db.homepageModule.findMany(), modulesBefore)
   assert.deepEqual(await db.systemSetting.findMany({ orderBy: { key: 'asc' } }), settingsBefore)
   report.push('旧库升级隔离发布与草稿，保留自定义文案、关联及历史；重复执行零写入')
+
+  await reset()
+  const previousLines = ['破盒启智、交互赋能、', '数训筑基、共创未来']
+  await db.systemSetting.createMany({ data: [{ key: 'platform_name', value: BRAND_NAME }, { key: 'platform_subtitle', value: previousLines.join('') }] })
+  const previous = await fixture(true, true, { ...config, brandName: BRAND_NAME, brandSubtitle: previousLines.join(''), titleFirst: previousLines[0], titleSecond: previousLines[1] })
+  const upgraded = await upgradeBrand(db)
+  assert.deepEqual(upgraded.settings, ['platform_subtitle'])
+  assert.equal(upgraded.publishedVersions, 1)
+  assert.equal(upgraded.draftVersions, 1)
+  assert.ok(upgraded.preservedCustomFields.includes('draft.landing_hero.brandSubtitle'))
+  const current = await db.homepageModule.findUniqueOrThrow({ where: { id: previous.module.id }, include: { currentDraftVersion: true, publishedVersion: true } })
+  assert.equal(current.publishedVersion.snapshot.config.titleFirst, '破盒启智、交互赋能')
+  assert.equal(current.publishedVersion.snapshot.config.brandSubtitle, '破盒启智、交互赋能 数训筑基、共创未来')
+  assert.equal(current.publishedVersion.snapshot.config.description, '已发布说明')
+  assert.equal(current.currentDraftVersion.snapshot.config.description, '尚未发布的人工修改')
+  assert.equal(current.currentDraftVersion.snapshot.config.brandSubtitle, '自定义口号')
+  assert.equal(current.currentDraftVersion.snapshot.config.titleFirst, BRAND_SLOGAN_LINES[0])
+  assert.deepEqual(await db.homepageModuleVersion.findUnique({ where: { id: previous.v1.id } }), previous.v1)
+  assert.deepEqual(await db.homepageModuleVersion.findUnique({ where: { id: previous.v2.id } }), previous.v2)
+  assert.deepEqual(await db.homepagePublication.findUnique({ where: { id: previous.pub.id } }), previous.pub)
+  const same = await upgradeBrand(db)
+  assert.equal(same.settings.length + same.modules.length + same.publishedVersions + same.draftVersions, 0)
+  report.push('v0.1.2 口号升级去除行末顿号，发布与自定义草稿隔离，历史保留且重复执行零写入')
 
   await reset()
   await fixture()
@@ -95,7 +118,7 @@ async function main() {
   assert.equal((await db.systemSetting.findUniqueOrThrow({ where: { key: 'platform_name' } })).value, '自定义平台名称')
   assert.deepEqual(await db.user.findMany(), users)
   assert.deepEqual(await db.userRole.findMany(), roles)
-  assert.equal(BRAND_SLOGAN_LINES.join(''), BRAND_SLOGAN)
+  assert.equal(BRAND_SLOGAN_LINES.join(' '), BRAND_SLOGAN)
   report.push('失败事务回滚、重试成功、自定义设置与账号关联保持不变')
   console.log(JSON.stringify({ passed: true, scenarios: report }, null, 2))
 }
