@@ -8,6 +8,6 @@ export const adminNavigationGroups = [
     ['media', '素材库', '/media', 'media.read'],
   ] },
   { label: '用户运营', items: [['users', '用户与账号', '/users', 'user.read'], ['growth-user', '用户成长', '/growth', 'growth.read']] },
-  { label: '门户与系统', items: [['homepage', '门户落地页', '/homepage', 'homepage.read'], ['settings', '系统设置', '/settings', 'settings.read']] },
+  { label: '门户与系统', items: [['homepage', '门户落地页', '/homepage', 'homepage.read'], ['settings', '系统设置', '/settings', 'settings.read'], ['bot', '小雪助手', '/assistant', 'settings.read']] },
 ]
 export const visibleAdminNavigation = (permissions: string[]) => adminNavigationGroups.map((group) => ({ ...group, items: group.items.filter((item) => permissions.includes(item[3])) })).filter((group) => group.items.length)

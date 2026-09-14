@@ -12,6 +12,8 @@
 .community-type.question { color: var(--amc-purple); background: var(--amc-purple-soft); }
 .community-post-menu { position: relative; align-self: start; }
 .community-menu-trigger { cursor: pointer; padding: 6px; min-height: 36px; color: var(--amc-text-secondary); border: 0; background: transparent; border-radius: var(--amc-radius-xs); }
+.community-post-digest { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; padding: 6px 9px; min-height: 36px; color: var(--amc-orange-hover); border: 0; background: transparent; border-radius: var(--amc-radius-xs); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.community-post-digest:hover { background: var(--amc-orange-soft); }
 .community-menu-panel { position: fixed; inset: auto; margin: 0; width: 180px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow: auto; padding: 5px; background: var(--amc-surface); color: var(--amc-text-primary); border: 1px solid var(--amc-border); border-radius: var(--amc-radius-control); box-shadow: var(--amc-shadow-float); }
 .community-menu-panel button, .community-menu-panel a { display: block; background: none; color: inherit; border: 0; width: 100%; text-align: left; padding: 8px 10px; min-height: 36px; font-size: 13px; }
 .community-menu-panel button:hover, .community-menu-panel a:hover { background: var(--amc-orange-soft); }

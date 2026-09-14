@@ -8,6 +8,7 @@ import ImmersiveLabLayout from './layouts/ImmersiveLabLayout.vue'
 import PageState from './components/PageState.vue'
 import QuizBridgeDialog from './components/QuizBridgeDialog.vue'
 import AuthDialog from './components/AuthDialog.vue'
+import SnowLeopardAssistant from './components/SnowLeopardAssistant.vue'
 import CommunityComposer from './community/CommunityComposer.vue'
 import { AUTH_SESSION_CLEARED_EVENT, dataMode, studentSession } from './services/api/client'
 import { ACCOUNT_BANNED, SESSION_REPLACED, SESSION_REPLACED_MESSAGE } from '@ai-learning-hub/contracts'
@@ -122,6 +123,7 @@ onBeforeUnmount(() => {
   </component>
   <QuizBridgeDialog />
   <AuthDialog />
+  <SnowLeopardAssistant v-if="route.meta.layout !== 'landing'" />
   <CommunityComposer v-if="auth.user" />
   <div v-if="bridgeMessage" class="toast" role="status">{{ bridgeMessage }}</div>
 </template>

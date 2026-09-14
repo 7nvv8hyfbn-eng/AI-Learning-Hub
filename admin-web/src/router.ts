@@ -26,6 +26,7 @@ const router = createRouter({
         { path: 'growth', component: () => import('./views/GrowthView.vue'), meta: { title: '用户成长管理', permission: 'growth.read' } },
         { path: 'users', component: () => import('./views/UsersView.vue'), meta: { title: '用户与账号', permission: 'user.read' } },
         { path: 'settings', component: () => import('./views/SettingsView.vue'), meta: { title: '系统设置', permission: 'settings.read' } },
+        { path: 'assistant', component: () => import('./views/AssistantSettingsView.vue'), meta: { title: '小雪助手', permission: 'settings.read' } },
         { path: 'search', component: () => import('./views/GlobalSearchView.vue'), meta: { title: '全局搜索' } },
       ],
     },
