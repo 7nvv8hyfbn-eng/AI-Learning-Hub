@@ -9,7 +9,7 @@ import AppIcon from '../components/base/AppIcon.vue'
 import CommunityAvatar from '../components/base/CommunityAvatar.vue'
 import FollowButton from '../components/base/FollowButton.vue'
 import LandingContentCard from './LandingContentCard.vue'
-import { landingAsset } from '../assets/landing/manifest'
+import { landingAsset, landingAssets } from '../assets/landing/manifest'
 import { useAuthStore } from '../stores/auth'
 import { useAuthUiStore } from '../stores/authUi'
 import { useCommunityStore } from '../stores/community'
@@ -36,17 +36,6 @@ const moduleFor = (key: LandingModuleKey) => props.homepage.modules.find((module
 const config = <K extends LandingModuleKey>(key: K) => ({ ...LANDING_DEFAULT_CONFIG[key], ...moduleFor(key)?.config }) as LandingConfigMap[K]
 const hero = computed(() => config('landing_hero')), ability = computed(() => config('landing_capabilities'))
 const overview = computed(() => config('landing_community_overview')), cta = computed(() => config('landing_bottom_cta'))
-const heroSlots = [
-  { className: 'landing-mosaic-note', variant: 'note', cover: 'robotCar' },
-  { className: 'landing-mosaic-visual', variant: 'visual', cover: 'robotVision' },
-  { className: 'landing-mosaic-code', variant: 'code', cover: 'aiWorkspace' },
-  { className: 'landing-mosaic-resource', variant: 'resource', cover: 'robotCar' },
-  { className: 'landing-mosaic-topic', variant: 'note', cover: 'aiWorkspace' },
-] as const
-const heroItems = computed(() => {
-  const items = (moduleFor('landing_hero')?.items || []).slice(0, 5)
-  return heroSlots.map((_, slot) => items.find((item, index) => (item.slot ?? index) === slot))
-})
 const topics = computed(() => (moduleFor('landing_community_overview')?.items || []).filter((item) => item.targetType === 'community_topic').slice(0, 5))
 const creators = computed(() => (moduleFor('landing_community_overview')?.items || []).filter((item) => item.targetType === 'community_user').slice(0, 4))
 const author = (item: HomepageResolvedItemDto) => item.data as unknown as LandingPublicAuthor
@@ -80,10 +69,31 @@ const learnMore = () => capabilities.value?.scrollIntoView({ behavior: window.ma
       </div>
       <div class="landing-hero-mosaic" aria-label="社区内容预览">
         <img class="landing-hero-arms" :src="landingAsset(hero.image, 'heroArms')" alt="" width="960" height="640" fetchpriority="high" />
-        <template v-for="(slot, index) in heroSlots" :key="slot.className">
-          <LandingContentCard v-if="heroItems[index]" :class="slot.className" :item="heroItems[index]!" :variant="slot.variant" :cover="slot.cover" @open="openItem" />
-          <button v-else-if="index === 4" type="button" class="landing-content-card landing-mosaic-topic landing-card-note" @click="navigate('/community')"><div class="landing-card-copy"><span class="landing-tag">社区精选</span><h3>更多社区帖子正在路上</h3><p>进入社区，发现最新的学习分享与实践记录。</p><span class="landing-card-link">浏览社区 <AppIcon name="arrow-right" :size="14" /></span></div></button>
-        </template>
+        <button type="button" class="landing-content-card landing-mosaic-note landing-card-note" @click="navigate('/community')">
+          <div class="landing-card-copy">
+            <div class="landing-author"><CommunityAvatar name="平台内容" size="sm" /><span>平台内容<small>学习与分享</small></span></div>
+            <h3>今天学到的 AI，动手试一试</h3><p>从一个问题、一段笔记或一次小实验开始，记录思路，也分享你的发现。</p>
+            <div class="landing-card-meta"><span class="landing-card-link">浏览社区 <AppIcon name="arrow-right" :size="14" /></span></div>
+          </div>
+        </button>
+        <button type="button" class="landing-content-card landing-mosaic-visual landing-card-visual" @click="navigate('/labs/model-service')">
+          <img class="landing-cover" :src="landingAssets.robotVision" alt="机械臂模型部署实训" width="960" height="540" decoding="async" />
+          <div class="landing-card-copy"><span class="landing-tag">实训项目</span><h3>部署你的第一个 AI 模型</h3></div>
+        </button>
+        <button type="button" class="landing-content-card landing-mosaic-code landing-card-code" @click="navigate('/labs/agent-workbench')">
+          <img class="landing-cover" :src="landingAssets.aiWorkspace" alt="AI Agent 工作流" width="960" height="540" decoding="async" />
+          <div class="landing-card-copy"><h3>AI Agent 智能助手开发实训</h3></div>
+        </button>
+        <button type="button" class="landing-content-card landing-mosaic-resource landing-card-resource" @click="navigate('/resources?preview=llm-handbook')">
+          <div class="landing-card-copy"><span class="landing-tag">学习资源</span><h3>大模型入门学习手册</h3><p>梳理核心术语、学习路径和练习建议。</p></div>
+        </button>
+        <button type="button" class="landing-content-card landing-mosaic-topic landing-card-note" @click="navigate('/community')">
+          <div class="landing-card-copy">
+            <div class="landing-author"><CommunityAvatar name="平台内容" size="sm" /><span>平台内容<small>交流与共创</small></span></div>
+            <h3>把想法带进社区，一起做出来</h3><p>分享作品、交流方法、提出问题。让每一次尝试，都成为下一次进步的起点。</p>
+            <div class="landing-card-meta"><span class="landing-card-link">参与交流 <AppIcon name="arrow-right" :size="14" /></span></div>
+          </div>
+        </button>
       </div>
     </section>
     <section v-if="moduleFor('landing_capabilities')" ref="capabilities" class="landing-capabilities landing-container" aria-labelledby="landing-capabilities-title">

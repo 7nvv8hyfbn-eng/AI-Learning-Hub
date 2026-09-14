@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { PrismaClient, type CommunityPostStatus, type Prisma } from '@prisma/client'
+import { PrismaClient, type Prisma } from '@prisma/client'
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { LANDING_DEFAULT_CONFIG, LANDING_MODULE_KEYS, type PublicHomepageDto } from '@ai-learning-hub/contracts'
@@ -206,7 +206,7 @@ describe('真实 PostgreSQL 数据闭环', () => {
     const homepage = await call<{ modules: Array<{ moduleKey: string; config: Record<string, unknown>; items: unknown[] }> }>('/public/homepage')
     const publicHero = homepage.modules.find((item) => item.moduleKey === 'landing_hero')
     expect(publicHero?.config.titleFirst).toBe('端到端首页发布标题')
-    expect(publicHero?.items.length).toBeGreaterThan(0)
+    expect(publicHero?.items).toEqual([])
     await call(`/admin/homepage/modules/${heroModuleId}`, { method: 'PATCH', body: JSON.stringify({ config: { ...hero?.config, titleFirst: '尚未发布的首页标题' } }) }, adminToken)
     const unchanged = await call<{ modules: Array<{ moduleKey: string; config: Record<string, unknown> }> }>('/public/homepage')
     expect(unchanged.modules.find((item) => item.moduleKey === 'landing_hero')?.config.titleFirst).toBe('端到端首页发布标题')
@@ -586,83 +586,29 @@ describe('真实 PostgreSQL 数据闭环', () => {
     }
   })
 
-  it('首屏第5帖子失效时确定性补位且不推动其他槽位，无候选时保留空槽', async () => {
+  it('固定首屏不返回帖子关联，旧关联失效不阻止发布', async () => {
     const db = new PrismaClient()
-    let hiddenIds: string[] = []
-    const hero = await db.homepageModule.findUniqueOrThrow({ where: { moduleKey: 'landing_hero' }, include: { items: { orderBy: { sortOrder: 'asc' } } } })
-    const fifth = hero.items.find((item) => item.sortOrder === 4)!
-    const post = await db.communityPost.findUniqueOrThrow({ where: { id: fifth.targetId } })
-    const earlierPostIds = hero.items.filter((item) => item.sortOrder < 4 && item.targetType === 'community_post').map((item) => item.targetId)
-    const original = await call<PublicHomepageDto>('/public/homepage')
-    const originalHero = original.modules.find((module) => module.moduleKey === 'landing_hero')!
-    const firstFour = originalHero.items.filter((item) => (item.slot ?? 0) < 4).map((item) => ({ slot: item.slot, slug: item.slug, title: item.title }))
     try {
-      await db.communityPost.update({ where: { id: post.id }, data: { status: 'hidden' } })
-      const expected = await db.communityPost.findFirstOrThrow({
-        where: { id: { notIn: earlierPostIds }, status: 'published', visibility: 'public', deletedAt: null, publishedAt: { not: null }, author: { status: 'active' } },
-        orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
-      })
+      const hero = await db.homepageModule.findUniqueOrThrow({ where: { moduleKey: 'landing_hero' }, include: { items: true } })
+      const before = JSON.stringify(hero.items)
+      await call('/admin/homepage/publish', { method: 'POST' }, adminToken)
       for (const path of ['/public/homepage', '/admin/homepage/preview']) {
         const page = await call<PublicHomepageDto>(path, {}, path.startsWith('/admin') ? adminToken : undefined)
-        const items = page.modules.find((module) => module.moduleKey === 'landing_hero')!.items
-        expect(items.map((item) => item.slot)).toEqual([0, 1, 2, 3, 4])
-        expect(items.filter((item) => (item.slot ?? 0) < 4).map((item) => ({ slot: item.slot, slug: item.slug, title: item.title }))).toEqual(firstFour)
-        expect(items.find((item) => item.slot === 4)).toMatchObject({ targetType: 'community_post', slug: expected.id })
+        expect(page.modules.find((module) => module.moduleKey === 'landing_hero')!.items).toEqual([])
       }
-      const rejected = await fetch(`${base}/admin/homepage/publish`, { method: 'POST', headers: { authorization: `Bearer ${adminToken}` } })
-      expect(rejected.status).toBe(400)
-      expect((await rejected.json()).message).toContain('社区帖子已隐藏')
-
-      const eligible = await db.communityPost.findMany({
-        where: { id: { notIn: earlierPostIds }, status: 'published', visibility: 'public', deletedAt: null, publishedAt: { not: null }, author: { status: 'active' } },
-        select: { id: true, status: true },
-      })
-      hiddenIds = eligible.map((item) => item.id)
-      await db.communityPost.updateMany({ where: { id: { in: eligible.map((item) => item.id) } }, data: { status: 'hidden' } })
-      for (const path of ['/public/homepage', '/admin/homepage/preview']) {
-        const page = await call<PublicHomepageDto>(path, {}, path.startsWith('/admin') ? adminToken : undefined)
-        const items = page.modules.find((module) => module.moduleKey === 'landing_hero')!.items
-        expect(items.map((item) => item.slot)).toEqual([0, 1, 2, 3])
-        expect(items.map((item) => ({ slot: item.slot, slug: item.slug, title: item.title }))).toEqual(firstFour)
-      }
-    } finally {
-      if (hiddenIds.length) await db.communityPost.updateMany({ where: { id: { in: hiddenIds } }, data: { status: 'published' } })
-      await db.communityPost.update({ where: { id: post.id }, data: { status: post.status } })
-      await db.$disconnect()
-    }
+      expect(JSON.stringify((await db.homepageModule.findUniqueOrThrow({ where: { id: hero.id }, include: { items: true } })).items)).toBe(before)
+    } finally { await db.$disconnect() }
   })
 
-  it('窄升级只替换首屏第5帖子并新增一次发布，重复执行零写', async () => {
-    const prisma = new PrismaClient()
-    let originalPost: { id: string; status: CommunityPostStatus } | null = null
+  it('固定首屏升级保留旧推荐、草稿和全部发布历史，重复执行零写', async () => {
+    const db = new PrismaClient()
+    const state = async () => ({ modules: await db.homepageModule.findMany({ include: { items: true, versions: true }, orderBy: { id: 'asc' } }), publications: await db.homepagePublication.findMany({ orderBy: { version: 'asc' } }) })
     try {
-      const old = await prisma.homepageModule.findMany({ where: { moduleKey: { notIn: [...LANDING_MODULE_KEYS] } }, include: { items: true, versions: true }, orderBy: { id: 'asc' } })
-      const hero = await prisma.homepageModule.findUniqueOrThrow({ where: { moduleKey: 'landing_hero' }, include: { items: { orderBy: { sortOrder: 'asc' } } } })
-      const fifth = hero.items.find((item) => item.sortOrder === 4)!
-      const post = await prisma.communityPost.findUniqueOrThrow({ where: { id: fifth.targetId } })
-      originalPost = { id: post.id, status: post.status }
-      const earlierPostIds = hero.items.filter((item) => item.sortOrder < 4 && item.targetType === 'community_post').map((item) => item.targetId)
-      await prisma.communityPost.update({ where: { id: post.id }, data: { status: 'hidden' } })
-      const expected = await prisma.communityPost.findFirstOrThrow({
-        where: { id: { notIn: earlierPostIds }, status: 'published', visibility: 'public', deletedAt: null, publishedAt: { not: null }, author: { status: 'active' } },
-        orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
-      })
-      const before = await prisma.homepagePublication.count()
-      const latestBefore = await prisma.homepagePublication.findFirstOrThrow({ orderBy: { version: 'desc' } })
-      expect(await upgradeLanding(prisma)).toMatchObject({ changed: true, version: latestBefore.version + 1, repairedPostId: expected.id })
-      const repaired = await prisma.homepageModule.findUniqueOrThrow({ where: { id: hero.id }, include: { items: { orderBy: { sortOrder: 'asc' } } } })
-      expect(repaired.items.slice(0, 4)).toEqual(hero.items.slice(0, 4))
-      expect(repaired.items.find((item) => item.sortOrder === 4)).toMatchObject({ targetType: 'community_post', targetId: expected.id, sortOrder: 4 })
-      expect((await upgradeLanding(prisma)).changed).toBe(false)
-      expect(await prisma.homepagePublication.count()).toBe(before + 1)
-      expect(await prisma.homepageModule.findMany({ where: { moduleKey: { notIn: [...LANDING_MODULE_KEYS] } }, include: { items: true, versions: true }, orderBy: { id: 'asc' } })).toEqual(old)
-      expect(old).toHaveLength(12)
-      const latest = await prisma.homepagePublication.findFirstOrThrow({ orderBy: { version: 'desc' } })
-      expect(latest.snapshot).toHaveLength(17)
-    } finally {
-      if (originalPost) await prisma.communityPost.update({ where: { id: originalPost.id }, data: { status: originalPost.status } })
-      await prisma.$disconnect()
-    }
+      const before = await state()
+      expect((await upgradeLanding(db)).changed).toBe(false)
+      expect((await upgradeLanding(db)).changed).toBe(false)
+      expect(await state()).toEqual(before)
+    } finally { await db.$disconnect() }
   })
 
   it('话题停用与创作者禁用后公共投影即时消失，配置数量在服务端约束', async () => {
@@ -694,7 +640,7 @@ describe('真实 PostgreSQL 数据闭环', () => {
 
   it('并发添加最后一个推荐位仅成功一次，草稿版本与发布原子一致', async () => {
     const db = new PrismaClient()
-    const hero = await db.homepageModule.findUniqueOrThrow({ where: { moduleKey: 'landing_hero' }, include: { items: { orderBy: { sortOrder: 'asc' } } } })
+    const hero = await db.homepageModule.findUniqueOrThrow({ where: { moduleKey: 'landing_featured' }, include: { items: { orderBy: { sortOrder: 'asc' } } } })
     const displaced = hero.items.at(-1)!
     const candidates = await db.communityPost.findMany({
       where: { status: 'published', visibility: 'public', deletedAt: null, publishedAt: { not: null }, author: { status: 'active' }, id: { notIn: hero.items.filter((item) => item.targetType === 'community_post').map((item) => item.targetId) } },
@@ -706,16 +652,16 @@ describe('真实 PostgreSQL 数据闭环', () => {
     try {
       await call(`/admin/homepage/modules/${hero.id}/items/${displaced.id}`, { method: 'DELETE' }, adminToken)
       const versions = await db.homepageModuleVersion.count({ where: { moduleId: hero.id } })
-      const responses = await Promise.all(candidates.map((post) => fetch(`${base}/admin/homepage/modules/${hero.id}/items`, { method: 'POST', headers: { authorization: `Bearer ${adminToken}`, 'content-type': 'application/json' }, body: JSON.stringify({ targetType: 'community_post', targetId: post.id, sortOrder: 4 }) })))
+      const responses = await Promise.all(candidates.map((post) => fetch(`${base}/admin/homepage/modules/${hero.id}/items`, { method: 'POST', headers: { authorization: `Bearer ${adminToken}`, 'content-type': 'application/json' }, body: JSON.stringify({ targetType: 'community_post', targetId: post.id, sortOrder: 2 }) })))
       for (const response of responses) if (response.ok) addedIds.push(((await response.json()) as Envelope<{ id: string }>).data.id)
       expect(responses.map((response) => response.status).sort()).toEqual([201, 400])
-      expect(await db.homepageItem.count({ where: { moduleId: hero.id } })).toBe(5)
+      expect(await db.homepageItem.count({ where: { moduleId: hero.id } })).toBe(3)
       expect(await db.homepageModuleVersion.count({ where: { moduleId: hero.id } })).toBe(versions)
       const latest = await db.homepageModule.findUniqueOrThrow({ where: { id: hero.id }, include: { currentDraftVersion: true } })
-      expect((latest.currentDraftVersion!.snapshot as { items: unknown[] }).items).toHaveLength(5)
+      expect((latest.currentDraftVersion!.snapshot as { items: unknown[] }).items).toHaveLength(3)
       expect(latest.currentDraftVersionId).not.toBe(latest.publishedVersionId)
       await call('/admin/homepage/publish', { method: 'POST' }, adminToken)
-      expect((await call<PublicHomepageDto>('/public/homepage')).modules[0].items).toHaveLength(5)
+      expect((await call<PublicHomepageDto>('/public/homepage')).modules.find((module) => module.moduleKey === 'landing_featured')!.items).toHaveLength(3)
     } finally {
       for (const id of addedIds) await call(`/admin/homepage/modules/${hero.id}/items/${id}`, { method: 'DELETE' }, adminToken)
       const { targetType, targetId, titleOverride, summaryOverride, coverOverride, sortOrder } = displaced

@@ -37,7 +37,7 @@ const selectedReadiness = computed(() => selected.value ? moduleReadiness(select
 const kpis = computed(() => ({
   total: modules.value.length,
   enabled: modules.value.filter((item) => item.enabled).length,
-  recommendations: modules.value.reduce((sum, item) => sum + item.items.length, 0),
+  recommendations: modules.value.filter((item) => item.moduleKey !== 'landing_hero').reduce((sum, item) => sum + item.items.length, 0),
   published: modules.value.filter((item) => item.status === 'published').length,
 }))
 const livePreview = computed(() => previewData.value ? {
@@ -163,6 +163,7 @@ const saveAndPublish = async () => { await save(); await publish() }
       <label>模块标识<input v-model="selected.moduleKey" disabled /><small>系统内部标识，不可修改</small></label>
       <div v-if="!selectedReadiness.ready" class="homepage-readiness"><strong>配置未完成</strong><span v-for="issue in selectedReadiness.issues" :key="issue">{{ issue }}</span></div>
       <LandingRegionEditor :module-key="selected.moduleKey" v-model:config="selected.config" />
+      <p v-if="selected.moduleKey === 'landing_hero'" class="drag-hint">首屏五张展示卡片使用固定文案与图片，不随社区帖子或推荐内容变化。此处可调整品牌文案与机械臂图片。</p>
       <section v-if="allowedTypes.length" class="domain-section"><h3>推荐内容 <button class="text-link" type="button" :disabled="!canAddItem" @click="openItem()">添加</button></h3><small>最多 {{ landingItemLimit(selected.moduleKey) }} 项；话题最多五项，创作者最多四项。</small><ul><li v-for="(item, index) in selected.items" :key="item.id">{{ item.targetType }} · {{ item.titleOverride || item.targetId }} · {{ item.relationValid === false ? '关联失效' : '关联有效' }} <button class="text-link" type="button" @click="openItem(item)">编辑</button><button class="text-link" type="button" :disabled="index === 0" @click="moveItem(index, -1)">上移</button><button class="text-link" type="button" :disabled="index === selected.items.length - 1" @click="moveItem(index, 1)">下移</button><button class="text-link" type="button" @click="removeItem(item.id)">移除</button></li></ul><p v-if="!selected.items.length">暂无推荐内容；公开页面显示空态。</p></section>
       <label class="toggle-row">区域启用<el-switch v-model="selected.enabled" :disabled="['landing_hero','landing_bottom_cta'].includes(selected.moduleKey)" /></label>
       <div class="module-action-row"><button v-if="!['landing_hero','landing_bottom_cta'].includes(selected.moduleKey)" class="admin-danger" type="button" @click="archive">停用</button><button class="admin-primary" type="button" :disabled="loading || !canPublish" @click="saveAndPublish">保存并发布</button></div>

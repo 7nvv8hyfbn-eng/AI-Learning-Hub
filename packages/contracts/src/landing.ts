@@ -40,7 +40,7 @@ export const LANDING_DEFAULT_CONFIG: LandingConfigMap = {
 export const isLandingModuleKey = (key: string): key is LandingModuleKey => (LANDING_MODULE_KEYS as readonly string[]).includes(key)
 export const landingTargetTypes = (key: LandingModuleKey): readonly LandingTargetType[] =>
   key === 'landing_community_overview' ? ['community_topic', 'community_user']
-    : key === 'landing_hero' || key === 'landing_featured' ? ['community_post', 'course', 'lab', 'article', 'resource'] : []
+    : key === 'landing_featured' ? ['community_post', 'course', 'lab', 'article', 'resource'] : []
 export const landingItemLimit = (key: LandingModuleKey) => key === 'landing_hero' ? 5 : key === 'landing_featured' ? 3 : key === 'landing_community_overview' ? 9 : 0
 export const isLandingImage = (value: unknown) => typeof value === 'string' && (LANDING_IMAGE_KEYS as readonly string[]).includes(value)
 

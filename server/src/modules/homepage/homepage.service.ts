@@ -122,22 +122,6 @@ export class HomepageService {
         include: { items: { where: { enabled: true }, orderBy: { sortOrder: 'asc' } }, _count: { select: { versions: true } } },
       })
       if (draftModules.length !== 5 || draftModules.some((module, index) => module.moduleKey !== LANDING_MODULE_KEYS[index] || module.sortOrder !== index)) throw new BadRequestException('落地页需完成固定五区域升级')
-      const hero = draftModules.find((module) => module.moduleKey === 'landing_hero')!
-      const firstPost = hero.items.find((item) => item.sortOrder < 4 && item.targetType === 'community_post')
-      const fifth = hero.items.find((item) => item.sortOrder === 4)
-      let fifthIssue = !fifth || fifth.targetType !== 'community_post' ? '缺少社区帖子快照' : ''
-      if (!fifthIssue && fifth!.targetId === firstPost?.targetId) fifthIssue = '社区帖子快照与第1张重复'
-      if (!fifthIssue) {
-        const post = await tx.communityPost.findUnique({ where: { id: fifth!.targetId }, select: { status: true, visibility: true, portalConsent: true, deletedAt: true, publishedAt: true, author: { select: { status: true } } } })
-        fifthIssue = !post ? '社区帖子不存在'
-          : post.deletedAt ? '社区帖子已删除'
-            : post.status === 'hidden' ? '社区帖子已隐藏'
-              : post.status !== 'published' || !post.publishedAt ? '社区帖子未发布'
-                : post.visibility !== 'public' ? '社区帖子非社区内公开'
-                  : !post.portalConsent ? '作者尚未授权匿名门户展示'
-                  : post.author.status !== 'active' ? '帖子作者已失效' : ''
-      }
-      if (fifthIssue) throw new BadRequestException(`首页存在配置未完成模块：${hero.name}（${fifthIssue}）`)
       const modules = draftModules.filter((module) => module.enabled)
       const incomplete = modules.map((module) => ({ module, issues: this.readinessIssues(module) })).filter((item) => item.issues.length)
       if (incomplete.length) throw new BadRequestException(`首页存在配置未完成模块：${incomplete.map((item) => `${item.module.name}（${item.issues.join('、')}）`).join('；')}`)
@@ -185,27 +169,13 @@ export class HomepageService {
       .filter((module) => module.enabled !== false && this.allowedKeys.has(String(module.moduleKey)))
       .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0))
       .map(async (module) => {
-        const sourceItems = (module.items || []).filter((item) => item.enabled !== false)
-        let items = (await Promise.all(sourceItems
+        const sourceItems = (module.moduleKey === 'landing_hero' ? [] : module.items || []).filter((item) => item.enabled !== false)
+        const items = (await Promise.all(sourceItems
           .map(async (item, index) => {
             const resolved = await this.resolve(String(item.targetType), String(item.targetId))
             return resolved ? { ...resolved, slot: Number.isInteger(Number(item.sortOrder)) ? Number(item.sortOrder) : index, ...(item.titleOverride ? { title: String(item.titleOverride) } : {}), ...(item.summaryOverride ? { summary: String(item.summaryOverride) } : {}), data: { ...resolved.data, ...(isLandingImage(item.coverOverride) ? { cover: item.coverOverride } : {}) } } : null
           })))
           .filter((item) => item !== null)
-        if (module.moduleKey === 'landing_hero') {
-          const earlierPostIds = sourceItems.filter((item) => Number(item.sortOrder) < 4 && item.targetType === 'community_post').map((item) => String(item.targetId))
-          const fifth = items.find((item) => item.slot === 4)
-          if (!fifth || fifth.targetType !== 'community_post' || earlierPostIds.includes(fifth.slug)) {
-            items = items.filter((item) => item.slot !== 4)
-            const fallback = await this.prisma.communityPost.findFirst({
-              where: { id: { notIn: earlierPostIds }, ...visiblePublicPost(), portalConsent: true },
-              orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
-              select: { id: true },
-            })
-            const resolved = fallback && await this.references.resolvePublicCommunity('community_post', fallback.id)
-            if (resolved) items.push({ ...resolved, slot: 4 })
-          }
-        }
         return {
           id: String(module.moduleKey),
           moduleKey: String(module.moduleKey) as HomepageModuleKey,
