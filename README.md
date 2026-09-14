@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/assets/daily-ai-logo.webp" alt="Daily-AI Logo" width="75%" />
+</p>
+
 # Daily-AI
 
 破盒启智、交互赋能 数训筑基、共创未来。
