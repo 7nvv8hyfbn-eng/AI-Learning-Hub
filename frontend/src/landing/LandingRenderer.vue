@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BRAND_NAME, BRAND_MARK, BRAND_SLOGAN, BRAND_SLOGAN_LINES } from '@ai-learning-hub/contracts'
+import { BRAND_NAME, BRAND_MARK } from '@ai-learning-hub/contracts'
 import CommunityUserBadges from '../community/CommunityUserBadges.vue'
 import { appVersion } from '../version'
 import { computed, ref, watch } from 'vue'
@@ -71,7 +71,7 @@ const learnMore = () => capabilities.value?.scrollIntoView({ behavior: window.ma
   <div v-if="moduleFor('landing_hero')" class="landing-page">
     <section class="landing-hero landing-container" aria-labelledby="landing-title">
       <div class="landing-hero-copy">
-        <div class="landing-brand"><span class="brand-mark">{{ BRAND_MARK }}</span><div><strong>{{ hero.brandName }}</strong><small :class="{ 'brand-slogan-lines': hero.brandSubtitle === BRAND_SLOGAN }">{{ hero.brandSubtitle === BRAND_SLOGAN ? BRAND_SLOGAN_LINES.join('\n') : hero.brandSubtitle }}</small></div></div>
+        <div class="landing-brand"><span class="brand-mark">{{ BRAND_MARK }}</span><div><strong>{{ hero.brandName }}</strong><small>{{ hero.brandSubtitle }}</small></div></div>
         <span class="landing-eyebrow">{{ hero.eyebrow }}</span>
         <h1 id="landing-title" :aria-label="[hero.titleFirst, hero.titleSecond].join(' ')">{{ hero.titleFirst }}<span>{{ hero.titleSecond }}</span></h1>
         <p class="landing-description">{{ hero.description }}</p>
