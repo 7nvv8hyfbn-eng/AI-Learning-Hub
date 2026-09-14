@@ -113,7 +113,7 @@ describe('社区化入口', () => {
     app.component('RouterLink', { props: ['to'], setup: (props, { slots }) => () => h('a', { href: props.to }, slots.default?.()) })
     const html = await renderToString(app)
     expect(html).toContain('<h1 id="landing-title" aria-label="破盒启智、交互赋能 数训筑基、共创未来">破盒启智、交互赋能<span>数训筑基、共创未来</span>')
-    expect(html).toContain('Daily-AI')
+    expect(html).toContain('<strong>DAILY-AI HUB</strong>')
     expect(html).toContain('class="brand-mark">D</span>')
     expect(html).toContain('<small>破盒启智、交互赋能 数训筑基、共创未来</small>')
     expect(html.match(/class="landing-capability"/g)).toHaveLength(6)

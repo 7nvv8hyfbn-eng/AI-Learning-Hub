@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client'
 import { BRAND_NAME, BRAND_SLOGAN, BRAND_SLOGAN_LINES } from '@ai-learning-hub/contracts'
 
-const oldNames = ['AI MAKER CAMPUS', 'AI数智化学习平台', 'AI 数智化学习平台', 'AI Learning Hub']
+const oldNames = ['AI MAKER CAMPUS', 'AI数智化学习平台', 'AI 数智化学习平台', 'AI Learning Hub', 'Daily-AI']
 const previousSloganLines = ['破盒启智、交互赋能、', '数训筑基、共创未来']
 const oldSubtitles = ['高校 AI 创客学习平台', '面向高校学生的 AI 学习与实训平台', previousSloganLines.join('')]
 const rules: Record<string, Record<string, { previous: unknown[]; next: Prisma.InputJsonValue }>> = {
@@ -11,7 +11,7 @@ const rules: Record<string, Record<string, { previous: unknown[]; next: Prisma.I
     titleFirst: { previous: ['加入 AI 创客社区', previousSloganLines[0]], next: BRAND_SLOGAN_LINES[0] },
     titleSecond: { previous: ['一起学习 · 实践 · 成长'], next: BRAND_SLOGAN_LINES[1] },
   },
-  landing_bottom_cta: { title: { previous: ['现在就加入 AI 创客社区'], next: `现在就加入 ${BRAND_NAME}` } },
+  landing_bottom_cta: { title: { previous: ['现在就加入 AI 创客社区', '现在就加入 Daily-AI'], next: `现在就加入 ${BRAND_NAME}` } },
   hero_banner: {
     eyebrow: { previous: [...oldNames, ...oldSubtitles], next: BRAND_NAME },
     titleLines: { previous: [['学 AI，不止是听懂。', '还要亲手做出来。'], previousSloganLines], next: [...BRAND_SLOGAN_LINES] },

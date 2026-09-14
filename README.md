@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="./docs/assets/daily-ai-logo.webp" alt="Daily-AI Logo" width="75%" />
+  <img src="./docs/assets/daily-ai-logo.webp" alt="DAILY-AI HUB Logo" width="75%" />
 </p>
 
-# Daily-AI
+# DAILY-AI HUB
 
 破盒启智、交互赋能 数训筑基、共创未来。
 
@@ -46,7 +46,7 @@ node scripts/release.mjs publish --summary "本批更新摘要"
 
 三端构建会检查版本一致性并生成 `dist/version.json`，固定提交构建通过 `APP_COMMIT_SHA` 注入完整 SHA。页面显示各自构建版本；`GET /api/v1/version` 返回服务端 `version`、`commit` 和 `environment`。应用版本与项目内容包版本独立，版本发布不改写用户数据。
 
-正式发布通过 [统一入口](deploy/PROJECT_CONTENT.md) 依次备份、迁移、`bootstrap`、同步三类项目内容并校验，不加载演示账号。`bootstrap` 同步 Daily-AI 品牌默认值，并分别升级门户发布快照与草稿中的旧品牌字段；历史版本不改写，自定义字段保留并列入报告，重复执行不创建重复版本。初始管理员由环境变量设置；首次开放注册前，需在后台配置并发布至少三个学习方向。社区写入使用事务、幂等键和修订号；用户、草稿、互动及文件元数据以 PostgreSQL 为准。
+正式发布通过 [统一入口](deploy/PROJECT_CONTENT.md) 依次备份、迁移、`bootstrap`、同步三类项目内容并校验，不加载演示账号。`bootstrap` 同步 DAILY-AI HUB 品牌默认值，并分别升级门户发布快照与草稿中的旧品牌字段；历史版本不改写，自定义字段保留并列入报告，重复执行不创建重复版本。初始管理员由环境变量设置；首次开放注册前，需在后台配置并发布至少三个学习方向。社区写入使用事务、幂等键和修订号；用户、草稿、互动及文件元数据以 PostgreSQL 为准。
 
 数据库迁移、环境变量和部署命令见：
 

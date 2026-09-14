@@ -36,7 +36,7 @@ describe('旧社区账号夹具（仅显式隔离测试）', () => {
     try {
       const tx = { role: { findMany: async () => [], upsert: async () => ({}) }, permission: { findMany: async () => [], upsert: async () => ({}) }, userRole: { count: async () => 1 }, systemSetting: { findUnique: async () => null, upsert: async () => ({}) }, $queryRaw: async () => [], homepagePublication: { findFirst: async () => null }, homepageModule: { findMany: async () => [] } }
       const db = { ...tx, $transaction: async (fn: (value: unknown) => unknown) => fn(tx) }
-      await expect(bootstrapApplication(db as never)).resolves.toMatchObject({ bootstrap: 'complete', brand: { brand: 'Daily-AI', publishedVersions: 0 } })
+      await expect(bootstrapApplication(db as never)).resolves.toMatchObject({ bootstrap: 'complete', brand: { brand: 'DAILY-AI HUB', publishedVersions: 0 } })
     }
     finally { if (old === undefined) delete process.env.COMMUNITY_STARTER_PACK; else process.env.COMMUNITY_STARTER_PACK = old }
   })
