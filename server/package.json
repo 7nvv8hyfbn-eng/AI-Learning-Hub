@@ -1,6 +1,6 @@
 {
   "name": "ai-learning-hub-server",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "scripts": {
     "build:contracts": "tsc --project ../packages/contracts/tsconfig.json && tsc --project ../packages/catalog-assets/tsconfig.json",
