@@ -5,6 +5,10 @@
 <h1 align="center">DAILY-AI HUB</h1>
 
 <p align="center">
+  <strong>简体中文</strong> · <a href="README.en.md" lang="en">English</a>
+</p>
+
+<p align="center">
   <strong>高校 AI 学习与实践社区</strong><br />
   破盒启智、交互赋能 数训筑基、共创未来
 </p>
