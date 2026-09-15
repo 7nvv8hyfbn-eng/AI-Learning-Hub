@@ -1,46 +1,51 @@
 <p align="center">
-  <img src="./docs/assets/daily-ai-logo.webp" alt="DAILY-AI HUB Logo" width="75%" />
+  <img src="./docs/assets/daily-ai-logo.webp" alt="DAILY-AI HUB Logo" width="360" />
 </p>
 
 <h1 align="center">DAILY-AI HUB</h1>
 
 <p align="center">
-  <strong>破盒启智、交互赋能 数训筑基、共创未来。</strong>
+  <strong>高校 AI 学习与实践社区</strong><br />
+  破盒启智、交互赋能 数训筑基、共创未来
 </p>
-
-<br />
-<br />
 
 <p align="center">
-  <a href="#简介">简介</a> ·
-  <a href="#架构">架构</a> ·
-  <a href="#开发验证">开发验证</a> ·
-  <a href="#首次部署与增量更新">部署</a> ·
-  <a href="#许可">许可证</a> ·
-  <a href="#作者">作者</a>
+  <a href="docs/architecture.md"><img src="docs/assets/daily-ai-stack.svg" alt="Docker Compose · Vue 3 · NestJS 11 · PostgreSQL 17 · MIT 许可证" width="560" /></a>
 </p>
 
-<br />
+<p align="center">
+  <a href="#简介">项目简介</a> ·
+  <a href="docs/architecture.md">项目文档</a> ·
+  <a href="version.md">版本记录</a> ·
+  <a href="#首次部署与增量更新">部署指南</a> ·
+  <a href="#开发验证">开发验证</a> ·
+  <a href="#作者">贡献者</a>
+</p>
+
+## 架构
+
+<p align="center">
+  <a href="docs/architecture.md"><img src="docs/assets/daily-ai-architecture.svg" alt="DAILY-AI HUB 架构：Vue 双端经 Nginx 访问 NestJS 模块化单体，使用 PostgreSQL 和文件存储；Compose 发布统一同步三类项目内容" width="100%" /></a>
+</p>
+
+<details>
+<summary>目录与技术栈</summary>
+
+| 目录 | 职责 |
+| --- | --- |
+| `frontend/` | Vue 3 学生端，默认真实 API；Mock 使用独立演示命令 |
+| `admin-web/` | Vue 3 + Element Plus 管理端，维护内容、账号与社区运营 |
+| `server/` | NestJS + Prisma，统一认证、权限、业务数据与文件 |
+| `packages/` | 共享契约、品牌常量、课程素材与独立测试夹具 |
+| `deploy/compose/` | 环境配置、镜像编排与统一发布入口 |
+
+</details>
 
 ## 简介
 
 面向高校学生的 AI 学习与实践社区，包含社区交流、教程中心、通识课程、受控实训、AI 前沿、挑战与测评，以及收藏、笔记和成长记录。管理后台负责内容发布、用户管理与社区治理。
 
 访客可浏览品牌落地页及教程中心的公开标题、封面；社区、课程学习、教程正文、视频和附件需登录。落地页首屏五张展示卡片使用固定内容与图片。
-
-## 架构
-
-```text
-学生端 Vue 3 ─┐
-管理端 Vue 3 ─┴─ Nginx ─ NestJS /api/v1 ─ Prisma ─ PostgreSQL
-                         └─ 文件存储：本地 / MinIO / S3
-```
-
-- `frontend/`：学生端默认真实 API；演示使用独立 `dev:mock` / `build:mock`。
-- `admin-web/`：内容、社区运营、用户账号、成长数据与存储状态管理。
-- `server/`：NestJS 模块化单体，负责认证、权限、业务数据与文件。
-- `packages/`：共享契约、品牌常量、课程素材及独立测试夹具。
-- `deploy/compose/`：环境配置与统一发布入口。
 
 实训采用白名单动作，不执行任意 Shell。邮件、《题盒》等外部服务需单独配置和验收。
 
@@ -70,7 +75,11 @@ node scripts/release.mjs publish --summary "本批更新摘要"
 
 ## 首次部署与增量更新
 
-**首次部署和每次增量更新，都必须同步社区、通识课程和教程中心。** 仓库正式内容包包含 100 篇帖子与 200 条回复、24 门课程（144 节课时、72 张图片）、24 条教程及媒体、分类和公共播放列表。仅拉取 GitHub 代码不等于已更新业务库。
+**首次部署和每次增量更新，都必须同步以下三类正式内容。仅拉取 GitHub 代码不等于已更新业务库。**
+
+| 社区交流 | 通识基础 | 教程中心 |
+| --- | --- | --- |
+| 100 篇帖子 · 200 条回复 · 配图 | 24 门课程 · 144 节课时 · 72 张图片 | 24 条教程 · 封面与媒体 · 分类与公共播放列表 |
 
 按[部署配置](deploy/compose/README.md)准备目标环境和固定提交的镜像，再执行 `bash deploy/compose/release.sh`：备份 → 迁移 → `bootstrap` → 三类内容同步 → 校验 → 开放服务。[内容来源、同步与排查](deploy/PROJECT_CONTENT.md)适用于校园、飞牛及其他服务器。
 

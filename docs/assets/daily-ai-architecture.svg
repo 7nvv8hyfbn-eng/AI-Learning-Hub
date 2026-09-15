@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="716" viewBox="0 0 1120 716" role="img" aria-labelledby="title description">
+  <title id="title">DAILY-AI HUB 架构一览</title>
+  <desc id="description">学生端和管理端经 Nginx 访问 NestJS 模块化单体。社区、课程、教程、实训、测评和成长模块使用 PostgreSQL 与文件存储。固定 Git 提交通过 Docker Compose 发布，统一同步社区、通识课程和教程中心，保留目标环境业务数据。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 8 4 0 8" fill="#94a3b8" /></marker>
+    <g id="screen" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="1" width="24" height="18" rx="3" /><path d="M8 25h10M13 19v6M6 7h14" /></g>
+    <g id="database" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="13" cy="5" rx="11" ry="4" /><path d="M2 5v16c0 5 22 5 22 0V5M2 13c0 5 22 5 22 0" /></g>
+    <g id="folder" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 6h8l3 4h12v14H2zM2 6V3h9l3 4h11v3" /></g>
+    <g id="shield" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m13 1 10 4v9c0 6-10 11-10 11S3 20 3 14V5zM8 13l4 4 7-8" /></g>
+    <g id="api" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6-6 7 6 7m10-14 6 7-6 7M15 3l-4 20" /></g>
+  </defs>
+  <rect width="1120" height="716" rx="18" fill="#ffffff" />
+  <g font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif" fill="#182230">
+    <text x="560" y="38" text-anchor="middle" font-size="27" font-weight="750">DAILY-AI HUB 架构一览</text>
+    <text x="560" y="64" text-anchor="middle" font-size="15" fill="#64748b">学习与共创 · 双端统一服务 · 内容随部署同步</text>
+
+    <rect x="24" y="86" width="1072" height="96" rx="12" fill="#fff6f1" stroke="#ffcbb5" />
+    <circle cx="53" cy="120" r="14" fill="#ff4b24" />
+    <text x="53" y="125" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">1</text>
+    <text x="78" y="127" font-size="19" font-weight="700" fill="#c63e1e">双端体验</text>
+    <text x="78" y="151" font-size="13" fill="#8b6253">Vue 3 · Vite</text>
+    <rect x="236" y="102" width="414" height="64" rx="8" fill="#fff" stroke="#f0d7ca" />
+    <use href="#screen" x="255" y="121" color="#e45b31" />
+    <text x="297" y="128" font-size="18" font-weight="700">学生端</text>
+    <text x="297" y="151" font-size="14" fill="#64748b">社区 · 教程 · 课程 · 实训 · 成长</text>
+    <rect x="666" y="102" width="414" height="64" rx="8" fill="#fff" stroke="#f0d7ca" />
+    <use href="#screen" x="685" y="121" color="#e45b31" />
+    <text x="727" y="128" font-size="18" font-weight="700">管理端</text>
+    <text x="727" y="151" font-size="14" fill="#64748b">内容发布 · 用户管理 · 社区治理</text>
+    <path d="M658 185v15" stroke="#94a3b8" marker-end="url(#arrow)" />
+
+    <rect x="24" y="208" width="1072" height="96" rx="12" fill="#eff7ff" stroke="#c6dcf7" />
+    <circle cx="53" cy="242" r="14" fill="#3d76c9" />
+    <text x="53" y="247" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">2</text>
+    <text x="78" y="249" font-size="19" font-weight="700" fill="#285ba5">统一接口</text>
+    <text x="78" y="273" font-size="13" fill="#527298">HTTP API · SSE</text>
+    <rect x="236" y="224" width="270" height="64" rx="8" fill="#fff" stroke="#ccdded" />
+    <use href="#api" x="254" y="243" color="#3d76c9" />
+    <text x="295" y="250" font-size="18" font-weight="700">Nginx</text>
+    <text x="295" y="273" font-size="14" fill="#64748b">学生与后台分离入口</text>
+    <rect x="523" y="224" width="270" height="64" rx="8" fill="#fff" stroke="#ccdded" />
+    <use href="#api" x="541" y="243" color="#3d76c9" />
+    <text x="582" y="250" font-size="18" font-weight="700">NestJS</text>
+    <text x="582" y="273" font-size="14" fill="#64748b">/api/v1 · 业务规则</text>
+    <rect x="810" y="224" width="270" height="64" rx="8" fill="#fff" stroke="#ccdded" />
+    <use href="#shield" x="828" y="243" color="#3d76c9" />
+    <text x="869" y="250" font-size="18" font-weight="700">访问控制</text>
+    <text x="869" y="273" font-size="14" fill="#64748b">会话 · RBAC · 管理员 MFA</text>
+    <path d="M658 307v15" stroke="#94a3b8" marker-end="url(#arrow)" />
+
+    <rect x="24" y="330" width="1072" height="132" rx="12" fill="#f7f4ff" stroke="#d9cff7" />
+    <circle cx="53" cy="364" r="14" fill="#7c5cca" />
+    <text x="53" y="369" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">3</text>
+    <text x="78" y="371" font-size="19" font-weight="700" fill="#6845b6">业务模块</text>
+    <text x="78" y="395" font-size="13" fill="#7d6c9b">模块化单体</text>
+    <g fill="#fff" stroke="#dfd8f2">
+      <rect x="236" y="346" width="270" height="42" rx="7" /><rect x="523" y="346" width="270" height="42" rx="7" /><rect x="810" y="346" width="270" height="42" rx="7" />
+      <rect x="236" y="404" width="270" height="42" rx="7" /><rect x="523" y="404" width="270" height="42" rx="7" /><rect x="810" y="404" width="270" height="42" rx="7" />
+    </g>
+    <g font-size="17" font-weight="600" text-anchor="middle">
+      <text x="371" y="373">社区交流与治理</text><text x="658" y="373">通识课程与教程</text><text x="945" y="373">受控实训</text>
+      <text x="371" y="431">挑战与测评</text><text x="658" y="431">成长 · 收藏 · 笔记</text><text x="945" y="431">素材 · 消息 · AI 前沿</text>
+    </g>
+    <path d="M658 465v15" stroke="#94a3b8" marker-end="url(#arrow)" />
+
+    <rect x="24" y="488" width="1072" height="96" rx="12" fill="#f0faf6" stroke="#c4e4d4" />
+    <circle cx="53" cy="522" r="14" fill="#248964" />
+    <text x="53" y="527" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">4</text>
+    <text x="78" y="529" font-size="19" font-weight="700" fill="#1c7855">数据与存储</text>
+    <text x="78" y="553" font-size="13" fill="#577d6b">持久化 · 版本 · 审计</text>
+    <rect x="236" y="504" width="414" height="64" rx="8" fill="#fff" stroke="#cce4d8" />
+    <use href="#database" x="255" y="523" color="#248964" />
+    <text x="297" y="530" font-size="18" font-weight="700">PostgreSQL · Prisma</text>
+    <text x="297" y="553" font-size="14" fill="#64748b">账号 · 内容版本 · 学习与互动记录</text>
+    <rect x="666" y="504" width="414" height="64" rx="8" fill="#fff" stroke="#cce4d8" />
+    <use href="#folder" x="685" y="523" color="#248964" />
+    <text x="727" y="530" font-size="18" font-weight="700">文件存储</text>
+    <text x="727" y="553" font-size="14" fill="#64748b">本地 / MinIO / S3 · 上传文件独立保留</text>
+
+    <rect x="24" y="610" width="1072" height="82" rx="12" fill="#fff9ef" stroke="#edd9b2" />
+    <circle cx="53" cy="644" r="14" fill="#b97a1b" />
+    <text x="53" y="649" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">5</text>
+    <text x="78" y="651" font-size="19" font-weight="700" fill="#946217">发布与同步</text>
+    <text x="78" y="675" font-size="13" fill="#92774e">Git · Docker Compose</text>
+    <text x="658" y="642" text-anchor="middle" font-size="18" font-weight="650">备份 → 迁移 → 初始化 → 内容同步 → 校验开放</text>
+    <text x="658" y="672" text-anchor="middle" font-size="14" fill="#79674d">固定提交 · 社区 / 通识课程 / 教程中心 · 原账号和业务数据保留</text>
+  </g>
+</svg>

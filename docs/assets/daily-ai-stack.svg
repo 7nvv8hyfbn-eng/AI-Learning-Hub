@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="26" viewBox="0 0 560 26" role="img" aria-labelledby="title">
+  <title id="title">Docker Compose · Vue 3 · NestJS 11 · PostgreSQL 17 · MIT 许可证</title>
+  <g font-family="Verdana,DejaVu Sans,sans-serif" font-size="12" text-anchor="middle" fill="#fff">
+    <g transform="translate(0 2)">
+      <rect width="126" height="22" rx="3" fill="#176aa4" /><path d="M3 0h54v22H3a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3" fill="#454b54" />
+      <text x="28.5" y="15">Docker</text><text x="91.5" y="15">Compose</text>
+    </g>
+    <g transform="translate(132 2)">
+      <rect width="78" height="22" rx="3" fill="#247552" /><path d="M3 0h41v22H3a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3" fill="#454b54" />
+      <text x="22" y="15">Vue</text><text x="61" y="15">3</text>
+    </g>
+    <g transform="translate(216 2)">
+      <rect width="99" height="22" rx="3" fill="#c5204b" /><path d="M3 0h60v22H3a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3" fill="#454b54" />
+      <text x="31.5" y="15">NestJS</text><text x="81" y="15">11</text>
+    </g>
+    <g transform="translate(321 2)">
+      <rect width="132" height="22" rx="3" fill="#3659ad" /><path d="M3 0h93v22H3a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3" fill="#454b54" />
+      <text x="48" y="15">PostgreSQL</text><text x="114" y="15">17</text>
+    </g>
+    <g transform="translate(459 2)">
+      <rect width="101" height="22" rx="3" fill="#247552" /><path d="M3 0h60v22H3a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3" fill="#454b54" />
+      <text x="31.5" y="15">License</text><text x="82" y="15">MIT</text>
+    </g>
+  </g>
+</svg>
