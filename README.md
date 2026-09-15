@@ -2,9 +2,27 @@
   <img src="./docs/assets/daily-ai-logo.webp" alt="DAILY-AI HUB Logo" width="75%" />
 </p>
 
-# DAILY-AI HUB
+<h1 align="center">DAILY-AI HUB</h1>
 
-破盒启智、交互赋能 数训筑基、共创未来。
+<p align="center">
+  <strong>破盒启智、交互赋能 数训筑基、共创未来。</strong>
+</p>
+
+<br />
+<br />
+
+<p align="center">
+  <a href="#简介">简介</a> ·
+  <a href="#架构">架构</a> ·
+  <a href="#开发验证">开发验证</a> ·
+  <a href="#首次部署与增量更新">部署</a> ·
+  <a href="#许可">许可证</a> ·
+  <a href="#作者">作者</a>
+</p>
+
+<br />
+
+## 简介
 
 面向高校学生的 AI 学习、受控实训与创客社区平台。学生可围绕课程、知识点、实训项目和学习成果共同提问、分享与讨论，并完成学习、收藏、实训和测评回写；管理后台统一维护内容和社区运营，NestJS 执行业务规则，PostgreSQL 提供统一数据源，《题盒》通过适配层接入统一题库与成绩。
 
