@@ -64,12 +64,12 @@ QUIZ_BOX_*（启用时）
 
 生产 CORS 只列出正式学生端和管理端 HTTPS 域名，`COOKIE_SECURE` 必须为 `true`。未配置时服务端在 `NODE_ENV=production` 默认启用 Secure；只有明确的纯 HTTP 开发测试环境可显式设为 `false`。JWT 密钥按版本轮换；旧密钥在过渡窗口后撤销。
 
-## 数据库迁移与 Seed
+## 数据库迁移与项目内容同步
 
 1. 对生产库执行可恢复备份并验证备份可读。
 2. 以待发布镜像运行一次性 `prisma migrate deploy` 任务。
-3. 迁移后运行 `npm run bootstrap`，再启动新 API；启动检查迁移、必要权限与存储可写性，失败不切流量。
-4. 生产固定 `LOAD_DEMO_DATA=false`，不运行演示 Seed。配置模板通过 `COMMUNITY_STARTER_PACK=ai-discussions-v1` 启用版本化社区资源，包含100篇原创图文与托管账号；设为`none`或旧环境不配置时关闭。首个管理员通过环境变量初始化，已有账号与数据不覆盖。资源、私有凭据卷和重复执行规则见[社区初始化资源](../../server/resources/community-starter/README.md)。
+3. 迁移后运行 `npm run bootstrap`，再执行 `npm run content:sync` 和 `npm run content:verify`，最后启动新 API；启动检查迁移、必要权限、存储可写性及当前镜像要求的内容同步记录，失败不切流量。
+4. 首次部署和增量更新均同步社区帖子、通识课程和教程中心，正式执行入口、内容来源及验收要求统一见[项目内容与发布](../../deploy/PROJECT_CONTENT.md)。保持 `LOAD_DEMO_DATA=false`，不配置旧 `COMMUNITY_STARTER_PACK`，不运行 Seed 或导入测试账号。首个管理员由该环境私有配置初始化；已有账号、业务数据和上传文件保留，受保护内容逐条报告原因。
 5. 发布后的迁移文件不可修改；破坏性变更采用“扩展 → 双写/回填 → 收缩”。
 
 已有版本升级社区落地页时，迁移后使用新服务镜像执行 `node dist/modules/homepage/upgrade-landing.js`，不要重跑完整 Seed。首次只新增五区域与一个发布版本，第二次零写；异常的部分升级需人工核查。新发布保留上一有效旧门户快照兼容段，支持回滚旧应用；旧模块记录、草稿、账号和学习内容不变。
@@ -80,7 +80,7 @@ QUIZ_BOX_*（启用时）
 
 1. 构建并签名三个应用镜像，记录 Git SHA、镜像摘要和 SBOM。
 2. 在 Staging 完成迁移、API、浏览器和回滚门禁。
-3. 完成并校验生产库可恢复备份，执行兼容迁移与 `npm run bootstrap`。
+3. 完成并校验生产库可恢复备份，按[统一发布流程](../../deploy/PROJECT_CONTENT.md) 执行兼容迁移、`bootstrap`、三类项目内容同步及校验，留存同步报告与受保护条目清单。
 4. 启动 Green 实例，完成健康、只读烟测及关键写链路验证。
 5. 逐步切换流量并观察错误率、P95 和数据库连接。
 6. 保留上一组镜像和配置，观察窗口结束后再下线 Blue。
