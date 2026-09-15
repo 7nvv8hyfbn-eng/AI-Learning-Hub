@@ -26,7 +26,7 @@ docker compose --env-file deploy/compose/.env \
   -f deploy/compose/docker-compose.yml down
 ```
 
-数据、上传文件和私有初始化凭据分别保存在 Docker 命名卷中，`.env` 不进入 Git。
+数据库和上传文件保存在 Docker 命名卷中；初始管理员及密钥由私有 `.env` 配置，环境文件不进入 Git。升级保留原配置与持久卷。
 
 显式配置 `DEPLOYMENT_PROFILE=experience` 时，管理员密码验证后显示当前可用的六位动态验证码，到期自动刷新；已使用的验证码会等待下一个时间窗。其他环境不提供提示码，仍需认证器完成 MFA。
 

@@ -27,9 +27,9 @@
 
 ## 登录后学习社区
 
-未登录的 `/` 与 `/welcome` 使用独立 LandingLayout，展示固定五区品牌落地页；登录默认进入 `/community`，安全的站内 `redirect` 优先。学习主题、课程、实训、资源、资讯、测评与个人页面均要求登录，复用统一认证弹窗和首次引导。条款、隐私、验证邮箱和密码恢复继续使用公共布局。
+未登录的 `/` 与 `/welcome` 使用独立 LandingLayout，登录默认进入 `/community`，安全的站内 `redirect` 优先。教程中心 `/resources` 允许访客浏览已发布公开内容的标题和封面；教程正文、视频、附件、合集及社区、课程、实训、资讯、测评与个人页面需登录。条款、隐私、验证邮箱和密码恢复使用公共布局。
 
-落地页沿用 HomepageModule、HomepageItem、草稿与发布快照。后台固定首屏、六项能力、最多三条精选、五个话题与四位创作者、底部行动区；`/__homepage-preview` 与正式入口共用 LandingRenderer。公共读取每次重查关联可见性，用户仅投影公开身份和必要统计；旧模块及历史发布保留，兼容段支持旧应用回滚。
+落地页首屏五张卡片使用代码中的固定内容与本地图片，不随数据库推荐或构建变化。其余区域沿用 HomepageModule、HomepageItem、草稿与发布快照；`/__homepage-preview` 与正式入口共用 LandingRenderer。动态引用仍检查公开可见性，历史配置与发布版本保留。
 
 邮箱注册在同一事务创建学生角色关系、社区资料、协议记录、活动与会话；首次引导复用学习主题和话题关注。快捷／高级发布器共用草稿状态及原发布服务，草稿使用同一动态模型。统一搜索只检索可见动态、用户、话题与已发布学习快照。新迁移仅增量补充账号字段及哈希令牌、限流表，不重建既有学习数据。
 
@@ -51,13 +51,13 @@ UsersModule 管理账号资料、状态、会话与审计；成长模块继续�
 - 六个内容领域使用草稿与已发布版本指针；公开接口只读取已发布快照，资源历史恢复会生成新草稿版本。
 - 实训只接受结构化白名单动作，不执行任意 Shell、代码或硬件指令。
 - 公开题目接口不返回标准答案；测评成绩由服务端计算。
-- 《题盒》仅通过 `server/src/integrations/quiz-box/` 接入，不复制其前端答题引擎。
+- 《题盒》适配位于 `server/src/integrations/quiz-box/`，当前提供连通性检查、外部答卷读取和同步接收记录；未配置时返回不可用，不代表已完成外部题库及成绩全面同步。
 - 微信小程序只通过服务端适配器执行 `code` 换取身份；未配置真实应用密钥时明确返回不可用，不伪造登录成功。
 - 通知、登录日志、操作日志和审计日志均持久化；敏感字段不进入公开响应或日志。
 
 ## 本地开发
 
-先从 `server/.env.example` 创建未入库的 `server/.env`，填写 PostgreSQL、JWT、Seed 账号密码与 CORS。数据库就绪后执行：
+先从 `server/.env.example` 创建未入库的 `server/.env`，填写目标开发库、JWT、初始管理员、存储与 CORS 配置，保持 `LOAD_DEMO_DATA=false`。数据库就绪后执行：
 
 ```bash
 cd server
@@ -65,6 +65,8 @@ npm ci
 npx prisma migrate deploy
 npm run build
 npm run bootstrap
+npm run content:sync
+npm run content:verify
 npm run start:dev
 ```
 
@@ -85,6 +87,6 @@ ADMIN_WEB_URL=http://127.0.0.1:5174
 
 端口有变化时同步调整以上配置，API 模式不得回退 Mock。
 
-空库不会自动创建学习内容；后台发布至少三个学习方向后再开放首次引导。演示数据必须显式 `LOAD_DEMO_DATA=true npm run prisma:seed`。
+`bootstrap` 只补基础配置与管理员；课程、社区帖子和教程由[正式内容同步](../deploy/PROJECT_CONTENT.md)导入，不需要演示账号或 Seed。后台发布至少三个学习方向后再开放首次引导。
 
 正式环境拓扑、备份、扩缩容及发布策略见 [服务部署方案](deployment/service-deployment.md)。
