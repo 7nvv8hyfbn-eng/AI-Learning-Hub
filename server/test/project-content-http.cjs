@@ -40,7 +40,7 @@ module.exports = async function verifyHttp(db, bundle) {
     for (const topic of context.data.trendingTopics) {
       assert.equal(topic.postCount, 25)
       const posts = await request('/community/topics/' + topic.slug + '/posts?limit=30')
-      assert.equal(posts.status, 200, posts.message); assert(posts.data.items.length > 0)
+      assert.equal(posts.status, 200, posts.message); assert.equal(posts.data.length, 25)
     }
     for (const person of context.data.suggestedUsers) {
       assert.equal(person.verifiedType, 'official'); assert(person.badges.some(b => b.code === 'official'))

@@ -115,10 +115,10 @@ export async function syncProjectContent(prisma: PrismaClient, options: { previe
       if (digest(state) !== digest(next)) { registryChanged = true; await tx.systemSetting.upsert({ where: { key: settingKey }, create: { key: settingKey, value: json(next) }, update: { value: json(next) } }) }
       return action
     }
-    async function savePost(id: string, present: boolean, data: Prisma.CommunityPostUncheckedCreateInput) {
+    async function savePost(id: string, present: boolean, data: Prisma.CommunityPostUncheckedCreateInput, topicIds: string[] = []) {
       if (present) await postRevision(tx, id, admin!.id, 'import', '项目内容升级前快照')
       const row = present ? await tx.communityPost.update({ where: { id }, data: { ...data, id: undefined, revision: { increment: 1 } } }) : await tx.communityPost.create({ data })
-      await tx.communityPostRevision.create({ data: { postId: id, revisionNo: row.revision, editorId: admin!.id, editorType: 'import', titleSnapshot: row.title, contentBlocksSnapshot: json(row.contentBlocks), bindingsSnapshot: [], topicIdsSnapshot: [], visibilitySnapshot: row.visibility, statusSnapshot: row.status, reason: '项目内容版本 ' + bundle.release } })
+      await tx.communityPostRevision.create({ data: { postId: id, revisionNo: row.revision, editorId: admin!.id, editorType: 'import', titleSnapshot: row.title, contentBlocksSnapshot: json(row.contentBlocks), bindingsSnapshot: [], topicIdsSnapshot: topicIds, visibilitySnapshot: row.visibility, statusSnapshot: row.status, reason: '项目内容版本 ' + bundle.release } })
     }
     const protectedTopics = new Set<string>()
     for (const [sortOrder, t] of bundle.topics.entries()) {
@@ -148,12 +148,10 @@ export async function syncProjectContent(prisma: PrismaClient, options: { previe
         return audit && oldPost.sourceType === 'managed_community_content' && oldPost.sourceId === bundle.legacyCommunityBatch && oldPost.revision === 1 && !oldPost.deletedAt && oldPost.status === 'published' && oldPost.visibility === 'public' && oldPost.title === p.title && oldPost.body === p.body && oldPost.contentHash === sha(p.body.replace(/\s+/g, '').toLowerCase()) ? null : '无法确认旧社区内容归属或已修改'
       }, async present => {
         const blocks = [{ type: 'paragraph', text: p.body }, { type: 'image', fileId: await file(p.image), alt: p.category + '原创概念配图' }]
-        await savePost(p.id, present, { id: p.id, authorId: admin.id, title: p.title, body: p.body, plainText: p.body, contentBlocks: blocks, contentHash: sha(p.body.replace(/\s+/g, '').toLowerCase()), postType: p.postType as CommunityPostType, status: 'published', visibility: 'public', portalConsent: true, sourceType: contentSource, sourceId: p.id, schoolId: null, labels: [p.category], ...(!present ? { publishedAt: new Date(), commentCount: 2 } : {}) })
+        const topicIds = (await tx.communityTopic.findMany({ where: { slug: { in: p.topics } }, orderBy: { id: 'asc' }, select: { id: true } })).map(t => t.id)
+        await savePost(p.id, present, { id: p.id, authorId: admin.id, title: p.title, body: p.body, plainText: p.body, contentBlocks: blocks, contentHash: sha(p.body.replace(/\s+/g, '').toLowerCase()), postType: p.postType as CommunityPostType, status: 'published', visibility: 'public', portalConsent: true, sourceType: contentSource, sourceId: p.id, schoolId: null, labels: [p.category], ...(!present ? { publishedAt: new Date(), commentCount: 2 } : {}) }, topicIds)
         await tx.communityPostTopic.deleteMany({ where: { postId: p.id } })
-        for (const slug of p.topics) {
-          const topic = await tx.communityTopic.findUniqueOrThrow({ where: { slug } })
-          await tx.communityPostTopic.create({ data: { postId: p.id, topicId: topic.id, manual: false } })
-        }
+        await tx.communityPostTopic.createMany({ data: topicIds.map(topicId => ({ postId: p.id, topicId, manual: false })) })
         if (p.postType === 'question') await tx.communityQuestionState.upsert({ where: { postId: p.id }, create: { postId: p.id, status: 'open' }, update: {} })
       }, p.topics.some(slug => protectedTopics.has(slug)) ? '关联话题有人工冲突，保留帖子' : undefined)
       for (const [index, r] of p.replies.entries()) await item('reply', r.id, r, async () => {

@@ -31,6 +31,15 @@ async function main() {
   await assert.rejects(assertContentReady(prisma), /尚未完成同步/)
   const preview = await syncProjectContent(prisma, { preview: true })
   assert.equal(preview.status, 'preview'); assert.deepEqual(await contentCounts(), counts); mark('预览无写入、未同步时启动检查失败')
+  if (mode === 'fresh') {
+    const role = await prisma.role.findUniqueOrThrow({ where: { code: 'community_official' } })
+    const permission = await prisma.permission.findFirstOrThrow()
+    const binding = { roleId: role.id, permissionId: permission.id }
+    await prisma.rolePermission.create({ data: binding })
+    try { await assert.rejects(syncProjectContent(prisma, { preview: true }), /不含任何管理权限/) }
+    finally { await prisma.rolePermission.delete({ where: { roleId_permissionId: binding } }) }
+    assert.deepEqual(await personal(), before); mark('官方身份角色含管理权限时拒绝创建展示身份')
+  }
   let retryFiles
   if (mode === 'fresh') {
     await prisma.$executeRawUnsafe("CREATE FUNCTION isolated_fail_content() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.id = 'aix01-post-050' THEN RAISE EXCEPTION 'isolated-content-failure'; END IF; RETURN NEW; END $$")
@@ -57,6 +66,11 @@ async function main() {
   assert.equal(labs.length, 13); assert.equal(labs.reduce((n, l) => n + l.steps.length, 0), 90)
   for (const lab of labs) { assert.equal(lab.status, 'published'); assert.equal(lab.publishedVersion.snapshot.steps.length, lab.steps.length); assert.equal(lab.steps.reduce((n, s) => n + s.score, 0), 100); assert(!('participants' in lab.payload)); assert(!('completionRate' in lab.payload)) }
   for (const topic of await prisma.communityTopic.findMany({ where: { recommended: true } })) assert.equal(topic.postCount, await prisma.communityPostTopic.count({ where: { topicId: topic.id, post: { status: 'published', deletedAt: null } } }))
+  for (const entry of first.entries.filter(e => e.kind === 'community' && e.action !== 'protected')) {
+    const post = await prisma.communityPost.findUniqueOrThrow({ where: { id: entry.key }, include: { topics: { orderBy: { topicId: 'asc' } } } })
+    const revision = await prisma.communityPostRevision.findFirstOrThrow({ where: { postId: post.id, revisionNo: post.revision } })
+    assert.deepEqual(revision.topicIdsSnapshot, post.topics.map(t => t.topicId))
+  }
   mark('13项90步实训、真实话题关联、3个无凭据无管理权限官方主页')
   const after = await contentCounts(), repeated = await syncProjectContent(prisma)
   assert.equal(repeated.counts.created, 0); assert.equal(repeated.counts.updated, 0); assert.deepEqual(await contentCounts(), after); mark('第二次零新增、零上传、零改写')
