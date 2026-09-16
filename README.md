@@ -97,6 +97,7 @@ node scripts/release.mjs publish --summary "本批更新摘要"
 - [API 模块](docs/api/module-api.md)
 - [数据库模型](docs/database/schema.md)
 - [教程中心共创](docs/resource-co-creation.md)
+- [小雪助手配置](docs/assistant.md)
 - [需求覆盖矩阵](docs/mapping/requirements-coverage.md)
 
 ## 作者

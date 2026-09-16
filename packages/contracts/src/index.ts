@@ -478,3 +478,5 @@ export * from './governance'
 export * from './media-runtime'
 export * from './operations'
 export * from './moderation'
+
+export * from './assistant'

@@ -19,6 +19,7 @@ export class SettingsService {
   }
 
   private validate(input: UpdateSettingDto) {
+    if (input.key === 'assistant_config') throw new BadRequestException('助手设置请使用小雪助手专用接口')
     if (input.key === 'registration') throw new BadRequestException('注册设置请使用专用注册管理接口')
     if (input.key === 'public_page_visuals') throw new BadRequestException('页面视觉资源请使用独立媒体权限与专用接口')
     const stringKeys = ['platform_name', 'platform_subtitle']

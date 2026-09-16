@@ -9,6 +9,7 @@ import PageState from './components/PageState.vue'
 import QuizBridgeDialog from './components/QuizBridgeDialog.vue'
 import AuthDialog from './components/AuthDialog.vue'
 import CommunityComposer from './community/CommunityComposer.vue'
+import AssistantWidget from './assistant/AssistantWidget.vue'
 import { AUTH_SESSION_CLEARED_EVENT, dataMode, studentSession } from './services/api/client'
 import { ACCOUNT_BANNED, SESSION_REPLACED, SESSION_REPLACED_MESSAGE } from '@ai-learning-hub/contracts'
 import { useAuthStore } from './stores/auth'
@@ -123,6 +124,7 @@ onBeforeUnmount(() => {
   <QuizBridgeDialog />
   <AuthDialog />
   <CommunityComposer v-if="auth.user" />
+  <AssistantWidget v-if="auth.user && route.meta.layout !== 'immersive'" :key="auth.user.id" />
   <div v-if="bridgeMessage" class="toast" role="status">{{ bridgeMessage }}</div>
 </template>
 <style scoped>
