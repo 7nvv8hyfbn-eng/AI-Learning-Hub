@@ -29,6 +29,8 @@ refactor/media-resolver
 docs/deployment-guide
 ```
 
+功能分支和普通 PR 不递增应用版本。维护者将功能提交合并到 `main` 后，按 [版本与发布](README.md#版本与发布) 统一递增、打标签和推送；不要在功能 PR 中手动改写 `version.md` 或三端版本，也不要绕过推送检查。
+
 ## 项目结构
 
 ```text
@@ -49,12 +51,16 @@ deploy/compose/           Docker Compose 部署
 git clone https://github.com/7nvv8hyfbn-eng/AI-Learning-Hub.git
 cd AI-Learning-Hub
 
+node scripts/release.mjs install
+
 cp server/.env.example server/.env
 
 (cd server && npm ci)
 (cd admin-web && npm ci)
 (cd frontend && npm ci)
 ```
+
+使用 Fork 贡献时，将克隆地址替换为自己的 Fork 地址。新克隆先安装仓库级推送检查；已有自定义 `hooksPath` 或 `pre-push` 钩子时，安装命令会停止，应先整合既有钩子再安装。
 
 在 `server/.env` 中配置本地数据库、JWT、CORS 和初始化管理员信息，不要提交真实密钥。
 
