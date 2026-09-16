@@ -2,6 +2,8 @@
 
 适用于本机快速体验，自动构建学生端、管理端、API 和 PostgreSQL。
 
+以下命令均在仓库根目录执行；需要 Docker、Docker Compose 和用于生成配置的 Node.js。
+
 ## 启动
 
 ```bash
@@ -17,16 +19,36 @@ docker compose --env-file deploy/compose/.env \
 - 管理端：`http://127.0.0.1:8081`
 - Swagger 默认关闭，学生入口禁止访问管理 API。
 
-检查与停止：
+## 检查与排障
 
 ```bash
 docker compose --env-file deploy/compose/.env \
-  -f deploy/compose/docker-compose.yml ps
+  -f deploy/compose/docker-compose.yml ps -a
+docker compose --env-file deploy/compose/.env \
+  -f deploy/compose/docker-compose.yml logs --tail=100 preflight migrate bootstrap content-sync server
+```
+
+`preflight`、`migrate`、`bootstrap`、`content-sync` 是依次执行的一次性任务，成功后显示 `Exited (0)` 属于正常状态。任务非零退出时，先查看对应日志；后续依赖服务可能尚未启动。
+
+默认端口下可继续检查学生端静态入口与 API 就绪状态；修改 `STUDENT_PORT` 后同步替换端口：
+
+```bash
+curl --fail --silent --show-error http://127.0.0.1:8080/healthz
+curl --fail --silent --show-error http://127.0.0.1:8080/api/v1/health/ready
+```
+
+静态入口正常不代表 API 已就绪；API 就绪检查同时验证数据库查询与存储可写性。
+
+## 停止与数据保留
+
+```bash
 docker compose --env-file deploy/compose/.env \
   -f deploy/compose/docker-compose.yml down
 ```
 
-数据、上传文件和私有初始化凭据分别保存在 Docker 命名卷中，`.env` 不进入 Git。
+上述 `down` 命令保留数据库与上传文件的 Docker 命名卷；不要添加会删除命名卷的 `--volumes` 参数。`.env` 不进入 Git，既有部署继续保留原配置与密钥。
+
+## 体验模式与访问边界
 
 显式配置 `DEPLOYMENT_PROFILE=experience` 时，管理员密码验证后显示当前可用的六位动态验证码，到期自动刷新；已使用的验证码会等待下一个时间窗。其他环境不提供提示码，仍需认证器完成 MFA。
 
