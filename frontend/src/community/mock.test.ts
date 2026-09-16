@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { demoThemes } from '@ai-learning-hub/demo-fixtures'
 import { mockCommunity, resetCommunityMock } from '../services/api/community.mock'
-import type { CampusIdentityVerificationDto, CommunityCommentDto, CommunityCommentPageDto, CommunityEligibilityDto, CommunityFeedDto, CommunityPostDetailDto, CommunityPostInput, CommunityNotificationDto, CommunityProfileDto, CommunityProfileTimelineDto, CommunityProfileUpdateDto } from '@ai-learning-hub/contracts'
+import type { CommunityContextDto, CommunityTopicDto, CampusIdentityVerificationDto, CommunityCommentDto, CommunityCommentPageDto, CommunityEligibilityDto, CommunityFeedDto, CommunityPostDetailDto, CommunityPostInput, CommunityNotificationDto, CommunityProfileDto, CommunityProfileTimelineDto, CommunityProfileUpdateDto } from '@ai-learning-hub/contracts'
 
 const values = new Map<string, string>()
 const localStorageStub = {
@@ -12,6 +13,26 @@ const localStorageStub = {
 beforeEach(() => { vi.stubGlobal('localStorage', localStorageStub); values.clear(); resetCommunityMock() })
 afterEach(() => vi.unstubAllGlobals())
 describe('显式社区 Mock 与统一 Fixtures', () => {
+  it('兴趣成功选择后返回或重载不重复，取消全部话题关注也不重新引导', async () => {
+    expect((await mockCommunity<CommunityContextDto>('/context', 'GET')).needsInterests).toBe(true)
+    const selected = demoThemes.slice(0, 3).map((theme) => theme.slug)
+    expect((await mockCommunity<CommunityContextDto>('/interests', 'POST', { themeIds: selected })).needsInterests).toBe(false)
+    const topics = await mockCommunity<CommunityTopicDto[]>('/topics', 'GET')
+    for (const topic of topics.filter((topic) => topic.following)) await mockCommunity(`/topics/${topic.id}/follow`, 'DELETE')
+    expect((await mockCommunity<CommunityContextDto>('/context', 'GET')).needsInterests).toBe(false)
+    vi.resetModules()
+    const reloaded = await import('../services/api/community.mock')
+    expect((await reloaded.mockCommunity<CommunityContextDto>('/context', 'GET')).needsInterests).toBe(false)
+  })
+  it('无效选择和存储失败不标记完成，修复后可重试', async () => {
+    const themeIds = demoThemes.slice(0, 3).map((theme) => theme.slug)
+    await expect(mockCommunity('/interests', 'POST', { themeIds: [themeIds[0], themeIds[0], themeIds[0]] })).rejects.toThrow('有效学习方向')
+    const write = vi.spyOn(localStorageStub, 'setItem').mockImplementationOnce(() => { throw new Error('存储已满') })
+    await expect(mockCommunity('/interests', 'POST', { themeIds })).rejects.toThrow('存储已满')
+    expect((await mockCommunity<CommunityContextDto>('/context', 'GET')).needsInterests).toBe(true)
+    write.mockRestore()
+    expect((await mockCommunity<CommunityContextDto>('/interests', 'POST', { themeIds })).needsInterests).toBe(false)
+  })
   it('未认证仍可读取既有公开内容，但所有社区关系写入均返回稳定门禁', async () => {
     await mockCommunity('/verification/demo-review', 'POST', { status: 'revoked', reason: '演示撤销' })
     expect((await mockCommunity<CommunityPostDetailDto[]>('/posts', 'GET')).length).toBeGreaterThan(0)

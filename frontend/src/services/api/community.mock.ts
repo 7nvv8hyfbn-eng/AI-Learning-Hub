@@ -146,7 +146,7 @@ let governance: GovernanceMineDto = { actions: [], reports: [], appeals: [], rev
 const joinedAt = '2026-08-30T08:00:00.000Z'
 const storageKey = 'ai-learning-community:demo-v5'
 export const mockResourceActivity: Array<{ targetId: string; eventType: 'community_post_click' | 'resource_valid_watch' | 'impression'; createdAt: number; eventKey?: string }> = []
-let restored = false
+let restored = false, interestsSelected = false
 const restoreMock = () => {
 if (restored) return
 restored = true
@@ -161,6 +161,7 @@ try {
     for (const id of stored.blocked) blocked.add(id)
     following.clear(); for (const id of stored.following) following.add(id)
     topics.forEach((topic) => { topic.following = stored.topicIds.includes(topic.id) })
+    interestsSelected = stored.interestsSelected === true || stored.topicIds.length >= 3
     bio = stored.bio; headline = stored.headline; location = stored.location || ''; websiteUrl = stored.websiteUrl || ''; expertiseTopics = stored.expertiseTopics || []; bannerUrl = stored.bannerUrl || null; pinnedPostId = stored.pinnedPostId || null; allowAchievementDrafts = stored.allowAchievementDrafts
     userRevision = stored.userRevision || 1; profileRevision = stored.profileRevision || 1
     pendingChanges = stored.pendingChanges; profileDetection = stored.profileDetection
@@ -170,10 +171,10 @@ try {
   }
 } catch { /* 损坏的本地演示状态使用可重置的初始数据。 */ }
 }
-const persist = () => { try { localStorage.setItem(storageKey, JSON.stringify({ version: 5, posts, publishedIds: [...publishedIds], comments, notifications, createdTopics: topics.filter((topic) => !fixtures.topics.some((row) => row.id === topic.id)), resourceActivity: mockResourceActivity, hidden: [...hidden], muted: [...muted], blocked: [...blocked], following: [...following], topicIds: topics.filter((t) => t.following).map((t) => t.id), bio, headline, location, websiteUrl, expertiseTopics, bannerUrl, pinnedPostId, avatar: authors[0].avatar, allowAchievementDrafts, userRevision, profileRevision, verification, pendingChanges, profileDetection, governance })) } catch { throw new Error('本地演示存储已满，请清理浏览器空间') } }
+const persist = () => { try { localStorage.setItem(storageKey, JSON.stringify({ version: 5, interestsSelected, posts, publishedIds: [...publishedIds], comments, notifications, createdTopics: topics.filter((topic) => !fixtures.topics.some((row) => row.id === topic.id)), resourceActivity: mockResourceActivity, hidden: [...hidden], muted: [...muted], blocked: [...blocked], following: [...following], topicIds: topics.filter((t) => t.following).map((t) => t.id), bio, headline, location, websiteUrl, expertiseTopics, bannerUrl, pinnedPostId, avatar: authors[0].avatar, allowAchievementDrafts, userRevision, profileRevision, verification, pendingChanges, profileDetection, governance })) } catch { throw new Error('本地演示存储已满，请清理浏览器空间') } }
 export const resetCommunityMock = () => {
   resetMockImages()
-  restored = true
+  restored = true; interestsSelected = false
   posts = structuredClone(initialPosts); comments = structuredClone(initialComments); notifications = structuredClone(initialNotifications)
   publishedIds.clear(); initialPosts.forEach((post) => publishedIds.add(post.id))
   topics.splice(0, topics.length, ...topics.filter((topic) => fixtures.topics.some((row) => row.id === topic.id)))
@@ -185,7 +186,7 @@ export const resetCommunityMock = () => {
   governance = { actions: [], reports: [], appeals: [], reviews: [] }
   if (typeof localStorage !== 'undefined') localStorage.removeItem(storageKey)
 }
-const context = (): CommunityContextDto => ({ todayPlan: null, continueCourse: null, continueLab: null, currentChallenge: null, trendingTopics: topics.slice(0, 6), suggestedUsers: authors.filter((user) => user.verifiedType !== 'none'), needsInterests: topics.filter((t) => t.following).length < 3 })
+const context = (): CommunityContextDto => ({ todayPlan: null, continueCourse: null, continueLab: null, currentChallenge: null, trendingTopics: topics.slice(0, 6), suggestedUsers: authors.filter((user) => user.verifiedType !== 'none'), needsInterests: !interestsSelected && topics.filter((t) => t.following).length < 3 })
 export const mockTargetUnavailable = (type: string, id: string, authorId: string) => governance.actions.some((row) => !row.revokedAt && (!row.expiresAt || Date.parse(row.expiresAt) > Date.now()) && (row.action === 'ban' && authorId === authors[0].id || row.action === 'takedown' && row.target.id === id && (row.target.type === type || ['post', 'resource'].includes(type) && ['post', 'resource'].includes(row.target.type))))
 const visible = (ownDrafts = false) => posts.filter((p) => !mockTargetUnavailable('post', p.id, p.author.id) && !hidden.has(p.id) && !muted.has(p.author.id) && !blocked.has(p.author.id) && (p.status === 'published' || p.status === 'limited' || (ownDrafts && ['draft', 'pending_review'].includes(p.status) && p.author.id === authors[0].id)))
 const mockPostRelations = (saved: CommunityPostDetailDto, input: CommunityPostInput, previous?: CommunityPostDetailDto) => {
@@ -474,7 +475,16 @@ export async function mockCommunity<T>(path: string, method: string, body?: unkn
     const course = demoCourses.find((c) => binding.type === 'course' && c.slug === binding.id)
     value = { binding, topicIds: course ? topics.filter((topic) => topic.themeId === course.theme).slice(0, 3).map((topic) => topic.id) : [] }
   }
-  else if (root === 'interests') { const selected = (body as { themeIds: string[] }).themeIds; topics.forEach((t) => { if (selected.includes(t.themeId || '')) t.following = true }); value = context() }
+  else if (root === 'interests') {
+    const selected = (body as { themeIds: string[] }).themeIds
+    if (selected.length !== 3 || new Set(selected).size !== 3 || selected.some((id) => !demoThemes.some((theme) => theme.slug === id))) throw new Error('请选择 3 个有效学习方向')
+    const previous = interestsSelected, followed = topics.map((topic) => topic.following)
+    topics.forEach((topic) => { if (selected.includes(topic.themeId || '')) topic.following = true })
+    interestsSelected = true
+    try { persist() }
+    catch (cause) { interestsSelected = previous; topics.forEach((topic, index) => { topic.following = followed[index] }); throw cause }
+    return structuredClone(context()) as T
+  }
   else if (root === 'signals') {
     const input = body as { eventType: string; targetType: string; targetId: string }
     if (input.eventType === 'community_post_click' && input.targetType === 'post') recordMockResourceActivity(input.targetId, 'community_post_click')

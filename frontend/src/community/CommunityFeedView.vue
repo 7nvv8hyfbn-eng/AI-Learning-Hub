@@ -89,8 +89,13 @@ watch(() => store.publishNotice, async (notice) => {
   await nextTick()
   if (alive) revealPublished()
 }, { flush: 'post' })
-watch(() => store.context?.needsInterests, async (needs) => { if (needs && canEditProfile.value) { try { await themes.load(); interestsOpen.value = true } catch (cause) { error.value = cause instanceof Error ? cause.message : '学习方向读取失败' } } }, { immediate: true })
-watch(canEditProfile, (allowed) => { if (!allowed) interestsOpen.value = false })
+watch(() => !!store.context?.needsInterests && canEditProfile.value, async (needs, _previous, onCleanup) => {
+  let cancelled = false
+  onCleanup(() => { cancelled = true })
+  if (!needs) { interestsOpen.value = false; return }
+  try { await themes.load(); if (!cancelled) interestsOpen.value = true }
+  catch (cause) { if (!cancelled) error.value = cause instanceof Error ? cause.message : '学习方向读取失败' }
+}, { immediate: true })
 const saveInterests = async () => { if (!requireWrite('profile')) return; const epoch = store.epoch; try { const context = await communityApi.interests(interests.value); if (epoch !== store.epoch) return; store.context = context; store.invalidateFollowing(); interestsOpen.value = false; await load(true) } catch (cause) { error.value = cause instanceof Error ? cause.message : '兴趣保存失败' } }
 const askQuestion = () => store.openComposer({ type: 'question' })
 const checkUpdates = async () => {

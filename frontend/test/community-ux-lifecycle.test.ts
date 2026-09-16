@@ -4,6 +4,8 @@ import { ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { setupComponent, flushRender } from '../src/community/test-renderer'
 import { communityScrollRoot, provideCommunityScrollRoot } from '../src/community/composables/useCommunityScrollRoot'
+import { useAuthStore } from '../src/stores/auth'
+import { useThemesStore } from '../src/stores/content/themes'
 import { useCommunityStore } from '../src/stores/community'
 import { communityApi } from '../src/services/api/community'
 import CommunityFeedView from '../src/community/CommunityFeedView.vue'
@@ -12,9 +14,9 @@ import CommunityImageGallery from '../src/community/CommunityImageGallery.vue'
 import CommunityPostMenu from '../src/community/CommunityPostMenu.vue'
 import AppDialog from '../src/components/base/AppDialog.vue'
 import { relativeTime } from '../src/community/labels'
-import type { CommunityFeedDto } from '@ai-learning-hub/contracts'
+import type { CommunityContextDto, CommunityFeedDto } from '@ai-learning-hub/contracts'
 
-vi.mock('../src/services/api/community', () => ({ communityApi: { feed: vi.fn(), impressions: vi.fn(), updates: vi.fn(), image: vi.fn() } }))
+vi.mock('../src/services/api/community', () => ({ communityApi: { feed: vi.fn(), impressions: vi.fn(), updates: vi.fn(), image: vi.fn(), interests: vi.fn() } }))
 const views: Array<{ unmount: () => void }> = []
 class Observer {
   static instances: Observer[] = []
@@ -43,6 +45,40 @@ const routing = async (path = '/community') => {
   return router
 }
 describe('社区生命周期与浏览状态', () => {
+  it('兴趣仅保存成功后关闭，返回首页不重复弹出', async () => {
+    const router = await routing(), pinia = createPinia(), store = useCommunityStore(pinia)
+    useAuthStore(pinia).user = { communityWriteEnabled: true } as never
+    store.context = { needsInterests: true } as CommunityContextDto
+    vi.spyOn(useThemesStore(pinia), 'load').mockResolvedValue()
+    type State = { interestsOpen: boolean; interests: string[]; saveInterests: () => Promise<void> }
+    const view = setupComponent<State>(CommunityFeedView, {}, [pinia, router]); views.push(view)
+    await flushRender()
+    expect(view.state.interestsOpen).toBe(true)
+    view.state.interests = ['llm', 'agent', 'image']
+    vi.mocked(communityApi.interests).mockRejectedValueOnce(new Error('保存失败'))
+    await view.state.saveInterests()
+    expect(view.state.interestsOpen).toBe(true)
+    expect(store.context.needsInterests).toBe(true)
+    vi.mocked(communityApi.interests).mockResolvedValue({ needsInterests: false } as CommunityContextDto)
+    await view.state.saveInterests()
+    expect(view.state.interestsOpen).toBe(false)
+    view.unmount(); views.pop()
+    await router.push('/topics'); await router.push('/community')
+    const returned = setupComponent<State>(CommunityFeedView, {}, [pinia, router]); views.push(returned)
+    await flushRender()
+    expect(returned.state.interestsOpen).toBe(false)
+  })
+  it('方向迟到响应不能在完成选择后重新打开弹窗', async () => {
+    const router = await routing(), pinia = createPinia(), store = useCommunityStore(pinia)
+    useAuthStore(pinia).user = { communityWriteEnabled: true } as never
+    store.context = { needsInterests: true } as CommunityContextDto
+    let resolve!: () => void
+    vi.spyOn(useThemesStore(pinia), 'load').mockReturnValue(new Promise<void>((done) => { resolve = done }))
+    const view = setupComponent<{ interestsOpen: boolean }>(CommunityFeedView, {}, [pinia, router]); views.push(view)
+    store.context = { needsInterests: false } as CommunityContextDto
+    await flushRender(); resolve(); await flushRender()
+    expect(view.state.interestsOpen).toBe(false)
+  })
   it('挂载布局锁定html/body，普通路由位置由中栏管理，卸载解除class', async () => {
     const router = await routing('/topics')
     const view = setupComponent<{ root: HTMLElement }>({ setup: () => ({ root: provideCommunityScrollRoot() }) }, {}, [createPinia(), router]); views.push(view)

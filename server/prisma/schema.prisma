@@ -1805,6 +1805,7 @@ model CommunityProfile {
   verifiedType           String         @default("none") @map("verified_type")
   expertiseTopics        String[]       @default([]) @map("expertise_topics")
   allowAchievementDrafts Boolean        @default(false) @map("allow_achievement_drafts")
+  interestsSelectedAt    DateTime?      @map("interests_selected_at")
   postCount              Int            @default(0) @map("post_count")
   followerCount          Int            @default(0) @map("follower_count")
   followingCount         Int            @default(0) @map("following_count")

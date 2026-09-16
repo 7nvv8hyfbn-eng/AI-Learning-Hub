@@ -348,6 +348,8 @@ export class CommunityContextService {
         }
       }
     }
+    // 完成选择与话题关注数量独立；没有关联话题或之后取消关注也不重复引导。
+    await tx.communityProfile.upsert({ where: { userId }, create: { userId, interestsSelectedAt: new Date() }, update: { interestsSelectedAt: new Date() } })
   }
   async context(userId: string): Promise<CommunityContextDto> {
     const viewer = await this.visibility.viewer(userId)
@@ -367,6 +369,6 @@ export class CommunityContextService {
     const labRef = run ? refs.get(`lab:${run.labId}`) : null
     const badgeContext = await loadBadgeContext(this.prisma)
     const challengeRef = challenge ? refs.get(`challenge:${challenge.id}`) : null
-    return { todayPlan: plan ? { id: plan.id, title: plan.title, route: '/profile', progress: plan.progress } : null, continueCourse: courseRef ? { ...courseRef, progress: progress!.progress } : null, continueLab: labRef ? { ...labRef, progress: run!.progress } : null, currentChallenge: challengeRef || null, trendingTopics: topics.slice(0, 6), suggestedUsers: users.map((user) => authorDto(user, badgeContext)), needsInterests: count < 3 && !viewer.communityProfile?.postCount, officialNotice: notice ? { id: notice.id, title: notice.title, summary: notice.content, route: '/notifications' } : null }
+    return { todayPlan: plan ? { id: plan.id, title: plan.title, route: '/profile', progress: plan.progress } : null, continueCourse: courseRef ? { ...courseRef, progress: progress!.progress } : null, continueLab: labRef ? { ...labRef, progress: run!.progress } : null, currentChallenge: challengeRef || null, trendingTopics: topics.slice(0, 6), suggestedUsers: users.map((user) => authorDto(user, badgeContext)), needsInterests: !viewer.communityProfile?.interestsSelectedAt && !viewer.onboardingCompletedAt && count < 3 && !viewer.communityProfile?.postCount, officialNotice: notice ? { id: notice.id, title: notice.title, summary: notice.content, route: '/notifications' } : null }
   }
 }
