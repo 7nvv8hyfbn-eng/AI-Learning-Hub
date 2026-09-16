@@ -17,11 +17,12 @@ import { availableAccount } from '../community/governance-policy'
 import { generate, generateSecret, generateURI, verify } from 'otplib'
 import type { DeviceSessionDto, MfaChallengeDto, ReauthenticateInput, SessionClient } from '@ai-learning-hub/contracts'
 import { decryptMfa, encryptMfa } from './mfa-crypto'
-import { assertAdminNetwork } from '../../common/deployment-security'
+import { assertAdminNetwork, studentOrigins } from '../../common/deployment-security'
 import { assertNotBanned, assertNotReplaced } from './session-revocation'
 
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex')
 type SessionOptions = { client?: SessionClient; mfaVerified?: boolean; device?: string; sessionId?: string }
+type SessionResult = { accessToken: string; refreshToken: string; expiresIn: number }
 export function deviceLabel(agent = '') {
   const platform = /Android/i.test(agent) ? 'Android' : /iPhone|iPad/i.test(agent) ? 'iOS' : /Windows/i.test(agent) ? 'Windows' : /Macintosh/i.test(agent) ? 'macOS' : /Linux/i.test(agent) ? 'Linux' : '未知系统'
   const browser = /Edg\//.test(agent) ? 'Edge' : /Firefox\//.test(agent) ? 'Firefox' : /Chrome\//.test(agent) ? 'Chrome' : /Safari\//.test(agent) ? 'Safari' : '浏览器或客户端'
@@ -29,6 +30,8 @@ export function deviceLabel(agent = '') {
 }
 @Injectable()
 export class AuthService {
+  // ponytail: 双入口共用单个 API 进程；多实例部署前改用受保护的共享续期协调。
+  private readonly refreshRounds = new Map<string, { expiresAt: number; pending: Promise<SessionResult> }>()
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -147,6 +150,29 @@ export class AuthService {
 
   async refresh(refreshToken: string, client: SessionClient = 'student', ip?: string, bearer?: string) {
     if (client === 'admin') assertAdminNetwork(this.config, ip)
+    if (client !== 'student' || studentOrigins(this.config).length < 2) return this.rotateRefresh(refreshToken, client, bearer)
+    const now = Date.now(), key = hashToken(refreshToken)
+    for (const [hash, round] of this.refreshRounds) if (round.expiresAt <= now) this.refreshRounds.delete(hash)
+    const existing = this.refreshRounds.get(key)
+    if (existing) {
+      const result = await existing.pending
+      // 每次重放都复核最新数据库状态和调用者身份，退出/封禁/切换账号不能命中缓存续期。
+      await this.refreshState(result.refreshToken, client, bearer)
+      return result
+    }
+    if (this.refreshRounds.size >= 2048) throw new HttpException('登录续期繁忙，请稍后重试', 429)
+    const round = { expiresAt: Infinity, pending: this.rotateRefresh(refreshToken, client, bearer) }
+    this.refreshRounds.set(key, round)
+    try {
+      const result = await round.pending
+      round.expiresAt = Date.now() + 2000
+      // 同一窗口内新旧 Cookie 都返回同一结果，防止乱序响应把 Cookie 覆盖成失效值。
+      this.refreshRounds.set(hashToken(result.refreshToken), round)
+      return result
+    } catch (cause) { this.refreshRounds.delete(key); throw cause }
+  }
+
+  private async refreshState(refreshToken: string, client: SessionClient, bearer?: string) {
     const stored = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: hashToken(refreshToken) },
       include: {
@@ -171,6 +197,11 @@ export class AuthService {
     assertNotReplaced(stored)
     if (stored.revokedAt || stored.expiresAt <= new Date() || stored.user.status !== 'active') throw new UnauthorizedException('刷新凭据已失效')
     if (bearer && previousVersion !== stored.user.sessionVersion) throw new UnauthorizedException('浏览器登录账号或设备已变化，请重新登录')
+    return stored
+  }
+
+  private async rotateRefresh(refreshToken: string, client: SessionClient, bearer?: string) {
+    const stored = await this.refreshState(refreshToken, client, bearer)
     return this.prisma.$transaction(async (tx) => {
       await lockUser(tx, stored.userId)
       const current = await tx.refreshToken.findUnique({ where: { id: stored.id }, include: { user: { include: authUserInclude } } })

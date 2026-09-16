@@ -30,6 +30,14 @@ function boundary(path: string, headers: Record<string, string> = {}, patch: Rec
   return { next, response }
 }
 describe('正式部署硬条件', () => {
+  it('可选第二学生端必须有独立 Origin 和精确对应的第三代理', () => {
+    const values = { ...settings(), SECONDARY_FRONTEND_URL: 'https://snow.campus.edu.cn', CORS_ORIGINS: settings().CORS_ORIGINS + ',https://snow.campus.edu.cn', TRUSTED_PROXY_CIDRS: settings().TRUSTED_PROXY_CIDRS + ',172.30.80.12/32' }
+    expect(() => validateDeployment(new ConfigService(values))).not.toThrow()
+    expect(() => validateDeployment(new ConfigService({ ...values, TRUSTED_PROXY_CIDRS: settings().TRUSTED_PROXY_CIDRS }))).toThrow('TRUSTED_PROXY_CIDRS')
+    expect(() => validateDeployment(new ConfigService({ ...values, SECONDARY_FRONTEND_URL: values.FRONTEND_URL }))).toThrow('Origin')
+    expect(() => validateDeployment(new ConfigService({ ...values, SECONDARY_FRONTEND_URL: 'https://snow.campus.edu.cn/path' }))).toThrow('Origin')
+    expect(() => validateDeployment(new ConfigService({ ...values, CORS_ORIGINS: values.CORS_ORIGINS + ',https://other.campus.edu.cn' }))).toThrow('CORS_ORIGINS')
+  })
   it('完整正式配置通过，Secure Cookie 缺省仍安全', () => {
     expect(() => validateDeployment(new ConfigService(settings()))).not.toThrow()
     expect(secureCookie(new ConfigService())).toBe(true)
@@ -82,6 +90,16 @@ describe('Cookie、后台网络与请求来源', () => {
 
   const student = { origin: 'https://learn.campus.edu.cn', 'content-type': 'application/json' }
   const admin = { origin: 'https://admin.campus.edu.cn', 'content-type': 'application/json' }
+  it('两个学生 Origin 可认证，均不能调用管理认证；第三方来源继续拒绝', () => {
+    const secondary = 'https://snow.campus.edu.cn'
+    const config = new ConfigService({ ...settings(), SECONDARY_FRONTEND_URL: secondary, CORS_ORIGINS: settings().CORS_ORIGINS + ',' + secondary })
+    for (const origin of [student.origin, secondary]) {
+      for (const action of ['login', 'refresh', 'logout']) expect(boundary('/api/v1/auth/' + action, { ...student, origin }, {}, config).next).toHaveBeenCalledOnce()
+      expect(boundary('/api/v1/admin-auth/login', { ...student, origin }, {}, config).response.status).toHaveBeenCalledWith(403)
+    }
+    expect(boundary('/api/v1/auth/refresh', admin, {}, config).response.status).toHaveBeenCalledWith(403)
+    expect(boundary('/api/v1/auth/refresh', { ...student, origin: 'https://other.campus.edu.cn' }, {}, config).response.status).toHaveBeenCalledWith(403)
+  })
   it.each([undefined, 'true', 'false'])('真实认证控制器使用明确 Cookie 策略 %s，两个入口互不覆盖', async secure => {
     const auth = { login: vi.fn().mockResolvedValue({ user: {}, accessToken: 'access', refreshToken: 'refresh', expiresIn: 900 }), logout: vi.fn() }
     const controller = new AuthController(auth as never, new ConfigService({ COOKIE_SECURE: secure }), {} as never)

@@ -181,6 +181,40 @@ describe('校园部署：真实数据库与认证执行链', () => {
     expect(cookie(fresh)).not.toBe(old)
     expect((await request('/auth/refresh', { method: 'POST', cookie: old })).status).toBe(401)
   })
+  it('双学生入口合并同轮续期，新旧 Cookie 得到相同结果，退出和跨账号访问立即拒绝', async () => {
+    const config = app.get(ConfigService), previous = config.get('SECONDARY_FRONTEND_URL')
+    config.set('SECONDARY_FRONTEND_URL', 'http://127.0.0.1:7070')
+    try {
+      const student = await login(), other = await login(otherId), old = cookie(student)
+      const results = await Promise.all([1, 2].map(() => request('/auth/refresh', { method: 'POST', cookie: old, token: student.data.accessToken })))
+      expect(results.map(result => result.status)).toEqual([201, 201])
+      expect(cookie(results[0])).toBe(cookie(results[1]))
+      expect(results[0].data.accessToken).toBe(results[1].data.accessToken)
+      expect(sessionId(results[0].data.accessToken)).toBe(sessionId(student.data.accessToken))
+      const fresh = await request('/auth/refresh', { method: 'POST', cookie: cookie(results[0]), token: student.data.accessToken })
+      expect(cookie(fresh)).toBe(cookie(results[0]))
+      expect((await request('/auth/refresh', { method: 'POST', cookie: old, token: other.data.accessToken })).status).toBe(401)
+      expect((await request('/auth/logout', { method: 'POST', cookie: cookie(fresh), token: fresh.data.accessToken })).status).toBe(201)
+      expect((await request('/auth/refresh', { method: 'POST', cookie: old })).status).toBe(401)
+      expect((await request('/auth/refresh', { method: 'POST', cookie: cookie(fresh) })).status).toBe(401)
+    } finally { config.set('SECONDARY_FRONTEND_URL', previous || '') }
+  })
+  it('双学生入口的旧 Cookie 超过2秒失效，新 Cookie 仍可轮换；替换登录即时失效', async () => {
+    const config = app.get(ConfigService), previous = config.get('SECONDARY_FRONTEND_URL')
+    config.set('SECONDARY_FRONTEND_URL', 'http://127.0.0.1:7070')
+    try {
+      const student = await login(), old = cookie(student)
+      const first = await request('/auth/refresh', { method: 'POST', cookie: old })
+      expect(first.status).toBe(201)
+      await new Promise(resolve => setTimeout(resolve, 2100))
+      expect((await request('/auth/refresh', { method: 'POST', cookie: old })).status).toBe(401)
+      const second = await request('/auth/refresh', { method: 'POST', cookie: cookie(first), token: first.data.accessToken })
+      expect(second.status).toBe(201); expect(cookie(second)).not.toBe(cookie(first))
+      await login()
+      expect((await request('/auth/refresh', { method: 'POST', cookie: cookie(first) })).status).toBe(401)
+      expect((await request('/auth/refresh', { method: 'POST', cookie: cookie(second) })).status).toBe(401)
+    } finally { config.set('SECONDARY_FRONTEND_URL', previous || '') }
+  })
   it('注销只撤销当前设备，旧 Access Token 立即失效，另一个账号及设备保留', async () => {
     const first = await login(), second = await login(), other = await login(otherId)
     expect((await request('/auth/logout', { method: 'POST', token: first.data.accessToken, cookie: cookie(other) })).status).toBe(201)
