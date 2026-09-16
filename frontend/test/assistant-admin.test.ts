@@ -26,6 +26,16 @@ describe('助手后台真实保存状态', () => {
     await state.save()
     expect(state.error).toContain('版本已变化'); expect(state.notice).toBe(''); expect(state.form.name).toBe('待保存名字')
   })
+  it('简讯四项设置携带版本真实保存，重新读取后保留；不改变问答开关', async () => {
+    vi.mocked(assistantApi.config).mockResolvedValueOnce({ ...initial, length: 'short', style: 'friendly', keywords: false })
+    const state = await mount()
+    expect(state.form).toMatchObject({ length: 'short', style: 'friendly', keywords: false, enabled: true })
+    Object.assign(state.form, { digestEnabled: false, keywords: true, length: 'long', style: 'professional' })
+    vi.mocked(assistantApi.config).mockResolvedValueOnce({ ...initial, ...state.form, revision: 9 })
+    await state.save()
+    expect(assistantApi.save).toHaveBeenCalledWith({ ...assistantConfigDefaults, digestEnabled: false, keywords: true, length: 'long', style: 'professional', expectedRevision: 8 })
+    expect(state.form).toMatchObject({ enabled: true, digestEnabled: false, length: 'long', style: 'professional' })
+  })
   it('连接失败按失败展示，不能标绿', async () => {
     const state = await mount(); vi.mocked(assistantApi.test).mockResolvedValue({ ok: false, message: '模型认证失败' })
     await state.testConnection(); expect(state.connection).toEqual({ ok: false, message: '模型认证失败' })

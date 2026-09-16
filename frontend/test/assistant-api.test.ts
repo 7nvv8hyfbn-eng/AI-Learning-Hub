@@ -8,9 +8,12 @@ it('助手请求复用现有客户端，路径不重复 API 前缀，传递取�
   await assistantApi.config(controller.signal); await assistantApi.chat(input, controller.signal)
   expect(client.request).toHaveBeenNthCalledWith(1, '/assistant/config', { signal: controller.signal })
   expect(client.request).toHaveBeenNthCalledWith(2, '/assistant/chat', { method: 'POST', body: JSON.stringify(input), signal: controller.signal })
+  await assistantApi.digest({ postId: 'p1' }, controller.signal)
+  expect(client.request).toHaveBeenNthCalledWith(3, '/assistant/digest', { method: 'POST', body: JSON.stringify({ postId: 'p1' }), signal: controller.signal })
 })
 it('演示模式不伪造模型回答，也不向后端发起问答', async () => {
   client.dataMode = 'mock'
   await expect(assistantApi.chat({ messages: [{ role: 'user', content: '你好' }] })).rejects.toThrow('问答暂未接通')
+  await expect(assistantApi.digest({ postId: 'p1' })).rejects.toThrow('简讯暂未接通')
   expect(client.request).not.toHaveBeenCalled()
 })

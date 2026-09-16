@@ -4,7 +4,7 @@ import { CurrentUser } from '../auth/current-user.decorator'
 import type { AuthUser } from '../auth/auth.types'
 import { Permissions } from '../auth/permissions.decorator'
 import { PermissionsGuard } from '../auth/permissions.guard'
-import { AssistantChatInputDto, AssistantConfigInputDto } from './assistant.dto'
+import { AssistantChatInputDto, AssistantConfigInputDto, AssistantDigestInputDto } from './assistant.dto'
 import { AssistantService } from './assistant.service'
 
 @Controller('assistant')
@@ -13,6 +13,7 @@ export class AssistantController {
   constructor(private readonly assistant: AssistantService) {}
   @Get('config') config() { return this.assistant.configuration() }
   @Post('chat') chat(@CurrentUser() user: AuthUser, @Body() input: AssistantChatInputDto) { return this.assistant.chat(user.id, input) }
+  @Post('digest') digest(@CurrentUser() user: AuthUser, @Body() input: AssistantDigestInputDto) { return this.assistant.digest(user.id, input) }
 }
 @Controller('admin/assistant')
 @UseGuards(AuthGuard, PermissionsGuard)

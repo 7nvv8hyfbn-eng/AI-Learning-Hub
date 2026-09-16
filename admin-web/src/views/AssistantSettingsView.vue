@@ -14,7 +14,7 @@ const busy = computed(() => loading.value || saving.value || testing.value)
 async function read() {
   const config = await assistantApi.config()
   saved.value = config
-  Object.assign(form, { enabled: config.enabled, name: config.name, welcome: config.welcome, position: config.position })
+  Object.assign(form, { enabled: config.enabled, name: config.name, welcome: config.welcome, position: config.position, digestEnabled: config.digestEnabled, keywords: config.keywords, length: config.length, style: config.style })
 }
 async function load() {
   if (busy.value) return
@@ -42,7 +42,7 @@ async function testConnection() {
 onMounted(load)
 </script>
 <template>
-  <AdminPageHeader title="小雪助手设置" description="设置学习助手的外观与问答入口">
+  <AdminPageHeader title="小雪助手设置" description="设置学习助手的外观、问答与帖子简讯">
     <template #actions><button class="admin-secondary" type="button" :disabled="busy" @click="load">重新读取</button><button class="admin-primary" type="button" :disabled="busy || !saved || !canWrite || !form.name.trim() || !form.welcome.trim()" @click="save">{{ saving ? '保存中…' : '保存设置' }}</button></template>
   </AdminPageHeader>
   <p v-if="error" class="assistant-error" role="alert">{{ error }}</p><p v-if="notice" class="assistant-success" role="status">{{ notice }}</p><p v-if="loading" role="status">正在读取设置…</p>
@@ -60,6 +60,14 @@ onMounted(load)
       <p class="assistant-hint">模型连接信息由服务端配置，密钥不在此页面显示。</p>
       <button class="admin-secondary" type="button" :disabled="busy || !saved || !canWrite" @click="testConnection">{{ testing ? '正在连接模型…' : '测试连接' }}</button>
       <p v-if="connection" :class="connection.ok ? 'assistant-success' : 'assistant-error'" role="status">{{ connection.message }}</p>
+      <h2 class="assistant-digest-heading">帖子简讯</h2>
+      <fieldset :disabled="busy || !saved || !canWrite">
+        <label class="assistant-switch"><input v-model="form.digestEnabled" type="checkbox">启用帖子简讯</label>
+        <label class="assistant-switch"><input v-model="form.keywords" type="checkbox">显示关键词</label>
+        <label>简讯长度<select v-model="form.length"><option value="short">简短 · 约50字</option><option value="standard">标准 · 约100字</option><option value="long">详细 · 约200字</option></select></label>
+        <label>简讯风格<select v-model="form.style"><option value="plain">通俗易懂</option><option value="professional">专业严谨</option><option value="friendly">轻松有趣</option></select></label>
+      </fieldset>
+      <p class="assistant-hint">简讯设置保存后用于下一次生成；刷新学生端更新入口与关键词显示。关闭帖子简讯不影响普通问答。</p>
     </section>
     <aside class="admin-card assistant-preview"><h2>实时外观预览</h2><p class="assistant-hint">保存设置并刷新学生端后生效。</p>
       <div class="assistant-preview-stage" :class="{ 'is-left': form.position === 'left' }"><div class="assistant-preview-chat"><strong>{{ form.name || '小雪助手' }}</strong><h3>今天想探索什么？</h3><p>{{ form.welcome }}</p><div>输入你的问题…</div></div><img :src="idle" alt="小雪助手外观预览" width="112" height="112"><span v-if="!form.enabled" class="assistant-preview-disabled">助手已关闭 · 保存后隐藏学生端入口</span></div>
@@ -68,6 +76,7 @@ onMounted(load)
 </template>
 <style scoped>
 .assistant-settings-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.assistant-digest-heading { margin-top: 28px; }
 .assistant-settings, .assistant-preview { padding: 24px; } h2 { margin: 0 0 18px; font-size: 18px; } fieldset { border: 0; padding: 0; margin: 0 0 28px; display: grid; gap: 18px; min-width: 0; }
 label { display: grid; gap: 8px; font-size: 14px; } .assistant-switch { display: flex; align-items: center; } input:not([type=checkbox]), textarea, select { width: 100%; box-sizing: border-box; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 12px; color: var(--text); font: inherit; } textarea { resize: vertical; }
 dl { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 12px; font-size: 14px; } dt { color: var(--muted); } dd { margin: 0; overflow-wrap: anywhere; } .assistant-hint { color: var(--muted); font-size: 13px; line-height: 1.6; } .assistant-error { color: #b94329; } .assistant-success { color: #287247; }

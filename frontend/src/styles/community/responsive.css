@@ -58,6 +58,7 @@
   .post-content.compact .community-text-blocks { --preview-lines: 4; }
   .community-gallery.gallery-preview { --gallery-height: 260px; }
   .community-type { margin-left: auto; }
+  .community-digest-button span { display: none; }
   .community-quick-composer { padding: 18px 14px; }
   .quick-prompt > span:last-child { max-width: 72%; font-size: 15px; }
   .composer-decoration { opacity: .38; }

@@ -10,6 +10,9 @@
 .community-type.lab_result { color: var(--amc-success); background: var(--amc-green-soft); }
 .community-type.project { color: var(--amc-warning); background: var(--amc-yellow-soft); }
 .community-type.question { color: var(--amc-purple); background: var(--amc-purple-soft); }
+.community-digest-button { display: inline-flex; align-items: center; flex-shrink: 0; gap: 5px; min-height: 36px; padding: 6px 8px; border: 1px solid var(--amc-border); border-radius: var(--amc-radius-control); background: var(--amc-surface); color: var(--amc-purple); font-size: 12px; cursor: pointer; }
+.community-digest-button:hover { background: var(--amc-purple-soft); }
+.community-digest-button:focus-visible { outline: 2px solid var(--amc-purple); outline-offset: 2px; }
 .community-post-menu { position: relative; align-self: start; }
 .community-menu-trigger { cursor: pointer; padding: 6px; min-height: 36px; color: var(--amc-text-secondary); border: 0; background: transparent; border-radius: var(--amc-radius-xs); }
 .community-menu-panel { position: fixed; inset: auto; margin: 0; width: 180px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow: auto; padding: 5px; background: var(--amc-surface); color: var(--amc-text-primary); border: 1px solid var(--amc-border); border-radius: var(--amc-radius-control); box-shadow: var(--amc-shadow-float); }

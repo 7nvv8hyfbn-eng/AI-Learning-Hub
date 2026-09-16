@@ -3,6 +3,10 @@ export interface AssistantConfigDto {
   name: string
   welcome: string
   position: 'left' | 'right'
+  digestEnabled: boolean
+  keywords: boolean
+  length: 'short' | 'standard' | 'long'
+  style: 'plain' | 'professional' | 'friendly'
 }
 export interface AssistantAdminConfigDto extends AssistantConfigDto {
   revision: number
@@ -14,10 +18,16 @@ export interface AssistantConfigInput extends AssistantConfigDto { expectedRevis
 export interface AssistantMessageDto { role: 'user' | 'assistant'; content: string }
 export interface AssistantChatInput { messages: AssistantMessageDto[] }
 export interface AssistantChatDto { reply: string }
+export interface AssistantDigestInput { postId: string }
+export interface AssistantDigestDto { postId: string; title: string; summary: string; keywords: string[] }
 export interface AssistantConnectionDto { ok: boolean; message: string }
 export const assistantConfigDefaults: AssistantConfigDto = {
   enabled: true,
   name: '小雪助手',
   welcome: '你好，我是小雪！可以陪你探索 AI 知识、规划学习路线，或一起拆解学习中的问题。',
   position: 'right',
+  digestEnabled: true,
+  keywords: true,
+  length: 'standard',
+  style: 'plain',
 }

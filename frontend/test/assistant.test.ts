@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { assistantConfigDefaults } from '@ai-learning-hub/contracts'
+import { assistantConfigDefaults, type AssistantDigestDto } from '@ai-learning-hub/contracts'
 import { setupComponent } from '../src/community/test-renderer'
 import AssistantEntry from '../src/assistant/AssistantEntry.vue'
 import { assistantApi } from '../src/services/api/assistant'
-import { assistantState as state, loadAssistantConfig, resetAssistant, sendAssistantQuestion, toggleAssistant, closeAssistant } from '../src/assistant/assistantState'
-vi.mock('../src/services/api/assistant', () => ({ assistantApi: { config: vi.fn(), chat: vi.fn() } }))
+import { assistantState as state, loadAssistantConfig, resetAssistant, sendAssistantQuestion, toggleAssistant, closeAssistant, requestAssistantDigest, showAssistantChat } from '../src/assistant/assistantState'
+vi.mock('../src/services/api/assistant', () => ({ assistantApi: { config: vi.fn(), chat: vi.fn(), digest: vi.fn() } }))
 beforeEach(() => { resetAssistant(); vi.resetAllMocks(); vi.mocked(assistantApi.config).mockResolvedValue({ ...assistantConfigDefaults }) })
 afterEach(() => { resetAssistant(); vi.useRealTimers(); vi.unstubAllGlobals() })
 describe('小雪问答生命周期', () => {
@@ -55,6 +55,80 @@ describe('小雪问答生命周期', () => {
     expect(state.open).toBe(false); expect(assistantApi.chat).not.toHaveBeenCalled()
     resetAssistant(); vi.mocked(assistantApi.config).mockRejectedValueOnce(new Error('网络中断'))
     await loadAssistantConfig(); expect(state.configError).toBe('网络中断'); expect(state.ready).toBe(false)
+  })
+})
+describe('帖子简讯生命周期', () => {
+  const digest = (postId: string): AssistantDigestDto => ({ postId, title: `标题-${postId}`, summary: `摘要-${postId}`, keywords: ['学习'] })
+  it('只向接口传当前postId，标题使用服务器结果', async () => {
+    await loadAssistantConfig(); vi.mocked(assistantApi.digest).mockResolvedValue(digest('p1'))
+    await requestAssistantDigest('p1', '列表旧标题')
+    expect(assistantApi.digest).toHaveBeenCalledWith({ postId: 'p1' }, expect.any(AbortSignal))
+    expect(state.view).toBe('digest'); expect(state.open).toBe(true); expect(state.busy).toBe(false)
+    expect(state.digest).toEqual(digest('p1')); expect(state.digestTitle).toBe('标题-p1')
+  })
+  it('快速换帖会取消旧请求，旧结果和错误均不能覆盖新帖', async () => {
+    await loadAssistantConfig()
+    let first!: (value: AssistantDigestDto) => void, second!: (reason: Error) => void
+    vi.mocked(assistantApi.digest).mockImplementationOnce(() => new Promise(done => { first = done }))
+      .mockImplementationOnce(() => new Promise((_done, reject) => { second = reject }))
+      .mockResolvedValueOnce(digest('p3'))
+    const a = requestAssistantDigest('p1'), b = requestAssistantDigest('p2')
+    expect(vi.mocked(assistantApi.digest).mock.calls[0]?.[1]?.aborted).toBe(true)
+    expect(state.digest).toBeNull(); expect(state.busy).toBe(true)
+    first(digest('p1')); await a
+    expect(state.digest).toBeNull(); expect(state.busy).toBe(true)
+    await requestAssistantDigest('p3'); second(new Error('旧帖子失败')); await b
+    expect(state.digest).toEqual(digest('p3')); expect(state.digestError).toBe('')
+  })
+  it('关闭并重开同一帖子也不能接收上一轮结果', async () => {
+    await loadAssistantConfig()
+    let finish!: (value: AssistantDigestDto) => void
+    vi.mocked(assistantApi.digest).mockImplementationOnce(() => new Promise(done => { finish = done })).mockResolvedValueOnce({ ...digest('p1'), summary: '新摘要' })
+    const old = requestAssistantDigest('p1'); closeAssistant()
+    expect(state.digestPostId).toBe(''); expect(state.digest).toBeNull()
+    expect(vi.mocked(assistantApi.digest).mock.calls[0]?.[1]?.aborted).toBe(true)
+    await requestAssistantDigest('p1'); finish(digest('p1')); await old
+    expect(state.digest?.summary).toBe('新摘要')
+  })
+  it('返回错误postId或空摘要进入失败态；重试能恢复', async () => {
+    await loadAssistantConfig(); vi.mocked(assistantApi.digest).mockResolvedValueOnce(digest('wrong'))
+    await requestAssistantDigest('p1'); expect(state.digestError).toContain('不一致'); expect(state.digest).toBeNull()
+    vi.mocked(assistantApi.digest).mockResolvedValueOnce({ ...digest('p1'), summary: ' ' })
+    await requestAssistantDigest('p1'); expect(state.digestError).toContain('有效内容')
+    vi.mocked(assistantApi.digest).mockResolvedValueOnce(digest('p1'))
+    await requestAssistantDigest('p1'); expect(state.digest).toEqual(digest('p1')); expect(state.digestError).toBe('')
+  })
+  it('普通问答与简讯共用取消机制，返回问答保留已有历史', async () => {
+    await loadAssistantConfig(); vi.mocked(assistantApi.chat).mockResolvedValue({ reply: '已有回答' })
+    await sendAssistantQuestion('已有问题')
+    vi.mocked(assistantApi.digest).mockImplementation(() => new Promise(() => {}))
+    void requestAssistantDigest('p1'); showAssistantChat()
+    expect(state.view).toBe('chat'); expect(state.busy).toBe(false); expect(state.digestPostId).toBe('')
+    expect(state.messages.map(m => m.content)).toEqual(['已有问题', '已有回答'])
+    expect(vi.mocked(assistantApi.digest).mock.calls[0]?.[1]?.aborted).toBe(true)
+  })
+  it('未就绪、空编号和简讯关闭不发请求，关键词关闭仍可生成，普通问答不受影响', async () => {
+    await requestAssistantDigest('p1'); await loadAssistantConfig(); await requestAssistantDigest(' ')
+    state.config.digestEnabled = false; await requestAssistantDigest('p1')
+    expect(assistantApi.digest).not.toHaveBeenCalled()
+    vi.mocked(assistantApi.chat).mockResolvedValue({ reply: '仍可问答' }); await sendAssistantQuestion('你好')
+    expect(state.messages.at(-1)?.content).toBe('仍可问答')
+    state.config.digestEnabled = true; state.config.keywords = false
+    vi.mocked(assistantApi.digest).mockResolvedValue(digest('p1')); await requestAssistantDigest('p1')
+    expect(state.digest?.postId).toBe('p1')
+  })
+  it('刷新关闭简讯的设置取消当前生成，助手和问答仍可用', async () => {
+    await loadAssistantConfig()
+    vi.mocked(assistantApi.digest).mockImplementation(() => new Promise(() => {})); void requestAssistantDigest('p1')
+    vi.mocked(assistantApi.config).mockResolvedValue({ ...assistantConfigDefaults, digestEnabled: false }); await loadAssistantConfig()
+    expect(state.view).toBe('chat'); expect(state.open).toBe(true); expect(state.busy).toBe(false)
+    expect(vi.mocked(assistantApi.digest).mock.calls[0]?.[1]?.aborted).toBe(true)
+  })
+  it('账号退出会丢弃简讯，不向下一个账号泄露内容', async () => {
+    await loadAssistantConfig(); let finish!: (value: AssistantDigestDto) => void
+    vi.mocked(assistantApi.digest).mockImplementation(() => new Promise(done => { finish = done }))
+    const pending = requestAssistantDigest('private'); resetAssistant(); finish(digest('private')); await pending
+    expect(state.digest).toBeNull(); expect(state.digestPostId).toBe(''); expect(state.open).toBe(false)
   })
 })
 describe('四种动作', () => {
