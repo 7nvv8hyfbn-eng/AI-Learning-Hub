@@ -13,7 +13,7 @@ const mapLab = (item: LabSummaryDto): Lab => ({
   category: String(item.data.category || item.labType) as Lab['category'],
   level: String(item.data.level || '尚未配置') as Lab['level'],
   minutes: typeof item.data.durationMinutes === 'number' ? item.data.durationMinutes : undefined,
-  steps: undefined,
+  steps: typeof item.data.steps === 'number' ? item.data.steps : undefined,
   completion: undefined,
   learners: undefined,
   ...apiCatalogCover(item.data),

@@ -19,7 +19,6 @@ const labsStore = useLabsStore()
 const { items: labs } = storeToRefs(labsStore)
 const category = ref('全部实验')
 const sort = ref('综合排序')
-const visible = ref(8)
 const toolsOpen = ref(false)
 const categories = ['全部实验', '模型部署', 'AI Agent', 'Linux 命令', '智能硬件']
 const featured = computed(() => labs.value[0])
@@ -53,8 +52,8 @@ onMounted(() => { void labsStore.load() })
     </section>
     <div class="labs-layout">
       <section>
-        <div class="catalog-toolbar"><strong>全部实训 <small>{{ filtered.length }} 个项目</small></strong><select v-model="sort" aria-label="实训排序"><option>综合排序</option><option>难度优先</option><option>时长最短</option><option>最新发布</option><option>参与最多</option></select></div>
-        <div class="four-grid"><LabCard v-for="lab in filtered.slice(0, visible)" :key="lab.id" :lab="lab" /></div>
+        <div class="catalog-toolbar"><strong>全部实训 <small>{{ category === '全部实验' ? labsStore.total : `本页 ${filtered.length}` }} 个项目</small></strong><select v-model="sort" aria-label="实训排序"><option>综合排序</option><option>难度优先</option><option>时长最短</option><option>最新发布</option><option>参与最多</option></select></div>
+        <div class="four-grid"><LabCard v-for="lab in filtered" :key="lab.id" :lab="lab" /></div>
         <ContentPagination :page="labsStore.page" :page-size="labsStore.pageSize" :total="labsStore.total" @change="labsStore.load({ page: $event })" />
       </section>
       <aside class="study-aside lab-aside"><h3>实训规则</h3><ul><li>仅使用受控模拟环境。</li><li>命令经过白名单，不连接真实 Shell。</li><li>步骤、日志和结果由服务端状态机驱动。</li></ul><button class="button secondary full-width" type="button" @click="toolsOpen = true">环境与工具说明</button><h3>我的实验记录</h3><template v-if="accountDataReady"><div v-if="store.recentLabs.length" class="lab-record-list"><RouterLink v-for="labId in store.recentLabs.slice(0, 4)" :key="labId" :to="`/labs/${labId}`">最近学习 · {{ labs.find((item) => item.id === labId)?.title || labId }} <small>{{ store.labProgress[labId] || 0 }}%</small></RouterLink></div><p v-else>暂无实验记录。</p><RouterLink v-if="store.recentLabs[0] || featured" class="button primary full-width" :to="`/labs/${store.recentLabs[0] || featured?.id}`">继续学习</RouterLink><h3>{{ dataMode === 'api' ? '已提交' : '本地完成' }}</h3><strong class="big-number">{{ store.submittedLabs.length }}</strong></template><p v-else class="notice">{{ accountDataMessage }}</p><div class="lab-badges"><span><AppIcon name="shield" :size="16" />受控环境</span><span><AppIcon name="tool" :size="16" />白名单工具</span><span><AppIcon name="file" :size="16" />实训报告</span></div></aside>
