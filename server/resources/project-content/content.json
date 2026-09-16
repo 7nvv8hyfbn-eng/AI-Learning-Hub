@@ -1,9 +1,10 @@
 {
-  "release": 1,
+  "release": 2,
   "versions": {
-    "community": 1,
+    "community": 2,
     "courses": 1,
-    "tutorials": 1
+    "tutorials": 1,
+    "labs": 1
   },
   "legacyCommunityBatch": "ai-posts-01a08549",
   "community": [
@@ -13,6 +14,9 @@
       "body": "最吸引我的其实不是跑分，是随时打开就能问，而且桌面不用多一座机箱山。😂 想先拿文档整理和轻量聊天试水，等确实有高频需求再往上加配置。你们会先买机器，还是先把任务跑明白？",
       "postType": "general",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:local-desk",
       "replies": [
         {
@@ -31,6 +35,9 @@
       "body": "同一张卡，跑什么模型、用多长上下文、几个人一起用，体验可能差不少。只晒型号然后问够不够，感觉像只报鞋码就问能不能跑马拉松。😂 先把任务和配置写全，讨论才有抓手。",
       "postType": "frontier_discussion",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:gpu-bench",
       "replies": [
         {
@@ -49,6 +56,9 @@
       "body": "显存里不只有模型权重，聊天上下文和运行时也要住进去。把空间全算给模型，就像搬家只量床、不留走道。看部署配置时，我会给这些额外开销一起留余量。",
       "postType": "note",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:memory",
       "replies": [
         {
@@ -67,6 +77,9 @@
       "body": "比起一口气加语音、视觉、抓取，我更想先看它能不能稳定完成一个小循环。比如识别目标、停下来、等下一条指令。动作少一点，调试时候快乐多一点。🤖",
       "postType": "question",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:edge-robot",
       "replies": [
         {
@@ -85,6 +98,9 @@
       "body": "功能演示很吸引人，可重量、鼻托、续航和视野也会决定它能不能出门。对我来说，愿意连续戴比偶尔惊艳一下更重要。你们心里第一关是舒适还是功能？",
       "postType": "general",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:voice-glasses",
       "replies": [
         {
@@ -103,6 +119,9 @@
       "body": "能回答第一句话很爽，但我更想补齐自动启动、日志位置、磁盘告警和失败恢复。否则它周一早上突然不理人，整个群都只能盯着那个转圈圈。部署清单里，你最容易漏哪一项？",
       "postType": "frontier_discussion",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:server-ops",
       "replies": [
         {
@@ -121,6 +140,9 @@
       "body": "看到服务支持兼容接口很开心，接入成本可能小一些。但流式返回、工具调用、错误格式和模型参数，我还是会逐项试。网址能改通，只是第一步。",
       "postType": "note",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:deployment",
       "replies": [
         {
@@ -139,6 +161,9 @@
       "body": "我更想看相同任务下，回答质量、速度和内存分别变了多少。缩小文件只是一个结果，不是全部结论。最好留一组自己熟悉的题，换版本就拿出来跑。",
       "postType": "question",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:quantization",
       "replies": [
         {
@@ -157,6 +182,9 @@
       "body": "聊天时先冒出几个字会安心很多，批处理则可能更关心全部任务多久做完。看性能时我会把首字延迟、整段耗时和总吞吐拆开。不然同一个快字，聊着聊着就走岔了。",
       "postType": "general",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:latency",
       "replies": [
         {
@@ -175,6 +203,9 @@
       "body": "我会先给目录结构、现有服务、不能动的数据和验收目标。否则一句帮我部署，它很可能认真地搭出另一套世界。上下文给准，少一些惊喜也挺好的。🐈",
       "postType": "frontier_discussion",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:coding",
       "replies": [
         {
@@ -193,6 +224,9 @@
       "body": "比起问它“图里有什么”，我更想试试“这张截图里下一步该点哪里”。能认出按钮不等于理解当前任务，最好还能说清楚依据。大家会先拿报错截图、表格，还是实物照片来试？",
       "postType": "note",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:multimodal",
       "replies": [
         {
@@ -211,6 +245,9 @@
       "body": "能连续执行一串步骤很酷，但碰到信息缺失、工具报错和权限不够时，知道何时停下来也很关键。我的理想助手会把卡点说具体：缺哪一项、已经完成什么、下一步需要谁处理。别只留一句失败了。",
       "postType": "question",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:agents",
       "replies": [
         {
@@ -229,6 +266,9 @@
       "body": "我会先查它到底找到了哪几段材料。原文不存在、召回没找到、找到但读错，这三种情况处理方式完全不同。能展示检索片段和文档日期的界面，对排错太友好了。有人也喜欢先看检索结果吗？",
       "postType": "general",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:rag",
       "replies": [
         {
@@ -247,6 +287,9 @@
       "body": "是解释概念、做产品氛围图，还是当配图引出讨论？目标不同，我写的描述也会不同。最近更想少写一串“高级、震撼”，多交代主体、场景、构图和留白位置。大家写图像需求时最先确定哪一项？",
       "postType": "frontier_discussion",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:creative",
       "replies": [
         {
@@ -265,6 +308,9 @@
       "body": "通用榜单可以看，最终还是要跑自己的任务。十几条经常遇到的问题，覆盖正常输入、缺信息和容易出错的边界，已经能聊出很多东西。评分前先写好什么算过关，别看到喜欢的答案再改标准。",
       "postType": "note",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:evaluation",
       "replies": [
         {
@@ -283,6 +329,9 @@
       "body": "如果上来就选大模型，可能还不知道要解决什么。我更想听“每周哪件事最耗时间”“哪一步最容易返工”“现在是谁在做”。先把一个具体流程聊透，方案才有落点。抽象的降本增效太难验收了。",
       "postType": "question",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:consulting",
       "replies": [
         {
@@ -301,6 +350,9 @@
       "body": "先挑一个输入明确、结果能核对、有人负责的流程。做完能说清楚改善了什么，再决定下一步。一下把客服、销售、财务都装进同一个助手，感觉光定义验收就能开很多场会。",
       "postType": "general",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:business-flow",
       "replies": [
         {
@@ -319,6 +371,9 @@
       "body": "调用费很好量化，但整理资料、接系统、评测、维护和人工复核也会占时间。我想做一张完整账单，再看哪部分能减少。便宜模型如果带来更多返工，最终也未必便宜。各位最容易漏算哪一项？",
       "postType": "frontier_discussion",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:cost",
       "replies": [
         {
@@ -337,6 +392,9 @@
       "body": "先让它读完成当前任务必需的资料，再逐步确认需要哪些写入动作。部门之间原本就有边界，接了 AI 也不该自动消失。最好拿两个权限不同的账号实际试试，看看能不能读到不该读的内容。",
       "postType": "note",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:privacy",
       "replies": [
         {
@@ -355,6 +413,9 @@
       "body": "我想收到一份能接手的说明：谁管理账号、配置在哪里、资料怎么更新、异常怎么看、服务如何恢复。内容不用厚，但每条都能实际用。交付后换个人值班，仍然知道从哪里下手，才算交接清楚。",
       "postType": "question",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:handover",
       "replies": [
         {
@@ -373,6 +434,9 @@
       "body": "个人电脑上有个随叫随到的小模型，这种感觉有点像家里装了自己的咖啡机。不一定样样最强，但日常小活儿能顺手做完就挺香。你最想留在本地的任务是什么？",
       "postType": "general",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:local-desk",
       "replies": [
         {
@@ -391,6 +455,9 @@
       "body": "看到两张显卡并排确实很心动，但我会先确认软件怎么切模型、卡之间怎么通信，以及机箱到底装不装得下。别最后算力在纸上翻倍，插槽里先开始打架。",
       "postType": "frontier_discussion",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:gpu-bench",
       "replies": [
         {
@@ -409,6 +476,9 @@
       "body": "能放很多内容当然很诱人，但不代表每个任务都值得把窗口开到最大。先问自己实际要塞多少，再看响应和内存。参数页很大，日常需求可能没那么大。",
       "postType": "note",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:memory",
       "replies": [
         {
@@ -427,6 +497,9 @@
       "body": "设备在本地完成一部分识别和响应，这点很适合网络不稳定的地方。但离线演示得真断开外网试试，别把已经缓存的结果当成全部能力。",
       "postType": "question",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:edge-robot",
       "replies": [
         {
@@ -445,6 +518,9 @@
       "body": "顺顺当当地问一句答一句很容易展示。更想看说到一半改口、打断它、环境有人聊天时会怎样。能听见和会对话之间，还有不少小细节。🎙️",
       "postType": "general",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:voice-glasses",
       "replies": [
         {
@@ -463,6 +539,9 @@
       "body": "几种精度、几份版本、再来一点缓存，磁盘很快就热闹起来。想按模型和版本整理清楚，清理前先查谁在用。别为了腾空间，把正在服务的那份也一起端走。",
       "postType": "frontier_discussion",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:server-ops",
       "replies": [
         {
@@ -481,6 +560,9 @@
       "body": "想给同事用，先把访问入口、鉴权和网络范围弄清楚。一个能回答问题的端口，也是一个会消耗资源的端口。共享之前先想好谁能进来、谁来管。",
       "postType": "note",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:deployment",
       "replies": [
         {
@@ -499,6 +581,9 @@
       "body": "我的顺序是先看框架是否支持，再看能不能装下，最后拿自己的任务比较。文件名里那一串精度标记很重要，但不想只凭标记就宣布谁一定最好。",
       "postType": "question",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:quantization",
       "replies": [
         {
@@ -517,6 +602,9 @@
       "body": "一个人提问很流畅，十个人同时进来，排队和资源争用就值得看了。准备按实际人数逐步加请求，记录最慢那部分体验，而不是只盯平均值。",
       "postType": "general",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:latency",
       "replies": [
         {
@@ -535,6 +623,9 @@
       "body": "退出码、服务健康、真实页面、数据有没有保存，各看一项。脚本没报错是证据，但不是全部证据。最怕流程一路绿灯，打开页面却发现内容还在旧版本。",
       "postType": "frontier_discussion",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:coding",
       "replies": [
         {
@@ -553,6 +644,9 @@
       "body": "给 AI 看图片时，我准备把问题写得更具体：找异常、读文字、比差异，还是判断关系？一句“分析一下”有时反而把重点藏起来了。图里字太小的话，也别让它凭感觉补全，直接说看不清更好。",
       "postType": "note",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:multimodal",
       "replies": [
         {
@@ -571,6 +665,9 @@
       "body": "如果每天都按固定几步做，我更愿意先画清工作流。要根据中间结果临时选路、找资料、调用不同工具，再考虑加 Agent。名字听起来高级不是验收指标，能否稳定完成任务才是。",
       "postType": "question",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:agents",
       "replies": [
         {
@@ -589,6 +686,9 @@
       "body": "如果目录里一堆“最终版”“最终版2”“真的最终版”，我不太敢直接全丢进去。先定哪些有效、谁负责维护、旧版本怎么退出，后面回答才有稳定依据。整理资料有点无聊，但感觉是关键工序。",
       "postType": "general",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:rag",
       "replies": [
         {
@@ -607,6 +707,9 @@
       "body": "我想把修改意见拆得更具体：句子短些、删掉空泛形容词、保留关键数字、像同事解释事情。给一个喜欢和不喜欢的例子，也比反复说“像人写的”更有方向。你们最常删掉哪种句子？",
       "postType": "frontier_discussion",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:creative",
       "replies": [
         {
@@ -625,6 +728,9 @@
       "body": "结构完整、语气肯定、术语齐全，都不直接等于内容可靠。我会专门挑能核对的事实、计算步骤和引用检查。表达分和正确性分开打，才不容易被一篇漂亮文章带着走。",
       "postType": "note",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:evaluation",
       "replies": [
         {
@@ -643,6 +749,9 @@
       "body": "谁来用、处理什么输入、交付什么结果、哪些事情不能做、做不好时交给谁？这几项写明白，才知道助手应该长什么样。不是问得越多越专业，而是别把关键空白留到上线那天。",
       "postType": "question",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:consulting",
       "replies": [
         {
@@ -661,6 +770,9 @@
       "body": "正常流程画三步，异常情况可能占半本手册。缺附件、超权限、客户临时改要求，这些都想提前挑几个来讨论。不是第一期必须全自动，而是要知道哪些情况转人工，怎么转。",
       "postType": "general",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:business-flow",
       "replies": [
         {
@@ -679,6 +791,9 @@
       "body": "我想把原来的步骤和现在的步骤都记一下。生成快了，但复核多了多久？处理更多任务了，还是把时间用去做别的事了？这些问题说清楚，才知道效率提升具体发生在哪里。别只看那几秒生成动画。",
       "postType": "frontier_discussion",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:cost",
       "replies": [
         {
@@ -697,6 +812,9 @@
       "body": "拟稿、选择收件人、正式发送，我更愿意拆成几个清楚的步骤。尤其群发、对外回复和带附件的消息，确认界面应该能看见最终内容。让人知道点下去会发生什么，比事后找撤回按钮踏实。",
       "postType": "note",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:privacy",
       "replies": [
         {
@@ -715,6 +833,9 @@
       "body": "资料过期的时候谁来改，新规则谁确认，争议答案谁处理？这些问题如果没有负责人，助手会越用越让人不放心。我想给每类资料指定维护角色，让反馈能够找到去处。",
       "postType": "question",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:handover",
       "replies": [
         {
@@ -733,6 +854,9 @@
       "body": "想象了一下：模型还没选好，内存先买满，散热也堆满，最后主要拿来聊天。钱包表示它有话说。🤣 我更想先确定每天要处理什么，再决定哪里值得花钱。",
       "postType": "general",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:local-desk",
       "replies": [
         {
@@ -751,6 +875,9 @@
       "body": "显卡很抢眼，风道很安静地决定你能不能舒服地一直用。我的想法是预算里单独留出电源、机箱和散热这一栏，别等装完才发现桌边像开了小风机。",
       "postType": "frontier_discussion",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:gpu-bench",
       "replies": [
         {
@@ -769,6 +896,9 @@
       "body": "名字里都有内存，使用方式却不能只拿一个容量数字硬比较。还要看模型支持、内存带宽、系统占用和实际任务。配置表越看越热闹，最后还是得回到怎么用。",
       "postType": "note",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:memory",
       "replies": [
         {
@@ -787,6 +917,9 @@
       "body": "明亮、正面、无遮挡，谁都爱这样的演示。可实际桌面还有逆光、反光、歪着放的东西。想看一个完整点的测试集，把难看的输入也请进来。📷",
       "postType": "question",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:edge-robot",
       "replies": [
         {
@@ -805,6 +938,9 @@
       "body": "我会先检查文件能不能导出、说话人怎么区分、嘈杂时能不能回听定位。会议结束后，真正有用的是找到那句关键话，而不只是得到很长的一大段字。",
       "postType": "general",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:voice-glasses",
       "replies": [
         {
@@ -823,6 +959,9 @@
       "body": "我挺喜欢把大文件集中管理，但模型放在 NAS，不代表推理就一定跑在 NAS。下载、读取和计算是几段不同的路，讨论配置之前最好先画一下实际连接。",
       "postType": "frontier_discussion",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:server-ops",
       "replies": [
         {
@@ -841,6 +980,9 @@
       "body": "模型可能已经一点点往外吐字，中间的代理却替它攒了一包。排查时我会从模型端、网关到浏览器逐段看。光调模型参数，有时真是在和错误的对象较劲。",
       "postType": "note",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:deployment",
       "replies": [
         {
@@ -859,6 +1001,9 @@
       "body": "短问题答得顺，不能替长文阅读背书。换了量化文件后，想把长输入、结构化输出和连续对话都过一下。省下的空间很开心，常用能力也得一起确认。",
       "postType": "question",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:quantization",
       "replies": [
         {
@@ -877,6 +1022,9 @@
       "body": "模型还在加载，页面只有一个无声的圆圈。换成明确的加载状态、预计步骤和可重试提示，体验就会好很多。不是所有等待都能消灭，但至少别让人以为按钮坏了。",
       "postType": "general",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:latency",
       "replies": [
         {
@@ -895,6 +1043,9 @@
       "body": "变量名拼错、服务没重启、启动目录不同，都可能让配置没生效。准备先看程序实际读到了哪些键，敏感值只检查是否存在。别把整个配置文件倒进群里。",
       "postType": "frontier_discussion",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:coding",
       "replies": [
         {
@@ -913,6 +1064,9 @@
       "body": "我对多模态的期待挺朴素：手上拿着东西就说话，遇到复杂界面就截图，精确数字还是打字。入口越多越好看，但切换顺不顺才决定愿不愿意天天用。最好一段任务不用从头解释三遍。",
       "postType": "note",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:multimodal",
       "replies": [
         {
@@ -931,6 +1085,9 @@
       "body": "我想把工具说明写得像交接单：它能读什么、能改什么、输入缺了怎么办、成功怎么确认。工具数量先少一点也没关系。每把工具都模糊地写一句“处理业务”，感觉后面排错会很精彩。",
       "postType": "question",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:agents",
       "replies": [
         {
@@ -949,6 +1106,9 @@
       "body": "知识库里没有的规则，就别把常识拼成公司制度。能说“当前资料没有覆盖”，再给出缺少的材料类型，比顺滑地答错更有帮助。尤其是权限、报价和流程例外，不能凭语气把答案说满。",
       "postType": "general",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:rag",
       "replies": [
         {
@@ -967,6 +1127,9 @@
       "body": "大画面看着很漂亮，放大才发现标签有错别字，或者按钮根本读不出来。我会把文字准确性和画面质量分开验收。需要精确信息的海报，先做好画面，再用排版工具放正文，会更容易掌控。",
       "postType": "frontier_discussion",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:creative",
       "replies": [
         {
@@ -985,6 +1148,9 @@
       "body": "不是故意刁难，我想知道输入不完整、条件互相冲突、资料找不到时它怎么处理。会问澄清问题、会标出假设、会拒绝乱猜，这些表现也值得记分。真实任务可不会每次都给标准题面。",
       "postType": "note",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:evaluation",
       "replies": [
         {
@@ -1003,6 +1169,9 @@
       "body": "输入从哪来，经过哪些处理，谁来确认，结果到哪里，一张简明流程图通常比满屏术语好讨论。图里有一个环节说不清，就继续聊那一格。流程理顺了，再决定哪些环节需要模型。",
       "postType": "question",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:consulting",
       "replies": [
         {
@@ -1021,6 +1190,9 @@
       "body": "除了模型回答得好，我会看账号权限、日志、失败提示、负责人和支持渠道。试点有人全程盯着，日常使用不一定有这个条件。把这些日常细节补齐，大家才知道出了问题怎么继续。",
       "postType": "general",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:business-flow",
       "replies": [
         {
@@ -1039,6 +1211,9 @@
       "body": "都按同样的任务量、上下文、可用时间和响应要求来比，才有讨论基础。本地有硬件和运维，API 有调用和接入管理；如果条件没对齐，比较结果很容易只是各说各话。",
       "postType": "frontier_discussion",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:cost",
       "replies": [
         {
@@ -1057,6 +1232,9 @@
       "body": "文档内容应该当资料读，不应该因此获得发邮件、改权限之类的执行权。我想把这种夹带指令的输入放进验收题集。能识别问题是一部分，更重要的是工具权限和确认边界真的起作用。",
       "postType": "note",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:privacy",
       "replies": [
         {
@@ -1075,6 +1253,9 @@
       "body": "当时输入是什么，期待什么，实际发生什么，能否重复，这几项越具体越容易修。界面上如果能一键附上相关执行记录，用户反馈成本也会低一点。当然记录里不该顺带暴露无关数据。",
       "postType": "question",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:handover",
       "replies": [
         {
@@ -1093,6 +1274,9 @@
       "body": "有些活儿交给本地，有些难题再请云端帮忙，我觉得挺合理。真正需要想清楚的是：哪些内容可以出去、什么时候切换、失败时怎么办。选择题也可以选一个有边界的组合嘛。",
       "postType": "general",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:local-desk",
       "replies": [
         {
@@ -1111,6 +1295,9 @@
       "body": "价格差看着很香，但我更想看退换条件、完整运行测试和实际状态。光一张能亮机的照片，离放心接回家还是有点远。大家挑二手硬件时最先看哪一项？",
       "postType": "frontier_discussion",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:gpu-bench",
       "replies": [
         {
@@ -1129,6 +1316,9 @@
       "body": "与其问多大才能一步到位，我更想问：哪些任务是必须在本地完成的？轻量分类、摘要、长文问答，需求差得挺远。把必需项挑出来，可能比继续追容量更解压。",
       "postType": "note",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:memory",
       "replies": [
         {
@@ -1147,6 +1337,9 @@
       "body": "演示五分钟很兴奋，但我更想知道充电、待机、发热和连续运行怎么安排。算力只是设备的一部分，能顺畅过一天，才更接近想象中的搭子。",
       "postType": "question",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:edge-robot",
       "replies": [
         {
@@ -1165,6 +1358,9 @@
       "body": "对方现在有没有一个明确的烦恼？如果没有，功能再酷也可能三天后就进抽屉。想送语音设备、眼镜或者桌面助手的朋友，先聊需求比先看开箱稳。🎁",
       "postType": "general",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:voice-glasses",
       "replies": [
         {
@@ -1183,6 +1379,9 @@
       "body": "能不能在一份隔离环境里恢复出来？配置、模型版本、业务数据、上传文件，各自有没有对应上？真正让人踏实的，是恢复完还能打开入口并找到原来的内容。",
       "postType": "frontier_discussion",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:server-ops",
       "replies": [
         {
@@ -1201,6 +1400,9 @@
       "body": "新版本先小范围跑自己的测试题，保留旧配置和回滚入口。不是怕升级，是不想升级失败时只能重新搜索怎么安装。能放心试新东西，前提是回得去。",
       "postType": "note",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:deployment",
       "replies": [
         {
@@ -1219,6 +1421,9 @@
       "body": "新量化文件一出就想拉，硬盘越来越满，真正对比过的却没几个。准备做张小表：用过没、适合什么、哪里不行。收藏夹可以很大，常用列表还是小一点舒服。😂",
       "postType": "question",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:quantization",
       "replies": [
         {
@@ -1237,6 +1442,9 @@
       "body": "有些问题只想要一个结论，模型却开始写小作文。除了调性能，我也想把输出要求讲清楚：结论几句、什么时候展开、哪里用列表。少写没用的话，也是在节省等待。",
       "postType": "general",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:latency",
       "replies": [
         {
@@ -1255,6 +1463,9 @@
       "body": "试用时很方便，但交给别人长期跑，我更想固定可识别的版本并记下更新方式。否则同一句安装命令，下周可能已经装出另一套行为。",
       "postType": "frontier_discussion",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:coding",
       "replies": [
         {
@@ -1273,6 +1484,9 @@
       "body": "看到一个上升趋势，先别急着让模型写结论。我会先核对横纵轴、单位、时间区间和有没有截断坐标。少看一个百分号，结论可能就完全跑偏。各位遇到过哪些看着专业、实际读错图的回答？",
       "postType": "note",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:multimodal",
       "replies": [
         {
@@ -1291,6 +1505,9 @@
       "body": "比起一屏不停滚动的日志，我想看到任务目标、当前步骤、产物链接和失败原因。详细日志可以折叠，关键状态别藏起来。能让我半分钟接手剩下的工作，这个执行面板就算有用了。",
       "postType": "question",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:agents",
       "replies": [
         {
@@ -1309,6 +1526,9 @@
       "body": "想到一个小实验：同一份说明书分别按固定长度、标题段落来切，再用真实问题比召回结果。没有一个数字能包打天下，表格和步骤列表也值得单独看。先让内容关系保留下来，可能比盲目调参数更值。",
       "postType": "general",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:rag",
       "replies": [
         {
@@ -1327,6 +1547,9 @@
       "body": "一次要十个近义词标题，对选择困难没什么帮助。我更想要三个明确方向：直接说问题、用场景切入、提出一个讨论点。然后再挑合适的语气。标题热闹可以，正文得接得住。",
       "postType": "frontier_discussion",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:creative",
       "replies": [
         {
@@ -1345,6 +1568,9 @@
       "body": "新版本可能更擅长某些任务，也可能改变输出格式和习惯。我会先用固定题集比较，再看速度、成本和边界表现。升级很期待，但保留回退路径也会让我更敢试。各位会固定留哪些题？",
       "postType": "note",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:evaluation",
       "replies": [
         {
@@ -1363,6 +1589,9 @@
       "body": "正常案例当然要展示，我也想演示一次资料缺失、一次工具失败、一次需要人工确认。真正投入使用后，这些情况迟早会出现。让人看到怎么恢复，比假装流程永远顺滑更容易建立合理预期。",
       "postType": "question",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:consulting",
       "replies": [
         {
@@ -1381,6 +1610,9 @@
       "body": "“回答准确、运行稳定”听着没问题，但现场怎么判定？我更想写成：哪组问题、允许哪些误差、响应怎么看、失败怎么办。标准先约定，演示那天就能围着证据讨论，少一点各自理解。",
       "postType": "general",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:business-flow",
       "replies": [
         {
@@ -1399,6 +1631,9 @@
       "body": "能跑通只是开始，还得知道哪些问题经常错、什么输入会失败、改动后有没有退步。给评测留时间和负责人，后面每次优化才有依据。否则很容易每周演示都觉得更聪明，却说不出好在哪里。",
       "postType": "frontier_discussion",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:cost",
       "replies": [
         {
@@ -1417,6 +1652,9 @@
       "body": "我希望日志能说明请求失败在哪一步，但不必把整份内部文件、密钥和私人信息都复制进去。先确定需要什么证据、保留多久、谁能看，再设计日志字段。事后清理通常比一开始克制更麻烦。",
       "postType": "note",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:privacy",
       "replies": [
         {
@@ -1435,6 +1673,9 @@
       "body": "按说明更新一份资料、处理一次失败、恢复一次配置，看看哪里会卡住。开发者自己觉得很自然的步骤，对接手的人可能完全没写清。我挺想把这个小演练放进交付流程。",
       "postType": "question",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:handover",
       "replies": [
         {
@@ -1453,6 +1694,9 @@
       "body": "不是说装备不重要，是我真的不想每次用之前先开五个窗口。开机、打开入口、开始干活，最好就三步。有没有人和我一样，最后最看重的是日常能不能坚持用？",
       "postType": "general",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:local-desk",
       "replies": [
         {
@@ -1471,6 +1715,9 @@
       "body": "模型、精度、上下文、并发、输入输出长度、软件版本。少一个，讨论就容易各说各话。不是不爱看漂亮数字，是想知道这个数字和自己的任务有没有关系。📎",
       "postType": "frontier_discussion",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:gpu-bench",
       "replies": [
         {
@@ -1489,6 +1736,9 @@
       "body": "只给一张启动后的占用图，我还不知道聊天变长、连续请求进来时会怎样。更想看加载、首问、长会话和退出后的变化。时间线比一个静态数字更能讲清楚问题。",
       "postType": "note",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:memory",
       "replies": [
         {
@@ -1507,6 +1757,9 @@
       "body": "开发板本体只是开始，摄像头、电源、存储、散热、转接线，一个都可能影响最后体验。准备先列完整物料表，避免包裹到齐了才发现缺一根关键小线。",
       "postType": "question",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:edge-robot",
       "replies": [
         {
@@ -1525,6 +1778,9 @@
       "body": "语音设备上有个明确的静音按钮，状态看得见，操作摸得着，会让我更愿意把它放在桌上。不是所有交互都需要更聪明，有时候更确定就很好。",
       "postType": "general",
       "category": "AI硬件",
+      "topics": [
+        "ai-hardware"
+      ],
       "image": "community:voice-glasses",
       "replies": [
         {
@@ -1543,6 +1799,9 @@
       "body": "有没有请求、失败发生在哪、用户等了多久、资源还剩多少。四个问题先答清楚，比堆一墙仪表盘更有用。漂亮曲线看够了，我现在更想知道出问题时该去哪里找。",
       "postType": "frontier_discussion",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:server-ops",
       "replies": [
         {
@@ -1561,6 +1820,9 @@
       "body": "进程活着不一定代表模型可用。准备把基础存活和轻量业务检查分开：一个看服务，一个看能不能正常响应。别用户已经发了三次问号，监控还在满屏绿色。",
       "postType": "note",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:deployment",
       "replies": [
         {
@@ -1579,6 +1841,9 @@
       "body": "更小的文件不自动意味着你的机器上更快。实际效果还受后端实现、硬件和任务影响。准备每次只改一个变量，免得同时换模型、换框架，最后不知道是谁立功。",
       "postType": "question",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:quantization",
       "replies": [
         {
@@ -1597,6 +1862,9 @@
       "body": "模型、输入、输出上限、并发和运行版本放在一起，下一次才能公平比较。漂亮数字发出去很快，别人能复跑一次才更有意思。谁有简洁好用的记录表？",
       "postType": "general",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:latency",
       "replies": [
         {
@@ -1615,6 +1883,9 @@
       "body": "第一次跑通挺开心，第二次不乱建、不覆盖、不重复导入，更像真正能用。尤其是账号和内容，想要的是补进去，不是每次把现场重新铺一遍。",
       "postType": "frontier_discussion",
       "category": "大模型部署",
+      "topics": [
+        "model-deployment"
+      ],
       "image": "community:coding",
       "replies": [
         {
@@ -1633,6 +1904,9 @@
       "body": "说明书太长的时候，我想拍下当前那页，直接问“这个灯一直闪是什么意思”。前提是型号和页面都看得清，回答还能指出对应位置。遇到电气安装之类的问题，我宁愿它提醒查原文，也别猜。",
       "postType": "note",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:multimodal",
       "replies": [
         {
@@ -1651,6 +1925,9 @@
       "body": "多个助手一起忙看着很热闹，我会先确认任务能不能拆开、输出能不能合并。要是每个人都查同一份资料，再互相解释一遍背景，可能还不如一个人做完。大家会把哪类工作放心拆出去？",
       "postType": "question",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:agents",
       "replies": [
         {
@@ -1669,6 +1946,9 @@
       "body": "我会把更新当一条完整流程验收：原文改了、索引刷新了、旧内容退出了、缓存也处理了。只看到上传成功还不够。挑一条刚改过的规则问一下，往往比盯进度条更能说明问题。",
       "postType": "general",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:rag",
       "replies": [
         {
@@ -1687,6 +1967,9 @@
       "body": "初稿哪里好、哪里不合适、下一版只改什么，写清楚以后更容易复现方向。否则一连改五轮，可能已经忘了第一张为什么喜欢。我想给常用创意任务留个小版本表，不用很复杂。",
       "postType": "frontier_discussion",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:creative",
       "replies": [
         {
@@ -1705,6 +1988,9 @@
       "body": "同样是七分，有的答案事实正确但冗长，有的是很简洁却漏掉关键条件。把扣分原因写一句，比一个平均数更能指导下一次修改。我想让评价表保持短，但至少知道问题出在哪里。",
       "postType": "note",
       "category": "AI应用",
+      "topics": [
+        "ai-applications"
+      ],
       "image": "community:evaluation",
       "replies": [
         {
@@ -1723,6 +2009,9 @@
       "body": "负责人觉得先进，和实际使用的人愿意用，是两回事。我会想找几位愿意反馈的用户，把他们一周里的使用场景看清楚。哪些结果直接用了，哪些改了很多，哪些看都没看，比一句满意更具体。",
       "postType": "question",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:consulting",
       "replies": [
         {
@@ -1741,6 +2030,9 @@
       "body": "同一个问题，三个部门给三种口径，换个更强的模型也解决不了规则冲突。我会先把冲突整理出来，请有权负责的人确定。模型可以帮忙归纳差异，但不能代替业务负责人制定制度。",
       "postType": "general",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:business-flow",
       "replies": [
         {
@@ -1759,6 +2051,9 @@
       "body": "标准流程有多少，接几个系统，资料什么状态，谁做验收，交付后支持多久，这些都会改变工作量。我更接受分项说明和明确假设。只有一个总价，双方可能从第一天就在想不同的项目。",
       "postType": "frontier_discussion",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:cost",
       "replies": [
         {
@@ -1777,6 +2072,9 @@
       "body": "删除对话、删除文件、删除索引，可能是不同动作。我希望产品说明能讲清影响范围和处理状态。用户以为已经删除，系统其实只是不再显示，这种理解差异很容易埋雷。",
       "postType": "note",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:privacy",
       "replies": [
         {
@@ -1795,6 +2093,9 @@
       "body": "第一期跑起来之后，我更想看哪些任务常用、哪些经常转人工、哪些需求反复出现。下一期按这些证据排优先级，可能比追着每个新概念跑更合适。功能可以慢慢加，先把已经承诺的事情做好。",
       "postType": "question",
       "category": "AI咨询",
+      "topics": [
+        "ai-insights"
+      ],
       "image": "community:handover",
       "replies": [
         {
@@ -1806,6 +2107,52 @@
           "body": "同意，减掉一个让人困惑的功能，有时比加三个更有帮助。"
         }
       ]
+    }
+  ],
+  "topics": [
+    {
+      "slug": "ai-hardware",
+      "name": "AI硬件",
+      "description": "交流开发板、传感器与智能硬件实践。",
+      "accent": "green"
+    },
+    {
+      "slug": "model-deployment",
+      "name": "大模型部署",
+      "description": "讨论模型部署、运行环境与服务验证。",
+      "accent": "blue"
+    },
+    {
+      "slug": "ai-applications",
+      "name": "AI应用",
+      "description": "分享 AI 应用、Agent 与综合项目经验。",
+      "accent": "purple"
+    },
+    {
+      "slug": "ai-insights",
+      "name": "AI咨询",
+      "description": "交流 AI 学习问题、技术观察与应用方向。",
+      "accent": "orange"
+    }
+  ],
+  "showcases": [
+    {
+      "key": "ai-assistant",
+      "displayName": "AI 学习助手",
+      "headline": "学习路线与入门指引",
+      "bio": "平台官方展示主页，介绍 AI 学习方向与入门资源。当前不提供在线问答服务。"
+    },
+    {
+      "key": "lab-guide",
+      "displayName": "实训指导",
+      "headline": "模拟实训与实践指引",
+      "bio": "平台官方展示主页，帮助了解模拟实训的目标、步骤和复盘方法。"
+    },
+    {
+      "key": "course-team",
+      "displayName": "课程运营",
+      "headline": "课程与教程内容指引",
+      "bio": "平台官方展示主页，介绍通识课程、教程中心与学习内容。"
     }
   ],
   "courses": [
@@ -9183,6 +9530,1708 @@
       "durationSeconds": 8
     }
   ],
+  "labs": [
+    {
+      "slug": "model-service",
+      "title": "部署你的第一个 AI 模型",
+      "summary": "模拟模型服务启动、检查与验证。",
+      "labType": "deployment",
+      "cover": "lab--model-service",
+      "category": "模型部署",
+      "level": "中级",
+      "durationMinutes": 90,
+      "icon": "server",
+      "coverVariant": "deployment",
+      "result": "可访问的模型健康检查与推理接口",
+      "skills": [
+        "Linux",
+        "Docker",
+        "API"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "部署你的第一个 AI 模型：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "部署你的第一个 AI 模型：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "部署你的第一个 AI 模型：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "部署你的第一个 AI 模型：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "部署你的第一个 AI 模型：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "部署你的第一个 AI 模型：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-7",
+          "title": "修正异常状态",
+          "description": "部署你的第一个 AI 模型：修正异常状态。",
+          "sortOrder": 6,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "修正异常状态完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-8",
+          "title": "提交实验报告",
+          "description": "部署你的第一个 AI 模型：提交实验报告。",
+          "sortOrder": 7,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "提交实验报告完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        }
+      ]
+    },
+    {
+      "slug": "campus-agent",
+      "title": "构建校园问答 AI Agent",
+      "summary": "组合检索、工具调用和来源引用。",
+      "labType": "agent",
+      "cover": "lab--campus-agent",
+      "category": "AI Agent",
+      "level": "中级",
+      "durationMinutes": 110,
+      "icon": "bot",
+      "coverVariant": "agent",
+      "result": "可追溯回答的校园知识助手",
+      "skills": [
+        "LLM",
+        "RAG",
+        "Agent"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "构建校园问答 AI Agent：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "构建校园问答 AI Agent：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "构建校园问答 AI Agent：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "构建校园问答 AI Agent：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "构建校园问答 AI Agent：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "构建校园问答 AI Agent：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-7",
+          "title": "修正异常状态",
+          "description": "构建校园问答 AI Agent：修正异常状态。",
+          "sortOrder": 6,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "修正异常状态完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        }
+      ]
+    },
+    {
+      "slug": "linux-command",
+      "title": "Linux 文件与目录命令训练",
+      "summary": "使用白名单命令完成文件与目录任务。",
+      "labType": "command",
+      "cover": "lab--linux-command",
+      "category": "Linux 命令",
+      "level": "入门",
+      "durationMinutes": 60,
+      "icon": "terminal",
+      "coverVariant": "command",
+      "result": "可复核的命令操作记录",
+      "skills": [
+        "Linux",
+        "Shell",
+        "日志"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "Linux 文件与目录命令训练：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "Linux 文件与目录命令训练：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "Linux 文件与目录命令训练：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "Linux 文件与目录命令训练：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "Linux 文件与目录命令训练：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "Linux 文件与目录命令训练：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 20
+        }
+      ]
+    },
+    {
+      "slug": "service-health",
+      "title": "模型接口健康检查",
+      "summary": "读取状态、日志和指标判断服务可用性。",
+      "labType": "deployment",
+      "cover": "lab--service-health",
+      "category": "模型部署",
+      "level": "入门",
+      "durationMinutes": 55,
+      "icon": "pulse",
+      "coverVariant": "deployment",
+      "result": "模型接口健康检查报告",
+      "skills": [
+        "API",
+        "监控",
+        "排障"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "模型接口健康检查：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "模型接口健康检查：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "模型接口健康检查：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "模型接口健康检查：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "模型接口健康检查：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "模型接口健康检查：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 20
+        }
+      ]
+    },
+    {
+      "slug": "rag-lab",
+      "title": "RAG 知识库搭建",
+      "summary": "完成资料切分、检索与引用验证。",
+      "labType": "agent",
+      "cover": "lab--rag-lab",
+      "category": "AI Agent",
+      "level": "中级",
+      "durationMinutes": 95,
+      "icon": "search",
+      "coverVariant": "agent",
+      "result": "带来源引用的知识问答流程",
+      "skills": [
+        "RAG",
+        "向量检索",
+        "评估"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "RAG 知识库搭建：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "RAG 知识库搭建：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "RAG 知识库搭建：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "RAG 知识库搭建：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "RAG 知识库搭建：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "RAG 知识库搭建：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-7",
+          "title": "修正异常状态",
+          "description": "RAG 知识库搭建：修正异常状态。",
+          "sortOrder": 6,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "修正异常状态完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        }
+      ]
+    },
+    {
+      "slug": "multi-tool-agent",
+      "title": "多工具 Agent 开发",
+      "summary": "配置工具白名单、参数校验与失败反馈。",
+      "labType": "agent",
+      "cover": "lab--multi-tool-agent",
+      "category": "AI Agent",
+      "level": "进阶",
+      "durationMinutes": 125,
+      "icon": "tool",
+      "coverVariant": "agent",
+      "result": "具备三类受控工具的智能体",
+      "skills": [
+        "Agent",
+        "Function Calling",
+        "安全"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "多工具 Agent 开发：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "多工具 Agent 开发：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "多工具 Agent 开发：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "多工具 Agent 开发：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "多工具 Agent 开发：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "多工具 Agent 开发：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-7",
+          "title": "修正异常状态",
+          "description": "多工具 Agent 开发：修正异常状态。",
+          "sortOrder": 6,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "修正异常状态完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-8",
+          "title": "提交实验报告",
+          "description": "多工具 Agent 开发：提交实验报告。",
+          "sortOrder": 7,
+          "instruction": {
+            "action": "confirm",
+            "type": "agent",
+            "expectedLog": "提交实验报告完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        }
+      ]
+    },
+    {
+      "slug": "board-structure",
+      "title": "AI 开发板结构认知",
+      "summary": "识别算力、存储、接口与供电模块。",
+      "labType": "hardware",
+      "cover": "lab--board-structure",
+      "category": "智能硬件",
+      "level": "入门",
+      "durationMinutes": 75,
+      "icon": "chip",
+      "coverVariant": "hardware",
+      "result": "硬件模块标注与连接说明",
+      "skills": [
+        "GPU",
+        "开发板",
+        "接口"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "AI 开发板结构认知：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "AI 开发板结构认知：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "AI 开发板结构认知：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "AI 开发板结构认知：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "AI 开发板结构认知：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "AI 开发板结构认知：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 20
+        }
+      ]
+    },
+    {
+      "slug": "sensor-data",
+      "title": "传感器数据采集模拟",
+      "summary": "观察温湿度数据并完成阈值判断。",
+      "labType": "hardware",
+      "cover": "lab--sensor-data",
+      "category": "智能硬件",
+      "level": "中级",
+      "durationMinutes": 80,
+      "icon": "sensor",
+      "coverVariant": "hardware",
+      "result": "传感器趋势与异常判断结果",
+      "skills": [
+        "传感器",
+        "数据",
+        "阈值"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "传感器数据采集模拟：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "传感器数据采集模拟：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "传感器数据采集模拟：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "传感器数据采集模拟：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "传感器数据采集模拟：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "传感器数据采集模拟：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "hardware",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 20
+        }
+      ]
+    },
+    {
+      "slug": "image-web",
+      "title": "图像分类 Web 应用",
+      "summary": "组合模型调用、结果展示与安全说明。",
+      "labType": "project",
+      "cover": "lab--image-web",
+      "category": "综合项目",
+      "level": "中级",
+      "durationMinutes": 180,
+      "icon": "image",
+      "coverVariant": "image",
+      "result": "可演示的图像分类 Web 页面",
+      "skills": [
+        "模型部署",
+        "Web",
+        "可视化"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "图像分类 Web 应用：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "图像分类 Web 应用：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "图像分类 Web 应用：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "图像分类 Web 应用：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "图像分类 Web 应用：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "图像分类 Web 应用：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-7",
+          "title": "修正异常状态",
+          "description": "图像分类 Web 应用：修正异常状态。",
+          "sortOrder": 6,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "修正异常状态完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        }
+      ]
+    },
+    {
+      "slug": "monitor",
+      "title": "模型服务监控演练",
+      "summary": "识别模拟告警并定位健康状态变化。",
+      "labType": "deployment",
+      "cover": "lab--monitor",
+      "category": "模型部署",
+      "level": "中级",
+      "durationMinutes": 70,
+      "icon": "chart",
+      "coverVariant": "deployment",
+      "result": "服务告警诊断与恢复记录",
+      "skills": [
+        "监控",
+        "日志",
+        "健康检查"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "模型服务监控演练：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "模型服务监控演练：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "模型服务监控演练：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "模型服务监控演练：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "模型服务监控演练：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "模型服务监控演练：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-7",
+          "title": "修正异常状态",
+          "description": "模型服务监控演练：修正异常状态。",
+          "sortOrder": 6,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "修正异常状态完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-8",
+          "title": "提交实验报告",
+          "description": "模型服务监控演练：提交实验报告。",
+          "sortOrder": 7,
+          "instruction": {
+            "action": "confirm",
+            "type": "deployment",
+            "expectedLog": "提交实验报告完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        }
+      ]
+    },
+    {
+      "slug": "git-cli",
+      "title": "Git 命令行协作入门",
+      "summary": "用安全模拟命令理解分支与提交协作。",
+      "labType": "command",
+      "cover": "lab--git-cli",
+      "category": "Linux 命令",
+      "level": "入门",
+      "durationMinutes": 55,
+      "icon": "git",
+      "coverVariant": "command",
+      "result": "清晰可追溯的协作提交记录",
+      "skills": [
+        "Git",
+        "分支",
+        "协作"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "Git 命令行协作入门：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "Git 命令行协作入门：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "Git 命令行协作入门：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "Git 命令行协作入门：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "Git 命令行协作入门：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "Git 命令行协作入门：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "command",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 20
+        }
+      ]
+    },
+    {
+      "slug": "campus-assistant",
+      "title": "校园知识助手综合项目",
+      "summary": "整合课程、资源与校园知识完成可用作品。",
+      "labType": "project",
+      "cover": "lab--campus-assistant",
+      "category": "综合项目",
+      "level": "进阶",
+      "durationMinutes": 240,
+      "icon": "graduation",
+      "coverVariant": "agent",
+      "result": "具备权限和来源说明的校园助手",
+      "skills": [
+        "LLM",
+        "RAG",
+        "前端"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "校园知识助手综合项目：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "校园知识助手综合项目：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "校园知识助手综合项目：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "校园知识助手综合项目：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "校园知识助手综合项目：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "校园知识助手综合项目：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-7",
+          "title": "修正异常状态",
+          "description": "校园知识助手综合项目：修正异常状态。",
+          "sortOrder": 6,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "修正异常状态完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 12
+        },
+        {
+          "stepKey": "step-8",
+          "title": "提交实验报告",
+          "description": "校园知识助手综合项目：提交实验报告。",
+          "sortOrder": 7,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "提交实验报告完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        }
+      ]
+    },
+    {
+      "slug": "energy-analysis",
+      "title": "宿舍用电智能分析原型",
+      "summary": "从模拟传感数据发现趋势并提出节能建议。",
+      "labType": "project",
+      "cover": "lab--energy-analysis",
+      "category": "综合项目",
+      "level": "中级",
+      "durationMinutes": 210,
+      "icon": "energy",
+      "coverVariant": "hardware",
+      "result": "用电趋势看板与节能建议",
+      "skills": [
+        "数据分析",
+        "可视化",
+        "AIoT"
+      ],
+      "steps": [
+        {
+          "stepKey": "step-1",
+          "title": "阅读任务目标",
+          "description": "宿舍用电智能分析原型：阅读任务目标。",
+          "sortOrder": 0,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "阅读任务目标完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-2",
+          "title": "检查实验环境",
+          "description": "宿舍用电智能分析原型：检查实验环境。",
+          "sortOrder": 1,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "检查实验环境完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-3",
+          "title": "配置关键参数",
+          "description": "宿舍用电智能分析原型：配置关键参数。",
+          "sortOrder": 2,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "配置关键参数完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-4",
+          "title": "执行受控操作",
+          "description": "宿舍用电智能分析原型：执行受控操作。",
+          "sortOrder": 3,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "执行受控操作完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-5",
+          "title": "观察运行日志",
+          "description": "宿舍用电智能分析原型：观察运行日志。",
+          "sortOrder": 4,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "观察运行日志完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-6",
+          "title": "验证输出结果",
+          "description": "宿舍用电智能分析原型：验证输出结果。",
+          "sortOrder": 5,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "验证输出结果完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 14
+        },
+        {
+          "stepKey": "step-7",
+          "title": "修正异常状态",
+          "description": "宿舍用电智能分析原型：修正异常状态。",
+          "sortOrder": 6,
+          "instruction": {
+            "action": "confirm",
+            "type": "project",
+            "expectedLog": "修正异常状态完成"
+          },
+          "validator": {
+            "type": "confirmation",
+            "expected": true
+          },
+          "score": 16
+        }
+      ]
+    }
+  ],
   "categories": [
     {
       "id": "resource-category-ai-foundation",
@@ -10185,6 +12234,162 @@
       "height": 900,
       "alt": "小雪检查遮住姓名后仍可能通过时间地点重新关联的数据卡",
       "kind": "illustration"
+    },
+    "lab--model-service": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--model-service.webp",
+      "bytes": 63400,
+      "sha256": "db95936182b2b38259c9e49ff795afd0e542b64cd1692e718751b7ad310ba158",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "部署你的第一个 AI 模型主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--campus-agent": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--campus-agent.webp",
+      "bytes": 79540,
+      "sha256": "299cc09c957f22cce500baa76647015ef96d09d77d69e20ee0cfbc264223740d",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "构建校园问答 AI Agent主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--linux-command": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--linux-command.webp",
+      "bytes": 79114,
+      "sha256": "d0b9b230193c781f174d8c9fbcf342332d0c9ee77128ed1d30450711760dd987",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "Linux 文件与目录命令训练主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--service-health": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--service-health.webp",
+      "bytes": 71226,
+      "sha256": "6a3d102dc1c46e7b00e48e5f8b3f312e8f18bd020005da7b8276c898caa3f414",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "模型接口健康检查主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--rag-lab": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--rag-lab.webp",
+      "bytes": 58150,
+      "sha256": "7e2ea2cafcd3aab0e6453e5e7c49943f6e01ecba5ccb9d2e7f33f36267322b4c",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "RAG 知识库搭建主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--multi-tool-agent": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--multi-tool-agent.webp",
+      "bytes": 38632,
+      "sha256": "6af22e9b65abab500fba66b5acd95b6abcfce25c53e2a7a27815afd18ba2a3c6",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "多工具 Agent 开发主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--board-structure": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--board-structure.webp",
+      "bytes": 52066,
+      "sha256": "0f921759ab90317234b478e3864418088cd87a7ec568b176905c02ec8fae31dc",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "AI 开发板结构认知主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--sensor-data": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--sensor-data.webp",
+      "bytes": 34154,
+      "sha256": "451af55000d657e0968265edac9d8bc3ea9114be94b600cc4481f4246870c311",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "传感器数据采集模拟主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--image-web": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--image-web.webp",
+      "bytes": 57698,
+      "sha256": "b46a5ebb63fb1bfe759f9a60f2b0251ad50966f24a8f0a311aa80416cb1fb736",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "图像分类 Web 应用主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--monitor": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--monitor.webp",
+      "bytes": 51734,
+      "sha256": "155d27410ead9c14c0fc1d2fb192098ae807c62a6c9e2e06056b78dcedc49d1c",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "模型服务监控演练主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--git-cli": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--git-cli.webp",
+      "bytes": 37584,
+      "sha256": "6a701ed0b40a1793008042ec6594931a32095ab7c7c4ec8ebdf2e396779cf6a1",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "Git 命令行协作入门主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--campus-assistant": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--campus-assistant.webp",
+      "bytes": 51426,
+      "sha256": "0a2c8b2c5ded940d33bda12ec1c26752b252c63cedd476544db92dde81f87dd2",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "校园知识助手综合项目主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
+    },
+    "lab--energy-analysis": {
+      "root": "packages/catalog-assets",
+      "file": "images/labs/lab--energy-analysis.webp",
+      "bytes": 54934,
+      "sha256": "130c5b18c327e386c864b0957e223348edb83949df98e0bd777fccde547d84aa",
+      "mime": "image/webp",
+      "width": 1200,
+      "height": 675,
+      "alt": "宿舍用电智能分析原型主题科技插画",
+      "kind": "cover",
+      "contentType": "lab"
     },
     "tutorial:covers/ai-literacy.jpg": {
       "root": "frontend/public/demo/resource-hub",

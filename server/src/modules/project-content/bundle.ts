@@ -5,7 +5,7 @@ import { ServiceUnavailableException } from '@nestjs/common'
 import type { PrismaClient } from '@prisma/client'
 
 export type ContentBundle = typeof import('../../../resources/project-content/content.json')
-export type ContentMedia = { root: string; file: string; bytes: number; sha256: string; mime: string; width?: number; height?: number; alt?: string; kind?: string }
+export type ContentMedia = { root: string; file: string; bytes: number; sha256: string; mime: string; width?: number; height?: number; alt?: string; kind?: string; contentType?: string }
 export const contentSource = 'project_content'
 export const completionKey = 'project_content:complete'
 export const contentRoot = path.resolve(__dirname, '../../../resources/project-content')
@@ -22,12 +22,15 @@ export async function readBundle(root = contentRoot) {
   const raw = await readFile(path.join(root, 'content.json'))
   const bundle = JSON.parse(raw.toString('utf8')) as ContentBundle
   if (sha(raw) !== manifest.sha256 || bundle.release !== manifest.release || !Number.isInteger(bundle.release) || bundle.release < 1) throw new Error('项目内容清单摘要或版本无效')
-  const forbidden = new Set(['author', 'authorId', 'ownerId', 'uploadedBy', 'profiles', 'users', 'username', 'email', 'password', 'passwordHash', 'avatar', 'school', 'learners', 'likes', 'views', 'bookmarks', 'progress', 'rating'])
+  const forbidden = new Set(['author', 'authorId', 'ownerId', 'uploadedBy', 'profiles', 'users', 'username', 'email', 'password', 'passwordHash', 'avatar', 'school', 'learners', 'likes', 'views', 'bookmarks', 'progress', 'rating', 'participants', 'completionRate', 'followerCount'])
   const check = (value: unknown) => {
     if (value && typeof value === 'object') for (const [key, child] of Object.entries(value)) { if (forbidden.has(key)) throw new Error('内容包含非白名单用户字段：' + key); check(child) }
   }
   check(bundle)
   if (bundle.community.length !== 100 || bundle.community.flatMap(p => p.replies).length !== 200 || bundle.courses.length !== 24 || bundle.courses.reduce((n, c) => n + c.chapters.reduce((m, ch) => m + ch.lessons.length, 0), 0) !== 144 || bundle.tutorials.length !== 24 || bundle.tutorials.filter(t => t.video).length !== 16) throw new Error('三类项目内容数量不完整')
+  if (bundle.labs.length !== 13 || new Set(bundle.labs.map(l => l.slug)).size !== 13 || bundle.labs.reduce((n, l) => n + l.steps.length, 0) !== 90 || bundle.labs.some(l => l.steps.reduce((n, s) => n + s.score, 0) !== 100)) throw new Error('模拟实训内容不完整')
+  if (bundle.topics.length !== 4 || new Set(bundle.topics.map(t => t.slug)).size !== 4 || bundle.community.some(p => !p.topics.length || p.topics.some(slug => !bundle.topics.some(t => t.slug === slug)))) throw new Error('社区话题关联不完整')
+  if (bundle.showcases.length !== 3 || bundle.showcases.map(p => p.key).sort().join(',') !== 'ai-assistant,course-team,lab-guide') throw new Error('官方展示主页清单无效')
   return { bundle, manifest }
 }
 /** 在任何数据库写入前检查全部文件；拒绝目录穿越与符号链接。 */

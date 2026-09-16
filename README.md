@@ -29,7 +29,7 @@
 ## 架构
 
 <p align="center">
-  <a href="docs/architecture.md"><img src="docs/assets/daily-ai-architecture.svg" alt="DAILY-AI HUB 架构：Vue 双端经 Nginx 访问 NestJS 模块化单体，使用 PostgreSQL 和文件存储；Compose 发布统一同步三类项目内容" width="100%" /></a>
+  <a href="docs/architecture.md"><img src="docs/assets/daily-ai-architecture.svg" alt="DAILY-AI HUB 架构：Vue 双端经 Nginx 访问 NestJS 模块化单体，使用 PostgreSQL 和文件存储；Compose 发布统一同步项目内容" width="100%" /></a>
 </p>
 
 <details>
@@ -79,13 +79,13 @@ node scripts/release.mjs publish --summary "本批更新摘要"
 
 ## 首次部署与增量更新
 
-**首次部署和每次增量更新，都必须同步以下三类正式内容。仅拉取 GitHub 代码不等于已更新业务库。**
+**首次部署和每次增量更新，都必须同步以下四类正式内容及社区侧栏。仅拉取 GitHub 代码不等于已更新业务库。**
 
-| 社区交流 | 通识基础 | 教程中心 |
-| --- | --- | --- |
-| 100 篇帖子 · 200 条回复 · 配图 | 24 门课程 · 144 节课时 · 72 张图片 | 24 条教程 · 封面与媒体 · 分类与公共播放列表 |
+| 社区交流 | 通识基础 | 教程中心 | 模拟实训 |
+| --- | --- | --- | --- |
+| 100 篇帖子 · 200 条回复 · 4 个话题 · 3 个无凭据官方展示主页 | 24 门课程 · 144 节课时 · 72 张图片 | 24 条教程 · 封面与媒体 · 分类与公共播放列表 | 13 项实训 · 90 个步骤 · 13 张封面 |
 
-按[部署配置](deploy/compose/README.md)准备目标环境和固定提交的镜像，再执行 `bash deploy/compose/release.sh`：备份 → 迁移 → `bootstrap` → 三类内容同步 → 校验 → 开放服务。[内容来源、同步与排查](deploy/PROJECT_CONTENT.md)适用于校园、飞牛及其他服务器。
+按[部署配置](deploy/compose/README.md)准备目标环境和固定提交的镜像，再执行 `bash deploy/compose/release.sh`：备份 → 迁移 → `bootstrap` → 内容同步 → 校验 → 开放服务。[内容来源、同步与排查](deploy/PROJECT_CONTENT.md)适用于校园、飞牛及其他服务器。
 
 保持 `LOAD_DEMO_DATA=false`，不运行 Seed 或导入测试账号。保留原账号、人工配置、业务数据、上传文件及备份；报告中 `protected` 表示保留现场内容，不能当作已更新。初始管理员由环境私有配置创建，首次开放引导前须在后台发布至少三个学习方向。
 
