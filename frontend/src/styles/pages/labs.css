@@ -1,5 +1,9 @@
-.value-pills { display: flex; flex-wrap: wrap; gap: 8px; }
-.value-pills span { padding: 8px 10px; border: 1px solid var(--border); border-radius: 99px; background: white; font-size: .76rem; }
+.value-pills { display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 10px; max-width: 440px; }
+.value-pills > span { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: 8px 6px 10px; border: 1px solid var(--amc-border); border-radius: 16px; background: var(--amc-surface); color: var(--amc-text-primary); font-size: var(--amc-font-meta); font-weight: 600; }
+.value-pills img { display: block; flex: none; width: 64px; height: 64px; object-fit: contain; }
+@media (max-width: 600px) {
+  .value-pills { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 280px; }
+}
 .featured-lab { display: grid; grid-template-columns: 300px minmax(0, 1fr) 190px; align-items: center; gap: 26px; margin: 20px 0; padding: 24px; border: 1px solid var(--border); border-radius: var(--radius-hero); background: white; box-shadow: var(--shadow); }
 .featured-lab > .category-cover { border-radius: 14px; }
 .featured-lab h2 { margin: 12px 0 6px; }

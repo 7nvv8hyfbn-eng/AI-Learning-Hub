@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
+import environmentArt from '../assets/labs/feature-environment.webp'
+import feedbackArt from '../assets/labs/feature-feedback.webp'
+import practiceArt from '../assets/labs/feature-practice.webp'
+import progressArt from '../assets/labs/feature-progress.webp'
 import AppDialog from '../components/base/AppDialog.vue'
 import AppIcon from '../components/base/AppIcon.vue'
 import CategoryCover from '../components/base/CategoryCover.vue'
@@ -43,7 +47,12 @@ onMounted(() => { void labsStore.load() })
 <template>
   <div class="page-container">
     <PageHero eyebrow="实践你的 AI 能力" title="模拟实训中心" description="在真实感云环境中动手实践，通过受控步骤、即时反馈与结果验证掌握 AI 工程技能。" visual-key="labsHeroAssetId">
-      <div class="value-pills"><span><AppIcon name="container" :size="16" />真实感环境</span><span><AppIcon name="growth" :size="16" />循序渐进</span><span><AppIcon name="check" :size="16" />即时反馈</span><span><AppIcon name="achievement" :size="16" />学以致用</span></div>
+      <div class="value-pills">
+        <span><img :src="environmentArt" width="64" height="64" alt="" />真实感环境</span>
+        <span><img :src="progressArt" width="64" height="64" alt="" />循序渐进</span>
+        <span><img :src="feedbackArt" width="64" height="64" alt="" />即时反馈</span>
+        <span><img :src="practiceArt" width="64" height="64" alt="" />学以致用</span>
+      </div>
     </PageHero>
     <div class="category-tabs" role="tablist"><button v-for="item in categories" :key="item" type="button" :class="{ active: category === item }" @click="category = item">{{ item }}</button></div>
     <section v-if="featured" class="featured-lab">
