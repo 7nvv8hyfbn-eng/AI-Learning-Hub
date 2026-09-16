@@ -16,6 +16,16 @@
 - `packages/contracts/`：跨端状态、分页及 DTO 契约。
 - `deploy/compose/`：Docker Compose 快速部署。
 
+## 开始使用
+
+| 目标 | 入口 |
+| --- | --- |
+| 快速体验完整平台 | [Docker Compose 快速部署](docs/deployment/quick-deploy.md) |
+| 从源码启动学生端、管理端与 API | [本地开发](docs/architecture.md#本地开发) |
+| 提交问题、文档或代码改进 | [贡献指南](CONTRIBUTING.md) |
+
+源码开发建议使用 Node.js 22，并准备 PostgreSQL；Compose 体验需要 Docker 和 Docker Compose，以及用于生成配置的 Node.js。开发验证命令与服务启动步骤分开说明，首次运行请先完成对应入口中的环境配置。
+
 ## 开发验证
 
 ```bash
