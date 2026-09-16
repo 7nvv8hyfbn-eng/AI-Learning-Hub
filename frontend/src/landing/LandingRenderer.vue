@@ -80,7 +80,7 @@ const learnMore = () => capabilities.value?.scrollIntoView({ behavior: window.ma
           <img class="landing-cover" :src="landingAssets.robotVision" alt="机械臂模型部署实训" width="960" height="540" decoding="async" />
           <div class="landing-card-copy"><span class="landing-tag">实训项目</span><h3>部署你的第一个 AI 模型</h3></div>
         </button>
-        <button type="button" class="landing-content-card landing-mosaic-code landing-card-code" @click="navigate('/labs/agent-workbench')">
+        <button type="button" class="landing-content-card landing-mosaic-code landing-card-code" @click="navigate('/labs/multi-tool-agent')">
           <img class="landing-cover" :src="landingAssets.aiWorkspace" alt="AI Agent 工作流" width="960" height="540" decoding="async" />
           <div class="landing-card-copy"><h3>AI Agent 智能助手开发实训</h3></div>
         </button>

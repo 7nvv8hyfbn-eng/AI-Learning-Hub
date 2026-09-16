@@ -7,9 +7,9 @@ import { authorDto, type CommunityAuthor } from '../src/modules/community/commun
 import { legacyCourseReason, type ExistingCurriculum } from '../src/modules/project-content/legacy-course'
 
 describe('正式项目内容边界', () => {
-  it('三类内容及媒体完整且无账号字段', async () => {
+  it('四类内容、社区侧栏及媒体完整且无账号字段', async () => {
     const { bundle } = await readBundle()
-    expect((await checkMedia(bundle)).size).toBe(138)
+    expect((await checkMedia(bundle)).size).toBe(151)
     expect(bundle.tutorials.filter(t => t.video).every(t => t.durationSeconds === 8)).toBe(true)
     expect(JSON.stringify(bundle)).not.toMatch(/accounts\.invalid|demo\.invalid|campus-guide-|20260001|造梦少年/)
   })
@@ -44,7 +44,7 @@ describe('正式项目内容边界', () => {
       await expect(readBundle(root)).rejects.toThrow('摘要')
       const unsafe = JSON.stringify({ ...JSON.parse(raw), users: [{ email: 'unsafe@example.invalid' }] })
       await writeFile(path.join(root, 'content.json'), unsafe)
-      await writeFile(path.join(root, 'manifest.json'), JSON.stringify({ release: 1, sha256: sha(unsafe) }))
+      await writeFile(path.join(root, 'manifest.json'), JSON.stringify({ release: JSON.parse(raw).release, sha256: sha(unsafe) }))
       await expect(readBundle(root)).rejects.toThrow('非白名单')
     } finally { await rm(root, { recursive: true, force: true }) }
   })

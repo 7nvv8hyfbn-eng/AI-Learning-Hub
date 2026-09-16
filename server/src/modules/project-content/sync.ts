@@ -1,4 +1,5 @@
-import { Prisma, PrismaClient, type CommunityPostType, type ResourceContributionKind } from '@prisma/client'
+import { Prisma, PrismaClient, type CommunityPostType, type ResourceContributionKind, type LabType } from '@prisma/client'
+import { normalizeTopicName } from '@ai-learning-hub/contracts'
 import { ConfigService } from '@nestjs/config'
 import path from 'node:path'
 import type { PrismaService } from '../../prisma/prisma.service'
@@ -10,7 +11,7 @@ import { curriculumInclude, legacyCourseReason } from './legacy-course'
 import { assertContentReady, checkMedia, completionKey, contentSource, digest, readBundle, sha,  } from './bundle'
 
 type Tx = Prisma.TransactionClient
-type Kind = 'community' | 'reply' | 'course' | 'tutorial' | 'category' | 'playlist'
+type Kind = 'community' | 'reply' | 'course' | 'tutorial' | 'category' | 'playlist' | 'lab' | 'topic' | 'showcase'
 type State = { recordId: string; release: number; desired: string; applied: string | null; status: 'synced' | 'protected' }
 type Entry = { kind: Kind; key: string; action: 'created' | 'updated' | 'unchanged' | 'protected'; reason?: string }
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
@@ -21,7 +22,7 @@ const postFields = ['id', 'authorId', 'revision', 'title', 'body', 'contentBlock
 /** 摘要只覆盖可编辑内容；互动、个人记录和访问时间不会触发覆盖或被写回。 */
 async function snapshot(tx: Tx, kind: Kind, id: string): Promise<unknown | null> {
   if (kind === 'community' || kind === 'tutorial') {
-    const row = await tx.communityPost.findUnique({ where: { id }, include: { contribution: true, bindings: true, topics: true } })
+    const row = await tx.communityPost.findUnique({ where: { id }, include: { contribution: true, bindings: true, topics: { orderBy: { topicId: 'asc' } } } })
     return row ? { ...fields(row, postFields), contribution: row.contribution, bindings: row.bindings, topics: row.topics } : null
   }
   if (kind === 'reply') {
@@ -31,6 +32,19 @@ async function snapshot(tx: Tx, kind: Kind, id: string): Promise<unknown | null>
   if (kind === 'course') {
     const row = await tx.course.findUnique({ where: { slug: id }, include: curriculumInclude })
     return row ? { ...fields(row, ['id', 'title', 'summary', 'payload', 'version', 'dataOrigin', 'coverAssetId', 'status', 'deletedAt', 'currentDraftVersionId', 'publishedVersionId', 'themeId', 'sortOrder']), versions: row.versions, coverAsset: row.coverAsset } : null
+  }
+  if (kind === 'lab') {
+    const row = await tx.lab.findUnique({ where: { slug: id }, include: { steps: { orderBy: { sortOrder: 'asc' } }, versions: { orderBy: { versionNo: 'asc' } }, coverAsset: true, tools: true, resources: true } })
+    return row ? { ...fields(row, ['id', 'title', 'summary', 'labType', 'payload', 'version', 'dataOrigin', 'coverAssetId', 'status', 'deletedAt', 'currentDraftVersionId', 'publishedVersionId', 'sortOrder']), steps: row.steps, versions: row.versions, coverAsset: row.coverAsset, tools: row.tools, resources: row.resources } : null
+  }
+  if (kind === 'topic') {
+    const row = await tx.communityTopic.findUnique({ where: { slug: id } })
+    return row ? fields(row, ['id', 'slug', 'name', 'normalizedName', 'description', 'accent', 'themeId', 'status', 'recommended', 'sortOrder']) : null
+  }
+  if (kind === 'showcase') {
+    const row = await tx.user.findUnique({ where: { id: 'platform-' + id }, include: { communityProfile: true, userRoles: { orderBy: { roleId: 'asc' }, include: { role: { include: { permissions: { orderBy: { permissionId: 'asc' } } } } } } } })
+    return row ? { ...fields(row, ['id', 'username', 'displayName', 'email', 'passwordHash', 'status', 'userType', 'registrationSource', 'revision', 'profile']),
+      communityProfile: row.communityProfile ? fields(row.communityProfile, ['revision', 'bio', 'headline', 'avatarFileId', 'bannerFileId', 'location', 'websiteUrl', 'pinnedPostId', 'verifiedType', 'expertiseTopics', 'customBadges', 'hiddenAutomaticBadges']) : null, userRoles: row.userRoles } : null
   }
   if (kind === 'category') return tx.resourceCategory.findUnique({ where: { code: id } })
   return tx.learningCollection.findUnique({ where: { id }, include: { items: { orderBy: { sortOrder: 'asc' } } } })
@@ -73,14 +87,16 @@ export async function syncProjectContent(prisma: PrismaClient, options: { previe
         if (existing.deletedAt || existing.status !== 'active') throw new Error('项目素材已被停用，请处理素材冲突：' + key)
         assets.set(key, existing.id); return existing.id
       }
-      const created = await tx.mediaAsset.create({ data: { assetKey: 'project--' + source.sha256, fileId, name: source.alt || key, kind: source.kind === 'illustration' ? 'illustration' : 'cover', source: 'image2_seed', contentType: 'course', width: source.width!, height: source.height!, altText: source.alt || key, createdBy: admin!.id } })
+      const created = await tx.mediaAsset.create({ data: { assetKey: 'project--' + source.sha256, fileId, name: source.alt || key, kind: source.kind === 'illustration' ? 'illustration' : 'cover', source: 'image2_seed', contentType: source.contentType || 'course', width: source.width!, height: source.height!, altText: source.alt || key, createdBy: admin!.id } })
       assets.set(key, created.id); return created.id
     }
     // 素材上传会申请存储锁，必须先完成上传，再取得引用锁并写入内容。
     if (!options.preview) for (const key of media.keys()) await file(key)
     if (!options.preview) await lockFileReferences(tx)
     // 同步期间允许读取；编辑事务等待，避免摘要检查后被并发人工写入。
-    if (!options.preview) await tx.$executeRawUnsafe('LOCK TABLE community_posts, community_comments, courses, course_versions, course_chapters, course_lessons, lesson_blocks, resource_contributions, resource_categories, learning_collections, learning_collection_items IN SHARE ROW EXCLUSIVE MODE')
+    if (!options.preview) await tx.$executeRawUnsafe('LOCK TABLE community_posts, community_comments, community_topics, community_post_topics, users, user_roles, roles, role_permissions, community_profiles, labs, lab_steps, lab_versions, lab_tool_bindings, lab_resources, courses, course_versions, course_chapters, course_lessons, lesson_blocks, resource_contributions, resource_categories, learning_collections, learning_collection_items IN SHARE ROW EXCLUSIVE MODE')
+    const officialRole = await tx.role.findUnique({ where: { code: 'community_official' }, include: { _count: { select: { permissions: true } } } })
+    if (!officialRole || officialRole._count.permissions) throw new Error('官方展示主页要求已有的 community_official 身份角色且不含任何管理权限')
     async function item(kind: Kind, key: string, desired: unknown, legacy: () => Promise<string | null>, write: (present: boolean) => Promise<void>, prerequisite?: string) {
       const settingKey = 'project_content:item:' + kind + ':' + key
       const saved = await tx.systemSetting.findUnique({ where: { key: settingKey } })
@@ -89,7 +105,7 @@ export async function syncProjectContent(prisma: PrismaClient, options: { previe
       if (state && state.release > bundle.release) throw new Error('条目版本高于当前发布：' + key)
       let reason = prerequisite || (state?.status === 'protected' ? '已记录人工修改或删除' : state && digest(current) !== state.applied ? (current ? '内容已人工修改或下架' : '内容已删除，不复活') : '')
       if (!state && current && !reason) reason = await legacy() || ''
-      const versionKind = kind === 'course' ? 'courses' : ['community', 'reply'].includes(kind) ? 'community' : 'tutorials'
+      const versionKind = kind === 'course' ? 'courses' : kind === 'lab' ? 'labs' : ['community', 'reply', 'topic', 'showcase'].includes(kind) ? 'community' : 'tutorials'
       if (state?.status === 'synced' && !reason && state.desired !== wanted && bundle.versions[versionKind] <= Number(object(previous.versions)[versionKind] || 0)) throw new Error('内容已改变但分类版本未递增：' + key)
       const action: Entry['action'] = reason ? 'protected' : state && state.desired === wanted ? 'unchanged' : current ? 'updated' : 'created'
       entries.push({ kind, key, action, ...(reason ? { reason } : {}) })
@@ -104,6 +120,27 @@ export async function syncProjectContent(prisma: PrismaClient, options: { previe
       const row = present ? await tx.communityPost.update({ where: { id }, data: { ...data, id: undefined, revision: { increment: 1 } } }) : await tx.communityPost.create({ data })
       await tx.communityPostRevision.create({ data: { postId: id, revisionNo: row.revision, editorId: admin!.id, editorType: 'import', titleSnapshot: row.title, contentBlocksSnapshot: json(row.contentBlocks), bindingsSnapshot: [], topicIdsSnapshot: [], visibilitySnapshot: row.visibility, statusSnapshot: row.status, reason: '项目内容版本 ' + bundle.release } })
     }
+    const protectedTopics = new Set<string>()
+    for (const [sortOrder, t] of bundle.topics.entries()) {
+      const normalizedName = normalizeTopicName(t.name)
+      const collision = await tx.communityTopic.findFirst({ where: { slug: { not: t.slug }, OR: [{ normalizedName }, { name: t.name }] } })
+      const action = await item('topic', t.slug, t, async () => '已有同名话题，不接管人工内容', async present => {
+        const data = { ...t, normalizedName, recommended: true, sortOrder }
+        if (present) await tx.communityTopic.update({ where: { slug: t.slug }, data })
+        else await tx.communityTopic.create({ data })
+      }, collision ? '已有同名话题，不接管人工内容' : undefined)
+      if (action === 'protected') protectedTopics.add(t.slug)
+    }
+    for (const s of bundle.showcases) {
+      const id = 'platform-' + s.key, email = id + '@example.invalid'
+      const collision = await tx.user.findFirst({ where: { id: { not: id }, OR: [{ username: id }, { email }] }, select: { id: true } })
+      await item('showcase', s.key, s, async () => '已有同名账号，不接管或修改身份', async present => {
+        const profile = { bio: s.bio, headline: s.headline }
+        if (present) await tx.user.update({ where: { id }, data: { displayName: s.displayName, communityProfile: { update: { ...profile, revision: { increment: 1 } } } } })
+        else await tx.user.create({ data: { id, username: id, email, displayName: s.displayName, passwordHash: null, registrationSource: 'project_content_showcase',
+          userRoles: { create: { roleId: officialRole.id } }, communityProfile: { create: { ...profile, verifiedType: 'official' } } } })
+      }, collision ? '展示标识与已有账号冲突，不创建或赋权' : undefined)
+    }
     for (const p of bundle.community) {
       const action = await item('community', p.id, p, async () => {
         const oldPost = await tx.communityPost.findUniqueOrThrow({ where: { id: p.id } })
@@ -112,8 +149,13 @@ export async function syncProjectContent(prisma: PrismaClient, options: { previe
       }, async present => {
         const blocks = [{ type: 'paragraph', text: p.body }, { type: 'image', fileId: await file(p.image), alt: p.category + '原创概念配图' }]
         await savePost(p.id, present, { id: p.id, authorId: admin.id, title: p.title, body: p.body, plainText: p.body, contentBlocks: blocks, contentHash: sha(p.body.replace(/\s+/g, '').toLowerCase()), postType: p.postType as CommunityPostType, status: 'published', visibility: 'public', portalConsent: true, sourceType: contentSource, sourceId: p.id, schoolId: null, labels: [p.category], ...(!present ? { publishedAt: new Date(), commentCount: 2 } : {}) })
+        await tx.communityPostTopic.deleteMany({ where: { postId: p.id } })
+        for (const slug of p.topics) {
+          const topic = await tx.communityTopic.findUniqueOrThrow({ where: { slug } })
+          await tx.communityPostTopic.create({ data: { postId: p.id, topicId: topic.id, manual: false } })
+        }
         if (p.postType === 'question') await tx.communityQuestionState.upsert({ where: { postId: p.id }, create: { postId: p.id, status: 'open' }, update: {} })
-      })
+      }, p.topics.some(slug => protectedTopics.has(slug)) ? '关联话题有人工冲突，保留帖子' : undefined)
       for (const [index, r] of p.replies.entries()) await item('reply', r.id, r, async () => {
         const oldReply = await tx.communityComment.findUniqueOrThrow({ where: { id: r.id } })
         return oldReply.postId === p.id && oldReply.body === r.body && oldReply.revision === 1 && oldReply.status === 'published' && !oldReply.deletedAt && action !== 'protected' ? null : '旧回复已修改或归属未确认'
@@ -123,6 +165,25 @@ export async function syncProjectContent(prisma: PrismaClient, options: { previe
         else await tx.communityComment.create({ data: { ...data, id: r.id, postId: p.id, ...(index ? { parentId: p.replies[0]!.id, rootId: p.replies[0]!.id } : {}) } })
       }, action === 'protected' ? '所属帖子保留现场状态' : undefined)
     }
+    if (!options.preview) for (const t of bundle.topics.filter(t => !protectedTopics.has(t.slug))) {
+      const topic = await tx.communityTopic.findUniqueOrThrow({ where: { slug: t.slug } })
+      const postCount = await tx.communityPostTopic.count({ where: { topicId: topic.id, post: { status: 'published', deletedAt: null } } })
+      if (topic.postCount !== postCount) await tx.communityTopic.update({ where: { id: topic.id }, data: { postCount } })
+    }
+    for (const [sortOrder, l] of bundle.labs.entries()) await item('lab', l.slug, l, async () => '已有同名实训，不接管人工内容或历史 Seed', async present => {
+      const coverAssetId = await asset(l.cover)
+      const payload = { coverAssetId, category: l.category, level: l.level, durationMinutes: l.durationMinutes, icon: l.icon, coverVariant: l.coverVariant,
+        steps: l.steps.length, result: l.result, skills: l.skills, objective: l.result, hints: ['先阅读任务目标', '按步骤完成模拟操作', '用结果面板核对输出'],
+        scoring: [{ label: '完成全部模拟步骤', points: 100 }] }
+      const data = { title: l.title, summary: l.summary, labType: l.labType as LabType, dataOrigin: contentSource, sortOrder, coverAssetId, payload }
+      const lab = present ? await tx.lab.update({ where: { slug: l.slug }, data: { ...data, version: { increment: 1 } } }) : await tx.lab.create({ data: { slug: l.slug, ...data } })
+      await tx.labStep.deleteMany({ where: { labId: lab.id } })
+      await tx.labStep.createMany({ data: l.steps.map(s => ({ labId: lab.id, ...s })) })
+      const steps = await tx.labStep.findMany({ where: { labId: lab.id }, orderBy: { sortOrder: 'asc' } })
+      const last = await tx.labVersion.aggregate({ where: { labId: lab.id }, _max: { versionNo: true } })
+      const version = await tx.labVersion.create({ data: { labId: lab.id, versionNo: (last._max.versionNo || 0) + 1, snapshot: json({ title: l.title, summary: l.summary, data: payload, labType: l.labType, steps, tools: [], resources: [], projectContentVersion: bundle.versions.labs }) } })
+      await tx.lab.update({ where: { id: lab.id }, data: { status: 'published', publishedAt: new Date(), currentDraftVersionId: version.id, publishedVersionId: version.id } })
+    })
     for (const c of bundle.courses) await item('course', c.slug, c, async () => legacyCourseReason(tx, await tx.course.findUnique({ where: { slug: c.slug }, include: curriculumInclude }), c, bundle.media), async present => {
       const course = present ? await tx.course.findUniqueOrThrow({ where: { slug: c.slug } }) : await tx.course.create({ data: { slug: c.slug, title: c.title, summary: c.summary, dataOrigin: contentSource } })
       const coverAssetId = await asset(c.cover)

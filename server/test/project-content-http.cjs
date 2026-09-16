@@ -35,6 +35,40 @@ module.exports = async function verifyHttp(db, bundle) {
     const post = await request('/community/posts/' + bundle.community[4].id); assert.equal(post.status, 200, post.message); assert.equal(post.data.author.kind, 'platform'); safe(post.data)
     const feed = await request('/community/feed?limit=20'); assert.equal(feed.status, 200, feed.message); assert(feed.data.items.filter(item => item.type === 'post').length > 2, '平台内容不应被单一作者限额截断')
     const comments = await request('/community/posts/' + bundle.community[4].id + '/comments'); assert.equal(comments.status, 200, comments.message); safe(comments.data)
+    const context = await request('/community/context'); assert.equal(context.status, 200, context.message); safe(context.data)
+    assert.equal(context.data.trendingTopics.length, 4); assert.equal(context.data.suggestedUsers.length, 3)
+    for (const topic of context.data.trendingTopics) {
+      assert.equal(topic.postCount, 25)
+      const posts = await request('/community/topics/' + topic.slug + '/posts?limit=30')
+      assert.equal(posts.status, 200, posts.message); assert(posts.data.items.length > 0)
+    }
+    for (const person of context.data.suggestedUsers) {
+      assert.equal(person.verifiedType, 'official'); assert(person.badges.some(b => b.code === 'official'))
+      const profile = await request('/community/users/' + person.id)
+      assert.equal(profile.status, 200, profile.message); safe(profile.data)
+      assert(profile.data.bio.includes('平台官方展示主页')); assert(!JSON.stringify(profile.data).includes('@example.invalid'))
+      const denied = await request('/auth/login', 'POST', { identifier: person.username, password }, true)
+      assert.equal(denied.status, 401)
+    }
+    const labList = await request('/labs?pageSize=100', 'GET', undefined, true)
+    assert.equal(labList.status, 200, labList.message); assert.equal(labList.data.total, 13)
+    for (const lab of bundle.labs) {
+      const detail = await request('/labs/' + lab.slug, 'GET', undefined, true)
+      assert.equal(detail.status, 200, detail.message); assert.equal(detail.data.steps.length, lab.steps.length)
+      const cover = await fetch(new URL(detail.data.data.cover, origin)); assert.equal(cover.status, 200); assert((await cover.arrayBuffer()).byteLength > 100)
+      const start = await request('/labs/' + lab.slug + '/runs', 'POST')
+      assert.equal(start.status, 201, start.message)
+      const runId = start.data.id
+      const running = await request('/lab-runs/' + runId + '/actions', 'POST', { action: 'run' }); assert.equal(running.status, 201, running.message)
+      for (const step of lab.steps) {
+        const result = await request('/lab-runs/' + runId + '/actions', 'POST', { action: step.instruction.action })
+        assert.equal(result.status, 201, result.message)
+      }
+      const result = await request('/lab-runs/' + runId)
+      assert.equal(result.data.status, 'success'); assert.equal(result.data.progress, 100); assert.equal(result.data.score, 100)
+      const submission = await request('/lab-runs/' + runId + '/submit', 'POST'); assert.equal(submission.status, 201, submission.message)
+    }
+    console.log('PASS 真实 HTTP：4个有帖话题、3个官方主页可访问且不能登录、13项实训90步全部完成并提交')
     for (const course of bundle.courses) {
       const result = await request('/courses/' + course.slug); assert.equal(result.status, 200, result.message); safe(result.data)
       assert.equal(result.data.chapters.reduce((n, ch) => n + ch.lessons.length, 0), 6)
