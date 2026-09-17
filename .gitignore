@@ -11,3 +11,8 @@ design/
 **/dist/
 **/*.tsbuildinfo
 server/var/
+
+# 本地比赛资料，不推送到远端
+/Daily/世校赛备赛攻略笔记_0905.md
+/Daily/世赛演示检查清单.md
+/Daily/世赛路演脚本.md
